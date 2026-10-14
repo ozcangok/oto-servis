@@ -1,0 +1,36 @@
+{
+  "name": "@oto-servis/electron",
+  "version": "1.0.0",
+  "main": "main.cjs",
+  "scripts": {
+    "start": "electron .",
+    "dist:win": "electron-builder --win nsis"
+  },
+  "build": {
+    "appId": "com.otoservis.app",
+    "productName": "Oto Servis Yonetimi",
+    "directories": {
+      "output": "dist-electron"
+    },
+    "win": {
+      "target": "nsis"
+    },
+    "nsis": {
+      "oneClick": false,
+      "allowToChangeInstallationDirectory": true,
+      "createDesktopShortcut": true,
+      "createStartMenuShortcut": true,
+      "shortcutName": "Oto Servis"
+    },
+    "files": [
+      "main.cjs",
+      "../server/dist/**/*",
+      "../server/node_modules/**/*",
+      "../client/dist/**/*"
+    ]
+  },
+  "devDependencies": {
+    "electron": "^30.0.1",
+    "electron-builder": "^24.13.3"
+  }
+}

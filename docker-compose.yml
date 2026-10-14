@@ -1,0 +1,27 @@
+version: '3.8'
+
+services:
+  oto-servis:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: oto-servis-app
+    restart: unless-stopped
+    ports:
+      - "3001:3001"
+    environment:
+      - NODE_ENV=production
+      - PORT=3001
+      - HOST=0.0.0.0
+      - DATA_DIR=/app/data
+      - BACKUP_DIR=/app/backups
+      - TZ=Europe/Istanbul
+    volumes:
+      - ./data:/app/data
+      - ./uploads:/app/uploads
+      - ./backups:/app/backups
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://localhost:3001/api/health"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
