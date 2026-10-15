@@ -2,6 +2,8 @@ import React, { useState, useEffect } from 'react';
 import { apiRequest, setAuthToken } from './services/api.js';
 import { AuthModal } from './components/AuthModal.js';
 import { VehicleSearchScreen } from './screens/VehicleSearchScreen.js';
+import { CustomersScreen } from './screens/CustomersScreen.js';
+import { VehiclesScreen } from './screens/VehiclesScreen.js';
 import { WorkOrderScreen } from './screens/WorkOrderScreen.js';
 import { PartsScreen } from './screens/PartsScreen.js';
 import { CustomerAccountsScreen } from './screens/CustomerAccountsScreen.js';
@@ -12,7 +14,7 @@ import { SettingsScreen } from './screens/SettingsScreen.js';
 export function App() {
   const [currentUser, setCurrentUser] = useState<any | null>(null);
   const [authChecked, setAuthChecked] = useState(false);
-  const [activeTab, setActiveTab] = useState<'sorgu' | 'parca' | 'cari' | 'kasa' | 'hatir'>('sorgu');
+  const [activeTab, setActiveTab] = useState<'sorgu' | 'arac' | 'musteri' | 'parca' | 'cari' | 'kasa' | 'hatir'>('sorgu');
 
   // Work order sheet modal state
   const [workOrderModalOpen, setWorkOrderModalOpen] = useState(false);
@@ -208,6 +210,22 @@ export function App() {
             <button
               className="tab"
               role="tab"
+              aria-selected={activeTab === 'arac'}
+              onClick={() => setActiveTab('arac')}
+            >
+              Araçlar
+            </button>
+            <button
+              className="tab"
+              role="tab"
+              aria-selected={activeTab === 'musteri'}
+              onClick={() => setActiveTab('musteri')}
+            >
+              Müşteriler
+            </button>
+            <button
+              className="tab"
+              role="tab"
               aria-selected={activeTab === 'parca'}
               onClick={() => setActiveTab('parca')}
             >
@@ -252,6 +270,12 @@ export function App() {
             onNavigateToParts={() => setActiveTab('parca')}
           />
         )}
+
+        {activeTab === 'arac' && (
+          <VehiclesScreen onNewWorkOrder={(p) => handleNewWorkOrder(p)} />
+        )}
+
+        {activeTab === 'musteri' && <CustomersScreen />}
 
         {activeTab === 'parca' && <PartsScreen />}
 

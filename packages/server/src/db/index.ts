@@ -19,6 +19,10 @@ export function initDatabase(options: InitDbOptions = {}) {
     dbFilePath = ':memory:';
   } else if (options.dbPath) {
     dbFilePath = options.dbPath;
+    const parentDir = path.dirname(dbFilePath);
+    if (parentDir && parentDir !== ':memory:' && !fs.existsSync(parentDir)) {
+      fs.mkdirSync(parentDir, { recursive: true });
+    }
   } else {
     const dataDir = process.env.DATA_DIR || path.join(process.cwd(), 'data');
     if (!fs.existsSync(dataDir)) {
@@ -259,6 +263,12 @@ export function bootstrapSchema(sqlite: Database.Database) {
     CREATE INDEX IF NOT EXISTS idx_audit_log_hedef_tablo ON audit_log(hedef_tablo);
     CREATE INDEX IF NOT EXISTS idx_audit_log_islem ON audit_log(islem);
     CREATE INDEX IF NOT EXISTS idx_audit_log_created_at ON audit_log(created_at);
+  `);
+
+  // Normalize legacy status spellings to canonical ASCII values
+  sqlite.exec(`
+    UPDATE work_orders SET durum = 'onarimda' WHERE durum = 'onarımda';
+    UPDATE work_orders SET durum = 'teslime_hazir' WHERE durum = 'tamamlandı';
   `);
 }
 

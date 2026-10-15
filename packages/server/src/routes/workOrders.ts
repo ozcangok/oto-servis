@@ -15,6 +15,7 @@ import {
   users,
   parts
 } from '../db/index.js';
+import { withVehicleAliases, withOrderAliases, flattenOrderContext, normalizePaymentMethod, getPesinRate } from '../services/responseCompat.js';
 import {
   applyWorkOrderStockDelta,
   reverseWorkOrderStock
@@ -36,12 +37,15 @@ const lineItemSchema = z.object({
 const workOrderCreateSchema = z.object({
   arac_id: z.number().int().positive('Araç seçimi zorunludur.'),
   km: z.number().int().min(0).default(0),
+  kilometre: z.number().int().min(0).optional().nullable(), // istemci takma adı
+  giris_tarihi: z.string().optional().nullable(), // istemci takma adı (tarih)
   durum: z.enum(['kabul', 'onarimda', 'teslime_hazir', 'teslim_edildi']).default('kabul'),
   sikayet: z.string().min(1, 'Müşteri şikayeti/talep giriniz.'),
   kdv_orani: z.number().int().min(0).max(100).default(20),
   kdv_dahil_mi: z.boolean().default(false),
   iskonto_yuzde: z.number().int().min(0).max(100).default(0),
   iskonto_tutar_kurus: z.number().int().min(0).default(0),
+  pesin_iskonto_yuzde: z.number().min(0).max(100).optional().nullable(),
   pesin_fiyat_elle_kurus: z.number().int().min(0).optional().nullable(),
   sonraki_bakim_tarihi: z.string().optional().nullable(),
   sonraki_bakim_km: z.number().int().min(0).optional().nullable(),
@@ -102,6 +106,7 @@ export const workOrderRoutes: FastifyPluginAsync = async (fastify) => {
       .all();
 
     const isMechanic = request.user!.role === 'mechanic';
+    const pesinRate = await getPesinRate();
 
     const items = orders.map(({ workOrder, vehicle, customer }) => {
       // Get lines
@@ -127,22 +132,27 @@ export const workOrderRoutes: FastifyPluginAsync = async (fastify) => {
         iskonto_yuzde: workOrder.iskonto_yuzde,
         iskonto_tutar_kurus: workOrder.iskonto_tutar_kurus,
         pesin_fiyat_elle_kurus: workOrder.pesin_fiyat_elle_kurus,
+        pesin_iskonto_yuzde: pesinRate,
         odenen_kurus: totalPaid
       });
 
-      return {
-        ...workOrder,
-        arac: vehicle ? { ...vehicle, musteri: customer } : undefined,
-        kalem_sayisi: lines.length,
-        // Hide financial details from mechanics
-        toplam_kurus: isMechanic ? undefined : calc.toplam_kurus,
-        net_kurus: isMechanic ? undefined : calc.net_kurus,
-        kdv_tutar_kurus: isMechanic ? undefined : calc.kdv_tutar_kurus,
-        brut_kurus: isMechanic ? undefined : calc.brut_kurus,
-        pesin_fiyat_kurus: isMechanic ? undefined : calc.pesin_fiyat_kurus,
-        odenen_kurus: isMechanic ? undefined : totalPaid,
-        kalan_kurus: isMechanic ? undefined : calc.kalan_kurus
-      };
+      return withOrderAliases(
+        {
+          ...workOrder,
+          arac: vehicle ? { ...withVehicleAliases(vehicle), musteri: customer } : undefined,
+          kalem_sayisi: lines.length,
+          // Hide financial details from mechanics
+          toplam_kurus: isMechanic ? undefined : calc.toplam_kurus,
+          net_kurus: isMechanic ? undefined : calc.net_kurus,
+          kdv_tutar_kurus: isMechanic ? undefined : calc.kdv_tutar_kurus,
+          iskonto_kurus: isMechanic ? undefined : calc.iskonto_kurus,
+          brut_kurus: isMechanic ? undefined : calc.brut_kurus,
+          pesin_fiyat_kurus: isMechanic ? undefined : calc.pesin_fiyat_kurus,
+          odenen_kurus: isMechanic ? undefined : totalPaid,
+          kalan_kurus: isMechanic ? undefined : calc.kalan_kurus
+        },
+        flattenOrderContext(vehicle, customer)
+      );
     });
 
     return {
@@ -209,6 +219,7 @@ export const workOrderRoutes: FastifyPluginAsync = async (fastify) => {
 
     const isMechanic = request.user!.role === 'mechanic';
     const totalPaid = orderPayments.reduce((s, p) => s + p.tutar_kurus, 0);
+    const pesinRate = await getPesinRate();
 
     const calc = calculateWorkOrderTotals({
       lines: lines.map((l) => ({ adet: l.adet, birim_fiyat_kuruş: l.birim_fiyat_kurus })),
@@ -217,6 +228,7 @@ export const workOrderRoutes: FastifyPluginAsync = async (fastify) => {
       iskonto_yuzde: row.workOrder.iskonto_yuzde,
       iskonto_tutar_kurus: row.workOrder.iskonto_tutar_kurus,
       pesin_fiyat_elle_kurus: row.workOrder.pesin_fiyat_elle_kurus,
+      pesin_iskonto_yuzde: pesinRate,
       odenen_kurus: totalPaid
     });
 
@@ -227,23 +239,26 @@ export const workOrderRoutes: FastifyPluginAsync = async (fastify) => {
 
     return {
       success: true,
-      workOrder: {
-        ...row.workOrder,
-        arac: row.vehicle ? { ...row.vehicle, musteri: row.customer } : undefined,
-        olusturan: row.creator ? { id: row.creator.id, full_name: row.creator.full_name, username: row.creator.username } : undefined,
-        kalemler: safeLines,
-        odemeler: isMechanic ? [] : orderPayments,
-        fotograflar: orderPhotos,
-        toplam_kurus: isMechanic ? undefined : calc.toplam_kurus,
-        iskonto_kurus: isMechanic ? undefined : calc.iskonto_kurus,
-        net_kurus: isMechanic ? undefined : calc.net_kurus,
-        kdv_tutar_kurus: isMechanic ? undefined : calc.kdv_tutar_kurus,
-        brut_kurus: isMechanic ? undefined : calc.brut_kurus,
-        pesin_fiyat_kurus: isMechanic ? undefined : calc.pesin_fiyat_kurus,
-        odenen_kurus: isMechanic ? undefined : totalPaid,
-        kalan_kurus: isMechanic ? undefined : calc.kalan_kurus,
-        pesin_kalan_kurus: isMechanic ? undefined : calc.pesin_kalan_kurus
-      }
+      workOrder: withOrderAliases(
+        {
+          ...row.workOrder,
+          arac: row.vehicle ? { ...withVehicleAliases(row.vehicle), musteri: row.customer } : undefined,
+          olusturan: row.creator ? { id: row.creator.id, full_name: row.creator.full_name, username: row.creator.username } : undefined,
+          kalemler: safeLines,
+          odemeler: isMechanic ? [] : orderPayments,
+          fotograflar: orderPhotos,
+          toplam_kurus: isMechanic ? undefined : calc.toplam_kurus,
+          iskonto_kurus: isMechanic ? undefined : calc.iskonto_kurus,
+          net_kurus: isMechanic ? undefined : calc.net_kurus,
+          kdv_tutar_kurus: isMechanic ? undefined : calc.kdv_tutar_kurus,
+          brut_kurus: isMechanic ? undefined : calc.brut_kurus,
+          pesin_fiyat_kurus: isMechanic ? undefined : calc.pesin_fiyat_kurus,
+          odenen_kurus: isMechanic ? undefined : totalPaid,
+          kalan_kurus: isMechanic ? undefined : calc.kalan_kurus,
+          pesin_kalan_kurus: isMechanic ? undefined : calc.pesin_kalan_kurus
+        },
+        flattenOrderContext(row.vehicle, row.customer)
+      )
     };
   });
 
@@ -282,8 +297,8 @@ export const workOrderRoutes: FastifyPluginAsync = async (fastify) => {
       // 1. Insert work order
       const newOrder = db.insert(workOrders).values({
         arac_id: parse.data.arac_id,
-        tarih: now,
-        km: parse.data.km,
+        tarih: parse.data.giris_tarihi || now,
+        km: parse.data.kilometre ?? parse.data.km,
         durum: parse.data.durum,
         sikayet: parse.data.sikayet.trim(),
         kdv_orani: parse.data.kdv_orani,
@@ -382,7 +397,8 @@ export const workOrderRoutes: FastifyPluginAsync = async (fastify) => {
     const updated = sqlite.transaction(() => {
       // 1. Update work order main record
       const upd = db.update(workOrders).set({
-        km: parse.data.km,
+        km: parse.data.kilometre ?? parse.data.km,
+        ...(parse.data.giris_tarihi ? { tarih: parse.data.giris_tarihi } : {}),
         durum: parse.data.durum,
         sikayet: parse.data.sikayet.trim(),
         kdv_orani: parse.data.kdv_orani,
@@ -441,6 +457,116 @@ export const workOrderRoutes: FastifyPluginAsync = async (fastify) => {
     return { success: true, workOrder: updated, warnings };
   });
 
+  // Update work order status only (used by stage dropdowns and quick actions)
+  fastify.put('/:id/status', {
+    schema: {
+      tags: ['İş Emirleri'],
+      summary: 'İş emri durumunu güncelle'
+    }
+  }, async (request, reply) => {
+    const id = Number((request.params as any).id);
+    const body = (request.body as any) || {};
+    const durum = body.durum;
+
+    if (!['kabul', 'onarimda', 'onarımda', 'tamamlandı', 'teslime_hazir', 'teslim_edildi'].includes(durum)) {
+      return reply.status(400).send({ success: false, error: 'Geçersiz servis durumu.' });
+    }
+
+    // Normalize legacy/alternate spellings to canonical DB values
+    const canonical =
+      durum === 'onarımda' ? 'onarimda'
+      : durum === 'tamamlandı' ? 'teslime_hazir'
+      : durum;
+
+    const db = getDb();
+    const existing = db
+      .select()
+      .from(workOrders)
+      .where(and(eq(workOrders.id, id), isNull(workOrders.deleted_at)))
+      .get();
+
+    if (!existing) {
+      return reply.status(404).send({ success: false, error: 'İş emri bulunamadı.' });
+    }
+
+    const now = new Date().toISOString();
+    const updated = db.update(workOrders).set({
+      durum: canonical,
+      ...(body.kapanis_tarihi ? { kapanis_tarihi: body.kapanis_tarihi } : {}),
+      ...(canonical === 'teslim_edildi' && !existing.kapanis_tarihi && !body.kapanis_tarihi
+        ? { kapanis_tarihi: now }
+        : {}),
+      updated_at: now
+    }).where(eq(workOrders.id, id)).returning().get();
+
+    await logAudit({
+      kullanici_id: request.user!.id,
+      kullanici_adi: request.user!.username,
+      islem: 'work_order_update',
+      hedef_tablo: 'work_orders',
+      hedef_id: id,
+      eski_deger: { durum: existing.durum },
+      yeni_deger: { durum: updated.durum },
+      detay: `İş emri durumu güncellendi #${id}: ${updated.durum}`
+    });
+
+    return { success: true, workOrder: withOrderAliases(updated, {}) };
+  });
+
+  // Add payment to work order (used by "Ödeme ekle" dialogs)
+  fastify.post('/:id/payments', {
+    schema: {
+      tags: ['İş Emirleri'],
+      summary: 'İş emrine ödeme ekle'
+    }
+  }, async (request, reply) => {
+    if (request.user!.role === 'mechanic') {
+      return reply.status(403).send({ success: false, error: 'Usta rolü ödeme işlemi yapamaz.' });
+    }
+
+    const id = Number((request.params as any).id);
+    const body = (request.body as any) || {};
+    const tutar = body.tutar_kurus;
+
+    if (!Number.isInteger(tutar) || tutar <= 0) {
+      return reply.status(400).send({ success: false, error: 'Ödeme tutarı 0\'dan büyük olmalıdır.' });
+    }
+
+    const db = getDb();
+    const order = db
+      .select()
+      .from(workOrders)
+      .where(and(eq(workOrders.id, id), isNull(workOrders.deleted_at)))
+      .get();
+
+    if (!order) {
+      return reply.status(404).send({ success: false, error: 'İş emri bulunamadı.' });
+    }
+
+    const now = new Date().toISOString();
+    const newPayment = db.insert(payments).values({
+      is_emri_id: id,
+      tarih: body.odeme_tarihi || body.tarih || now,
+      tutar_kurus: tutar,
+      yontem: normalizePaymentMethod(body.odeme_yontemi ?? body.yontem),
+      kullanici_id: request.user!.id,
+      notlar: body.notlar?.trim() || null,
+      created_at: now
+    }).returning().get();
+
+    await logAudit({
+      kullanici_id: request.user!.id,
+      kullanici_adi: request.user!.username,
+      islem: 'payment_create',
+      hedef_tablo: 'payments',
+      hedef_id: newPayment.id,
+      yeni_deger: newPayment,
+      detay: `Ödeme alındı: ${(newPayment.tutar_kurus / 100).toFixed(2)} TL (${newPayment.yontem}) - İş Emri #${id}`
+    });
+
+    return { success: true, payment: newPayment };
+  });
+
   // Action: Peşin Kapat (Close with cash payment of remaining discounted balance)
   fastify.post('/:id/pesin-kapat', {
     schema: {
@@ -469,6 +595,7 @@ export const workOrderRoutes: FastifyPluginAsync = async (fastify) => {
     const lines = db.select().from(workOrderLines).where(eq(workOrderLines.is_emri_id, id)).all();
     const existingPayments = db.select().from(payments).where(eq(payments.is_emri_id, id)).all();
     const paidSoFar = existingPayments.reduce((s, p) => s + p.tutar_kurus, 0);
+    const pesinRate = await getPesinRate();
 
     const calc = calculateWorkOrderTotals({
       lines: lines.map((l) => ({ adet: l.adet, birim_fiyat_kuruş: l.birim_fiyat_kurus })),
@@ -477,6 +604,7 @@ export const workOrderRoutes: FastifyPluginAsync = async (fastify) => {
       iskonto_yuzde: order.iskonto_yuzde,
       iskonto_tutar_kurus: order.iskonto_tutar_kurus,
       pesin_fiyat_elle_kurus: order.pesin_fiyat_elle_kurus,
+      pesin_iskonto_yuzde: pesinRate,
       odenen_kurus: paidSoFar
     });
 

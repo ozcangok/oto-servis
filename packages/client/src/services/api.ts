@@ -35,8 +35,12 @@ export async function apiRequest<T = any>(
 ): Promise<T> {
   const headers = new Headers(options.headers || {});
 
-  if (!headers.has('Content-Type') && !(options.body instanceof FormData)) {
-    headers.set('Content-Type', 'application/json');
+  // Content-Type yalnızca gövde varsa gönderilir; aksi halde sunucu
+  // boş gövdeli JSON isteğini reddeder ("Body cannot be empty...")
+  if (options.body !== undefined && !(options.body instanceof FormData)) {
+    if (!headers.has('Content-Type')) {
+      headers.set('Content-Type', 'application/json');
+    }
   }
 
   if (authToken && !headers.has('Authorization')) {

@@ -240,7 +240,7 @@ export const VehicleSearchScreen: React.FC<VehicleSearchScreenProps> = ({
       });
       if (res.success) {
         toast('Durum güncellendi');
-        if (newStage === 'tamamlandı' || newStage === 'ready') {
+        if (newStage === 'teslime_hazir' || newStage === 'tamamlandı' || newStage === 'ready') {
           setTimeout(() => toast('Teslime hazır. Müşteriyi Hatırlatıcılar sekmesinden bilgilendirebilirsiniz.'), 1500);
         }
         if (vehicleData) {
@@ -368,6 +368,7 @@ export const VehicleSearchScreen: React.FC<VehicleSearchScreenProps> = ({
       await apiRequest(`/vehicles/${vehicleData.vehicle.id}`, {
         method: 'PUT',
         body: JSON.stringify({
+          plaka: editVehicleModal.plate,
           marka: editVehicleModal.brand.trim(),
           model: editVehicleModal.model.trim(),
           yil: editVehicleModal.year ? parseInt(editVehicleModal.year, 10) : null,
@@ -375,7 +376,7 @@ export const VehicleSearchScreen: React.FC<VehicleSearchScreenProps> = ({
           motor_kodu: editVehicleModal.engineCode.trim(),
           muayene_tarihi: editVehicleModal.inspectionDate || null,
           notlar: editVehicleModal.note.trim(),
-          musteri_ad: editVehicleModal.customerName.trim(),
+          musteri_ad_soyad: editVehicleModal.customerName.trim(),
           musteri_telefon: editVehicleModal.customerPhone.trim()
         })
       });
@@ -479,7 +480,7 @@ export const VehicleSearchScreen: React.FC<VehicleSearchScreenProps> = ({
               <div className="list">
                 {inShopOrders.map((o: any) => {
                   const stage = o.durum || 'kabul';
-                  const stageNorm = stage === 'kabul' ? 'accepted' : stage === 'onarımda' ? 'repairing' : stage === 'tamamlandı' ? 'ready' : 'delivered';
+                  const stageNorm = stage === 'kabul' ? 'accepted' : (stage === 'onarımda' || stage === 'onarimda') ? 'repairing' : (stage === 'tamamlandı' || stage === 'teslime_hazir') ? 'ready' : 'delivered';
                   return (
                     <button
                       key={o.id}
@@ -671,7 +672,7 @@ export const VehicleSearchScreen: React.FC<VehicleSearchScreenProps> = ({
             <div className="orders">
               {orders.map((o: any) => {
                 const stage = o.durum || 'kabul';
-                const stageNorm = stage === 'kabul' ? 'accepted' : stage === 'onarımda' ? 'repairing' : stage === 'tamamlandı' ? 'ready' : 'delivered';
+                const stageNorm = stage === 'kabul' ? 'accepted' : (stage === 'onarımda' || stage === 'onarimda') ? 'repairing' : (stage === 'tamamlandı' || stage === 'teslime_hazir') ? 'ready' : 'delivered';
                 const status = o.kalan_tutar_kurus <= 0 ? 'paid' : (o.odenen_tutar_kurus > 0 ? 'partial' : 'open');
                 const priceIncludesVat = Boolean(o.kdv_dahil_mi);
                 const priceNote = priceIncludesVat ? 'KDV dahil' : 'KDV hariç';
@@ -697,7 +698,7 @@ export const VehicleSearchScreen: React.FC<VehicleSearchScreenProps> = ({
                         value={stageNorm}
                         onChange={(e) => {
                           const val = e.target.value;
-                          const dbStage = val === 'accepted' ? 'kabul' : val === 'repairing' ? 'onarımda' : val === 'ready' ? 'tamamlandı' : 'teslim_edildi';
+                          const dbStage = val === 'accepted' ? 'kabul' : val === 'repairing' ? 'onarimda' : val === 'ready' ? 'teslime_hazir' : 'teslim_edildi';
                           handleStageChange(o.id, dbStage);
                         }}
                         aria-label="Servis durumu"

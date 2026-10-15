@@ -206,7 +206,7 @@ export async function seedDatabase() {
   }
 
   // 5. Sample Work Order matching the prompt's exact verification rule:
-  // 2 x 850 ₺ parça + 500 ₺ işçilik, %10 iskonto, %20 KDV -> KDV dahil 2.376,00 ₺, peşin 2.257,20 ₺
+  // 2 x 850 ₺ parça + 500 ₺ işçilik, %10 iskonto, %20 KDV -> KDV dahil 2.376,00 ₺, peşin (ara toplamdan %5) 1.881,00 ₺
   const order1 = db.insert(workOrders).values({
     arac_id: veh1.id,
     tarih: now,

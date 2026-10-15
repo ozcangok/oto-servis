@@ -57,7 +57,7 @@ export const settingsRoutes: FastifyPluginAsync = async (fastify) => {
     }
   }, async () => {
     const localIp = getLocalIpAddress();
-    const port = process.env.CLIENT_PORT || '3000';
+    const port = process.env.CLIENT_PORT || '5173';
     const mobileUrl = `http://${localIp}:${port}`;
 
     let qrDataUrl = '';

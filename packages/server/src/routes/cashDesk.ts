@@ -1,5 +1,6 @@
 import type { FastifyPluginAsync } from 'fastify';
 import { getCashDeskSummary, generateCashDeskCsv } from '../services/cashDeskService.js';
+import { withCashDeskAliases } from '../services/responseCompat.js';
 
 export const cashDeskRoutes: FastifyPluginAsync = async (fastify) => {
   fastify.addHook('preHandler', async (request, reply) => {
@@ -18,10 +19,21 @@ export const cashDeskRoutes: FastifyPluginAsync = async (fastify) => {
       summary: 'Gün sonu ve tarih aralıklı kasa raporu'
     }
   }, async (request) => {
-    const startDate = (request.query as any)?.startDate;
-    const endDate = (request.query as any)?.endDate;
+    let startDate = (request.query as any)?.startDate;
+    let endDate = (request.query as any)?.endDate;
+    // Arayüz tek günlük `date` parametresi gönderir (YYYY-MM-DD)
+    const singleDate = (request.query as any)?.date;
+    if (singleDate && !startDate && !endDate) {
+      const day = new Date(`${singleDate}T00:00:00`);
+      if (!isNaN(day.getTime())) {
+        const end = new Date(day);
+        end.setHours(23, 59, 59, 999);
+        startDate = day.toISOString();
+        endDate = end.toISOString();
+      }
+    }
     const summary = await getCashDeskSummary(startDate, endDate);
-    return { success: true, summary };
+    return { success: true, summary: withCashDeskAliases(summary) };
   });
 
   // Export cash desk summary to CSV (UTF-8 with BOM for Excel)

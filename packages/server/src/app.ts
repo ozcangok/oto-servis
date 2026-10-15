@@ -28,6 +28,20 @@ export async function buildApp(options: AppOptions = {}): Promise<FastifyInstanc
     logger: false
   });
 
+  // Boş gövdeli JSON isteklerini (örn. gövdesiz DELETE) sert hata yerine
+  // tanımsız gövde olarak kabul et; rotalar kendi doğrulamasını yapar.
+  app.addContentTypeParser('application/json', { parseAs: 'string' }, (req, body, done) => {
+    if (body === '' || body === undefined || body === null) {
+      done(null, undefined);
+      return;
+    }
+    try {
+      done(null, JSON.parse(body as string));
+    } catch (err) {
+      done(err as Error);
+    }
+  });
+
   // CORS
   await app.register(fastifyCors, {
     origin: true,

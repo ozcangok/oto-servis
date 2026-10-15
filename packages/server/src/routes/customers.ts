@@ -1,7 +1,8 @@
 import type { FastifyPluginAsync } from 'fastify';
 import { z } from 'zod';
 import { eq, and, isNull, like, or, desc, sql } from 'drizzle-orm';
-import { getDb, customers, vehicles, workOrders, payments, workOrderLines } from '../db/index.js';
+import { getDb, getSqlite, customers, vehicles, workOrders, payments, workOrderLines } from '../db/index.js';
+import { reverseWorkOrderStock } from '../services/stockService.js';
 import { logAudit } from '../services/auditService.js';
 import type { Customer } from '@oto-servis/shared';
 
@@ -155,6 +156,7 @@ export const customerRoutes: FastifyPluginAsync = async (fastify) => {
         const paid = orderPayments.reduce((s, p) => s + p.tutar_kurus, 0);
 
         const { calculateWorkOrderTotals } = await import('@oto-servis/shared');
+        const { getPesinRate } = await import('../services/responseCompat.js');
         const calc = calculateWorkOrderTotals({
           lines: lines.map((l) => ({ adet: l.adet, birim_fiyat_kuruş: l.birim_fiyat_kurus })),
           kdv_orani: o.kdv_orani,
@@ -162,6 +164,7 @@ export const customerRoutes: FastifyPluginAsync = async (fastify) => {
           iskonto_yuzde: o.iskonto_yuzde,
           iskonto_tutar_kurus: o.iskonto_tutar_kurus,
           pesin_fiyat_elle_kurus: o.pesin_fiyat_elle_kurus,
+          pesin_iskonto_yuzde: await getPesinRate(),
           odenen_kurus: paid
         });
 
@@ -313,7 +316,33 @@ export const customerRoutes: FastifyPluginAsync = async (fastify) => {
     }
 
     const now = new Date().toISOString();
-    db.update(customers).set({ deleted_at: now, updated_at: now }).where(eq(customers.id, id)).run();
+    const sqlite = getSqlite();
+
+    // Müşterinin araçları ve onlara bağlı açık iş emirleri de yumuşak
+    // silinir (stok iadesiyle), yoksa panoda yetim kayıtlar görünür.
+    const customerVehicles = db
+      .select({ id: vehicles.id })
+      .from(vehicles)
+      .where(and(eq(vehicles.musteri_id, id), isNull(vehicles.deleted_at)))
+      .all();
+
+    let closedOrders = 0;
+    sqlite.transaction(() => {
+      for (const v of customerVehicles) {
+        const openOrders = db
+          .select({ id: workOrders.id })
+          .from(workOrders)
+          .where(and(eq(workOrders.arac_id, v.id), isNull(workOrders.deleted_at)))
+          .all();
+        for (const o of openOrders) {
+          db.update(workOrders).set({ deleted_at: now, updated_at: now }).where(eq(workOrders.id, o.id)).run();
+          reverseWorkOrderStock(o.id, request.user!.id);
+          closedOrders++;
+        }
+        db.update(vehicles).set({ deleted_at: now, updated_at: now }).where(eq(vehicles.id, v.id)).run();
+      }
+      db.update(customers).set({ deleted_at: now, updated_at: now }).where(eq(customers.id, id)).run();
+    })();
 
     await logAudit({
       kullanici_id: request.user!.id,
@@ -322,9 +351,14 @@ export const customerRoutes: FastifyPluginAsync = async (fastify) => {
       hedef_tablo: 'customers',
       hedef_id: id,
       eski_deger: existing,
-      detay: `Müşteri silindi: ${existing.ad_soyad}`
+      detay: `Müşteri silindi: ${existing.ad_soyad} (${customerVehicles.length} araç, ${closedOrders} iş emriyle birlikte)`
     });
 
-    return { success: true, message: 'Müşteri başarıyla silindi.' };
+    return {
+      success: true,
+      message: customerVehicles.length > 0 || closedOrders > 0
+        ? `Müşteri silindi (${customerVehicles.length} araç ve ${closedOrders} iş emri de kapatılıp parçalar stoğa iade edildi).`
+        : 'Müşteri başarıyla silindi.'
+    };
   });
 };

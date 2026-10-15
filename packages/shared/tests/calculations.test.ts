@@ -9,7 +9,7 @@ import {
 
 describe('Calculations and Currency Engine', () => {
   it('strictly validates the user-specified calculation example', () => {
-    // Örnek doğrulama: 2 × 850 ₺ parça + 500 ₺ işçilik, %10 iskonto, %20 KDV → KDV dahil 2.376,00 ₺, peşin fiyat 2.257,20 ₺.
+    // Örnek doğrulama: 2 × 850 ₺ parça + 500 ₺ işçilik, %10 iskonto, %20 KDV → KDV dahil 2.376,00 ₺, peşin fiyat (ara toplamdan %5) 1.881,00 ₺.
     const result = calculateWorkOrderTotals({
       lines: [
         { adet: 2, birim_fiyat_kuruş: 85000 }, // 2 x 850,00 ₺
@@ -33,9 +33,9 @@ describe('Calculations and Currency Engine', () => {
     expect(result.brut_kurus).toBe(237600);
     expect(formatCurrency(result.brut_kurus)).toBe('2.376,00 ₺');
 
-    // Peşin fiyat (%5 peşin iskonto): 2376 * 0.95 = 2257.20 ₺ -> 225720 kuruş
-    expect(result.pesin_fiyat_kurus).toBe(225720);
-    expect(formatCurrency(result.pesin_fiyat_kurus)).toBe('2.257,20 ₺');
+    // Peşin fiyat (ara toplam 1980 ₺ üzerinden %5 peşin iskonto): 1980 * 0.95 = 1881.00 ₺ -> 188100 kuruş
+    expect(result.pesin_fiyat_kurus).toBe(188100);
+    expect(formatCurrency(result.pesin_fiyat_kurus)).toBe('1.881,00 ₺');
   });
 
   it('handles KDV-dahil (tax-inclusive) mode correctly', () => {

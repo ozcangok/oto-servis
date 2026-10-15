@@ -1,13 +1,16 @@
 import type { FastifyPluginAsync } from 'fastify';
 import { z } from 'zod';
-import { eq, and, isNull, like, or, desc, sql } from 'drizzle-orm';
-import { getDb, vehicles, customers, workOrders, workOrderLines, payments, photos } from '../db/index.js';
+import { eq, and, isNull, isNotNull, like, or, desc, sql } from 'drizzle-orm';
+import { getDb, getSqlite, vehicles, customers, workOrders, workOrderLines, payments, photos } from '../db/index.js';
+import { reverseWorkOrderStock } from '../services/stockService.js';
 import { normalizePlate, formatPlateDisplay, calculateWorkOrderTotals } from '@oto-servis/shared';
 import { logAudit } from '../services/auditService.js';
+import { withVehicleAliases, withOrderAliases, flattenOrderContext, getPesinRate } from '../services/responseCompat.js';
 
 const vehicleInputSchema = z.object({
   musteri_id: z.number().int().positive().optional().nullable(),
   musteri_ad_soyad: z.string().optional().nullable(),
+  musteri_ad: z.string().optional().nullable(), // eski istemcilerle uyumluluk takma adı
   musteri_telefon: z.string().optional().nullable(),
   musteri_eposta: z.string().optional().nullable(),
   plaka: z.string().min(2, 'Geçerli bir plaka giriniz.'),
@@ -19,6 +22,28 @@ const vehicleInputSchema = z.object({
   muayene_tarihi: z.string().optional().nullable(),
   notlar: z.string().optional().nullable()
 });
+
+// Güncelleme (PUT) için kısmi şema: plaka/marka/model gönderilmezse mevcut değer korunur
+const vehicleUpdateSchema = vehicleInputSchema.extend({
+  plaka: z.string().min(2, 'Geçerli bir plaka giriniz.').optional().nullable(),
+  marka: z.string().min(1, 'Araç markası gereklidir.').optional().nullable(),
+  model: z.string().min(1, 'Araç modeli gereklidir.').optional().nullable()
+});
+
+/**
+ * Eski istemci sürümleri müşteri adını `musteri_ad` alanıyla gönderir.
+ * Önbellekte kalmış arayüzlerin de kayıt yapabilmesi için takma adı
+ * `musteri_ad_soyad` alanına taşır.
+ */
+function applyCustomerAlias<T>(input: T): T {
+  if (input && typeof input === 'object' && !Array.isArray(input)) {
+    const hasNew = typeof (input as any).musteri_ad_soyad === 'string' && (input as any).musteri_ad_soyad.trim() !== '';
+    if (!hasNew && typeof (input as any).musteri_ad === 'string') {
+      return { ...input, musteri_ad_soyad: (input as any).musteri_ad };
+    }
+  }
+  return input;
+}
 
 export const vehicleRoutes: FastifyPluginAsync = async (fastify) => {
   fastify.addHook('preHandler', async (request, reply) => {
@@ -83,7 +108,7 @@ export const vehicleRoutes: FastifyPluginAsync = async (fastify) => {
       .all();
 
     const items = rows.map((r) => ({
-      ...r.vehicle,
+      ...withVehicleAliases(r.vehicle),
       musteri: r.customer
     }));
 
@@ -142,6 +167,7 @@ export const vehicleRoutes: FastifyPluginAsync = async (fastify) => {
     let grandTotalGrossKurus = 0;
     let grandTotalCashPriceKurus = 0;
     let grandTotalPaidKurus = 0;
+    const pesinRate = await getPesinRate();
 
     const enrichedOrders = orders.map((order) => {
       // Lines
@@ -174,6 +200,7 @@ export const vehicleRoutes: FastifyPluginAsync = async (fastify) => {
         iskonto_yuzde: order.iskonto_yuzde,
         iskonto_tutar_kurus: order.iskonto_tutar_kurus,
         pesin_fiyat_elle_kurus: order.pesin_fiyat_elle_kurus,
+        pesin_iskonto_yuzde: pesinRate,
         odenen_kurus: totalPaid
       });
 
@@ -189,6 +216,7 @@ export const vehicleRoutes: FastifyPluginAsync = async (fastify) => {
         toplam_kurus: calc.toplam_kurus,
         net_kurus: calc.net_kurus,
         kdv_tutar_kurus: calc.kdv_tutar_kurus,
+        iskonto_kurus: calc.iskonto_kurus ?? 0,
         brut_kurus: calc.brut_kurus,
         pesin_fiyat_kurus: calc.pesin_fiyat_kurus,
         odenen_kurus: calc.odenen_kurus,
@@ -199,10 +227,14 @@ export const vehicleRoutes: FastifyPluginAsync = async (fastify) => {
     return {
       success: true,
       vehicle: {
-        ...row.vehicle,
+        ...withVehicleAliases(row.vehicle),
         musteri: row.customer
       },
+      customer: row.customer,
       workOrders: enrichedOrders,
+      history: enrichedOrders.map((order) =>
+        withOrderAliases(order, flattenOrderContext(row.vehicle, row.customer))
+      ),
       summary: {
         totalWorkOrders: enrichedOrders.length,
         grandTotalGrossKurus,
@@ -240,7 +272,7 @@ export const vehicleRoutes: FastifyPluginAsync = async (fastify) => {
     return {
       success: true,
       vehicle: {
-        ...row.vehicle,
+        ...withVehicleAliases(row.vehicle),
         musteri: row.customer
       }
     };
@@ -253,7 +285,7 @@ export const vehicleRoutes: FastifyPluginAsync = async (fastify) => {
       summary: 'Yeni araç kaydı ekle'
     }
   }, async (request, reply) => {
-    const parse = vehicleInputSchema.safeParse(request.body);
+    const parse = vehicleInputSchema.safeParse(applyCustomerAlias(request.body));
     if (!parse.success) {
       return reply.status(400).send({
         success: false,
@@ -285,7 +317,7 @@ export const vehicleRoutes: FastifyPluginAsync = async (fastify) => {
       return reply.send({
         success: true,
         vehicle: {
-          ...existing.vehicle,
+          ...withVehicleAliases(existing.vehicle),
           musteri: existing.customer
         },
         message: `"${display}" plakalı araç sistemde zaten kayıtlı, mevcut araç seçildi.`
@@ -340,21 +372,75 @@ export const vehicleRoutes: FastifyPluginAsync = async (fastify) => {
 
     const musteriId: number = finalMusteriId;
 
-    const newVehicle = db.insert(vehicles).values({
-      musteri_id: musteriId,
-      plaka_norm: norm,
-      plaka_gorunen: display,
-      marka: parse.data.marka.trim(),
-      model: parse.data.model.trim(),
-      yil: parse.data.yil || null,
-      sasi_no: parse.data.sasi_no?.trim() || null,
-      motor_kodu: parse.data.motor_kodu?.trim() || null,
-      muayene_tarihi: parse.data.muayene_tarihi || null,
-      notlar: parse.data.notlar?.trim() || null,
-      is_sample: false,
-      created_at: now,
-      updated_at: now
-    }).returning().get();
+    // Aynı plaka daha önce silinmişse (yumuşak silme): yeni kayıt yerine
+    // silinmiş kaydı geri getir, yoksa UNIQUE(plaka_norm) çakışması olur.
+    const deletedDup = db
+      .select()
+      .from(vehicles)
+      .where(and(eq(vehicles.plaka_norm, norm), isNotNull(vehicles.deleted_at)))
+      .get();
+
+    if (deletedDup) {
+      const restored = db.update(vehicles).set({
+        musteri_id: musteriId,
+        plaka_gorunen: display,
+        marka: parse.data.marka.trim(),
+        model: parse.data.model.trim(),
+        yil: parse.data.yil || null,
+        sasi_no: parse.data.sasi_no?.trim() || null,
+        motor_kodu: parse.data.motor_kodu?.trim() || null,
+        muayene_tarihi: parse.data.muayene_tarihi || null,
+        notlar: parse.data.notlar?.trim() || null,
+        is_sample: false,
+        deleted_at: null,
+        updated_at: now
+      }).where(eq(vehicles.id, deletedDup.id)).returning().get();
+
+      const restoredCustomer = db.select().from(customers).where(eq(customers.id, musteriId)).get();
+
+      await logAudit({
+        kullanici_id: request.user!.id,
+        kullanici_adi: request.user!.username,
+        islem: 'work_order_create',
+        hedef_tablo: 'vehicles',
+        hedef_id: restored.id,
+        yeni_deger: restored,
+        detay: `Silinmiş araç kaydı geri getirildi: ${restored.plaka_gorunen}`
+      });
+
+      return {
+        success: true,
+        vehicle: {
+          ...withVehicleAliases(restored),
+          musteri: restoredCustomer
+        },
+        message: `"${display}" plakası daha önce silinmiş, kaydı geri getirildi.`
+      };
+    }
+
+    let newVehicle;
+    try {
+      newVehicle = db.insert(vehicles).values({
+        musteri_id: musteriId,
+        plaka_norm: norm,
+        plaka_gorunen: display,
+        marka: parse.data.marka.trim(),
+        model: parse.data.model.trim(),
+        yil: parse.data.yil || null,
+        sasi_no: parse.data.sasi_no?.trim() || null,
+        motor_kodu: parse.data.motor_kodu?.trim() || null,
+        muayene_tarihi: parse.data.muayene_tarihi || null,
+        notlar: parse.data.notlar?.trim() || null,
+        is_sample: false,
+        created_at: now,
+        updated_at: now
+      }).returning().get();
+    } catch (err: any) {
+      return reply.status(400).send({
+        success: false,
+        error: `"${display}" plakalı bir araç zaten kayıtlı. Plakayı kontrol edip tekrar deneyin.`
+      });
+    }
 
     const customerObj = db.select().from(customers).where(eq(customers.id, musteriId)).get();
 
@@ -371,7 +457,7 @@ export const vehicleRoutes: FastifyPluginAsync = async (fastify) => {
     return {
       success: true,
       vehicle: {
-        ...newVehicle,
+        ...withVehicleAliases(newVehicle),
         musteri: customerObj
       }
     };
@@ -385,7 +471,7 @@ export const vehicleRoutes: FastifyPluginAsync = async (fastify) => {
     }
   }, async (request, reply) => {
     const id = Number((request.params as any).id);
-    const parse = vehicleInputSchema.safeParse(request.body);
+    const parse = vehicleUpdateSchema.safeParse(applyCustomerAlias(request.body));
     if (!parse.success) {
       return reply.status(400).send({
         success: false,
@@ -404,10 +490,13 @@ export const vehicleRoutes: FastifyPluginAsync = async (fastify) => {
       return reply.status(404).send({ success: false, error: 'Araç bulunamadı.' });
     }
 
-    const norm = normalizePlate(parse.data.plaka);
-    const display = formatPlateDisplay(norm);
+    const norm = parse.data.plaka ? normalizePlate(parse.data.plaka) : existing.plaka_norm;
+    const display = parse.data.plaka ? formatPlateDisplay(norm) : existing.plaka_gorunen;
+    const marka = parse.data.marka?.trim() || existing.marka;
+    const model = parse.data.model?.trim() || existing.model;
 
-    // If plate changed, check uniqueness
+    // If plate changed, check uniqueness (including soft-deleted rows,
+    // since UNIQUE(plaka_norm) covers them too)
     if (norm !== existing.plaka_norm) {
       const duplicate = db
         .select()
@@ -421,15 +510,47 @@ export const vehicleRoutes: FastifyPluginAsync = async (fastify) => {
           error: `"${display}" plakalı başka bir araç zaten mevcut.`
         });
       }
+
+      const deletedHolder = db
+        .select()
+        .from(vehicles)
+        .where(and(eq(vehicles.plaka_norm, norm), isNotNull(vehicles.deleted_at)))
+        .get();
+
+      if (deletedHolder) {
+        return reply.status(400).send({
+          success: false,
+          error: `"${display}" plakası silinmiş bir kayda ait. Bu plakayı kullanmak için "Yeni araç" ile yeniden kaydedin, kaydı geri getirilir.`
+        });
+      }
     }
 
     const now = new Date().toISOString();
+    const targetMusteriId = parse.data.musteri_id || existing.musteri_id;
+
+    // Update linked customer name/phone when provided (e.g. from "Araç bilgisi" modal)
+    if (targetMusteriId && (parse.data.musteri_ad_soyad?.trim() || parse.data.musteri_telefon?.trim())) {
+      const linkedCustomer = db
+        .select()
+        .from(customers)
+        .where(and(eq(customers.id, targetMusteriId), isNull(customers.deleted_at)))
+        .get();
+
+      if (linkedCustomer) {
+        db.update(customers).set({
+          ...(parse.data.musteri_ad_soyad?.trim() ? { ad_soyad: parse.data.musteri_ad_soyad.trim() } : {}),
+          ...(parse.data.musteri_telefon?.trim() ? { telefon: parse.data.musteri_telefon.trim() } : {}),
+          updated_at: now
+        }).where(eq(customers.id, targetMusteriId)).run();
+      }
+    }
+
     const updated = db.update(vehicles).set({
       ...(parse.data.musteri_id ? { musteri_id: parse.data.musteri_id } : {}),
       plaka_norm: norm,
       plaka_gorunen: display,
-      marka: parse.data.marka.trim(),
-      model: parse.data.model.trim(),
+      marka,
+      model,
       yil: parse.data.yil || null,
       sasi_no: parse.data.sasi_no?.trim() || null,
       motor_kodu: parse.data.motor_kodu?.trim() || null,
@@ -449,7 +570,7 @@ export const vehicleRoutes: FastifyPluginAsync = async (fastify) => {
       detay: `Araç güncellendi: ${updated.plaka_gorunen}`
     });
 
-    return { success: true, vehicle: updated };
+    return { success: true, vehicle: withVehicleAliases(updated) };
   });
 
   // Soft delete vehicle
@@ -473,7 +594,23 @@ export const vehicleRoutes: FastifyPluginAsync = async (fastify) => {
     }
 
     const now = new Date().toISOString();
-    db.update(vehicles).set({ deleted_at: now, updated_at: now }).where(eq(vehicles.id, id)).run();
+    const sqlite = getSqlite();
+
+    // Araca bağlı açık iş emirleri de yumuşak silinir (stok iadesiyle),
+    // yoksa panoda ve cari hesapta yetim kayıtlar görünür.
+    const openOrders = db
+      .select({ id: workOrders.id })
+      .from(workOrders)
+      .where(and(eq(workOrders.arac_id, id), isNull(workOrders.deleted_at)))
+      .all();
+
+    sqlite.transaction(() => {
+      db.update(vehicles).set({ deleted_at: now, updated_at: now }).where(eq(vehicles.id, id)).run();
+      for (const o of openOrders) {
+        db.update(workOrders).set({ deleted_at: now, updated_at: now }).where(eq(workOrders.id, o.id)).run();
+        reverseWorkOrderStock(o.id, request.user!.id);
+      }
+    })();
 
     await logAudit({
       kullanici_id: request.user!.id,
@@ -482,9 +619,14 @@ export const vehicleRoutes: FastifyPluginAsync = async (fastify) => {
       hedef_tablo: 'vehicles',
       hedef_id: id,
       eski_deger: existing,
-      detay: `Araç silindi: ${existing.plaka_gorunen}`
+      detay: `Araç silindi: ${existing.plaka_gorunen} (${openOrders.length} bağlı iş emriyle birlikte)`
     });
 
-    return { success: true, message: 'Araç silindi.' };
+    return {
+      success: true,
+      message: openOrders.length > 0
+        ? `Araç silindi (${openOrders.length} bağlı iş emri de kapatılıp parçalar stoğa iade edildi).`
+        : 'Araç silindi.'
+    };
   });
 };

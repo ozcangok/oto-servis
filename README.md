@@ -14,8 +14,8 @@ Oto tamir ve bakım servisleri için özel olarak geliştirilmiş; gerçek SQLit
 2. **Kuruş Hassasiyetinde Finans ve Hesaplama Motoru:**
    - Tüm para değerleri veritabanında tamsayı kuruş (1 TL = 100 kuruş) olarak tutulur; kayan nokta (float) yuvarlama hataları kesinlikle yaşanmaz.
    - Arayüzde `tr-TR` standartlarında formatlanır (`1.234,50 ₺`).
-   - KDV dahil veya KDV hariç fiyatlandırma tek tıkla seçilebilir.
-   - **Örnek Doğrulama Testi:** 2 × 850,00 ₺ parça + 500,00 ₺ işçilik, %10 iskonto, %20 KDV → KDV dahil **2.376,00 ₺**, peşin iskonto (%5) ile peşin fiyat **2.257,20 ₺**.
+   - Girilen fiyatlar her zaman KDV hariç sayılır; KDV oranı yalnızca KDV tutarı ve KDV dahil toplama eklenir, ara toplam ve peşin fiyatı etkilemez.
+   - **Örnek Doğrulama Testi:** 2 × 850,00 ₺ parça + 500,00 ₺ işçilik, %10 iskonto, %20 KDV → KDV dahil **2.376,00 ₺**, peşin iskonto (%5, ara toplam üzerinden) ile peşin fiyat **1.881,00 ₺**.
    - **Peşin Kapat:** Peşin fiyat üzerinden kalan tutarı otomatik tahsil eder ve iş emrini kapatır. "Yeniden Aç" ile gerekirse geri alınabilir.
 
 3. **Plaka Normalizasyonu:**
@@ -116,12 +116,12 @@ npm test
 # Terminal 1 - Backend API (Port 3001)
 npm run dev:server
 
-# Terminal 2 - Frontend Vite (Port 3000)
+# Terminal 2 - Frontend Vite (Port 5173)
 npm run dev:client
 ```
 
 Tarayıcınızda açın:
-- Uygulama: `http://localhost:3000`
+- Uygulama: `http://localhost:5173`
 - Swagger OpenAPI Dokümantasyonu: `http://localhost:3001/api/docs`
 
 ---
@@ -163,7 +163,7 @@ npm run dist:win
 ## 🧪 Test Raporu Özeti
 
 - **Birim Testleri (`calculations.test.ts` & `plate.test.ts`):** 11 test geçti.
-  - İstenen örnek doğrulama formülü: 2 × 850 ₺ parça + 500 ₺ işçilik, %10 iskonto, %20 KDV → 2.376,00 ₺, peşin fiyat 2.257,20 ₺ kuruşu kuruşuna doğrulandı.
+  - İstenen örnek doğrulama formülü: 2 × 850 ₺ parça + 500 ₺ işçilik, %10 iskonto, %20 KDV → 2.376,00 ₺, peşin fiyat (ara toplamdan %5) 1.881,00 ₺ kuruşu kuruşuna doğrulandı.
   - Türkçe plaka normalizasyonu ve karakter dönüşümleri doğrulandı.
 - **Güvenlik & Rol Testleri (`auth.test.ts`):** 5 test geçti.
   - İlk kurulum sihirbazı, oturum çerezi, 5 hatalı girişte 15 dakika kilitlenme ve rol sınırları doğrulandı.

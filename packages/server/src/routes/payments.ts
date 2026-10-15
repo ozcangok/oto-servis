@@ -3,12 +3,16 @@ import { z } from 'zod';
 import { eq, desc } from 'drizzle-orm';
 import { getDb, payments, workOrders, users } from '../db/index.js';
 import { logAudit } from '../services/auditService.js';
+import { normalizePaymentMethod } from '../services/responseCompat.js';
 import type { PaymentMethod } from '@oto-servis/shared';
 
 const paymentInputSchema = z.object({
   is_emri_id: z.number().int().positive('Geçerli bir iş emri seçiniz.'),
   tutar_kurus: z.number().int().positive('Ödeme tutarı 0\'dan büyük olmalıdır.'),
-  yontem: z.enum(['nakit', 'kredi_karti', 'havale', 'cek_senet']),
+  yontem: z.string().optional().nullable(),
+  odeme_yontemi: z.string().optional().nullable(),
+  odeme_tarihi: z.string().optional().nullable(),
+  tarih: z.string().optional().nullable(),
   notlar: z.string().optional().nullable()
 });
 
@@ -46,9 +50,9 @@ export const paymentRoutes: FastifyPluginAsync = async (fastify) => {
     const now = new Date().toISOString();
     const newPayment = db.insert(payments).values({
       is_emri_id: parse.data.is_emri_id,
-      tarih: now,
+      tarih: parse.data.odeme_tarihi || parse.data.tarih || now,
       tutar_kurus: parse.data.tutar_kurus,
-      yontem: parse.data.yontem,
+      yontem: normalizePaymentMethod(parse.data.odeme_yontemi ?? parse.data.yontem) as PaymentMethod,
       kullanici_id: request.user!.id,
       notlar: parse.data.notlar?.trim() || null,
       created_at: now

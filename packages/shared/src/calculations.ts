@@ -25,7 +25,7 @@ export interface CalculationResult {
   net_kurus: number; // Subtotal before KDV (matrah)
   kdv_tutar_kurus: number; // Calculated tax amount
   brut_kurus: number; // Final gross price payable (KDV dahil)
-  pesin_fiyat_kurus: number; // Discounted cash payment price
+  pesin_fiyat_kurus: number; // Peşin fiyat (ara toplam/KDV hariç tutar üzerinden)
   odenen_kurus: number; // Total paid
   kalan_kurus: number; // brut_kurus - odenen_kurus (>= 0)
   pesin_kalan_kurus: number; // pesin_fiyat_kurus - odenen_kurus (>= 0)
@@ -69,12 +69,13 @@ export function calculateWorkOrderTotals(input: CalculationInput): CalculationRe
     brutKurus = netKurus + kdvTutarKurus;
   }
 
-  // 3. Peşin fiyat = elle girilmişse o, yoksa brüt × (1 − peşin_iskonto%)
+  // 3. Peşin fiyat = elle girilmişse o, yoksa ARA TOPLAM (KDV hariç tutar) × (1 − peşin_iskonto%).
+  // KDV oranı peşin fiyatı etkilemez.
   let pesinFiyatKurus = 0;
   if (input.pesin_fiyat_elle_kurus !== undefined && input.pesin_fiyat_elle_kurus !== null && input.pesin_fiyat_elle_kurus > 0) {
     pesinFiyatKurus = Math.round(input.pesin_fiyat_elle_kurus);
   } else {
-    pesinFiyatKurus = Math.round(brutKurus * (1 - pesinIskontoYuzde / 100));
+    pesinFiyatKurus = Math.round(netKurus * (1 - pesinIskontoYuzde / 100));
   }
 
   // 4. Kalan bakiyeler

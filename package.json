@@ -6,7 +6,7 @@
     "packages/*"
   ],
   "scripts": {
-    "build": "npm run build --workspaces --if-present",
+    "build": "npm run build --workspace=@oto-servis/shared && npm run build --workspace=@oto-servis/server && npm run build --workspace=@oto-servis/client",
     "test": "npm run test --workspaces --if-present",
     "dev:server": "npm run dev --workspace=@oto-servis/server",
     "dev:client": "npm run dev --workspace=@oto-servis/client",

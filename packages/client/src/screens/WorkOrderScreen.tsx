@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { apiRequest } from '../services/api.js';
 import {
   fdate,
@@ -55,6 +55,7 @@ export const WorkOrderScreen: React.FC<WorkOrderScreenProps> = ({
 
   // Vehicle info state (for inline registration if plate not found)
   const [existingVehicle, setExistingVehicle] = useState<any | null>(initialVehicle || null);
+  const [selectedCustomerId, setSelectedCustomerId] = useState<number | null>(null);
   const [newVehicle, setNewVehicle] = useState({
     brand: '',
     model: '',
@@ -73,7 +74,7 @@ export const WorkOrderScreen: React.FC<WorkOrderScreenProps> = ({
 
   // Financials
   const [vatRate, setVatRate] = useState<number>(20);
-  const [inclVat, setInclVat] = useState(false);
+  const [cashDiscRate, setCashDiscRate] = useState<number>(5);
   const [discountPct, setDiscountPct] = useState<string>('');
   const [discountAmt, setDiscountAmt] = useState<string>('');
   const [cashOverride, setCashOverride] = useState<string>('');
@@ -92,6 +93,8 @@ export const WorkOrderScreen: React.FC<WorkOrderScreenProps> = ({
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
   const [formError, setFormError] = useState('');
+  // Synchronous double-submit guard (state updates are async)
+  const savingRef = useRef(false);
 
   useEffect(() => {
     loadCatalog();
@@ -109,6 +112,9 @@ export const WorkOrderScreen: React.FC<WorkOrderScreenProps> = ({
       if (res.success && res.settings) {
         if (!isEditing) {
           setVatRate(res.settings.default_kdv_rate ?? 20);
+        }
+        if (typeof res.settings.default_cash_discount_rate === 'number') {
+          setCashDiscRate(res.settings.default_cash_discount_rate);
         }
       }
     } catch {}
@@ -157,12 +163,11 @@ export const WorkOrderScreen: React.FC<WorkOrderScreenProps> = ({
         setDate(o.giris_tarihi?.split('T')[0] || todayISO());
         setKm(o.km || o.kilometre ? String(o.km || o.kilometre) : '');
 
-        const stageNorm = o.durum === 'kabul' ? 'accepted' : o.durum === 'onarımda' ? 'repairing' : o.durum === 'tamamlandı' ? 'ready' : 'delivered';
+        const stageNorm = o.durum === 'kabul' ? 'accepted' : (o.durum === 'onarımda' || o.durum === 'onarimda') ? 'repairing' : (o.durum === 'tamamlandı' || o.durum === 'teslime_hazir') ? 'ready' : 'delivered';
         setStage(stageNorm);
         setComplaint(o.sikayet || '');
 
         setVatRate(o.kdv_orani ?? 20);
-        setInclVat(Boolean(o.kdv_dahil_mi));
         setDiscountPct(o.iskonto_yuzde ? String(o.iskonto_yuzde) : '');
         setDiscountAmt(o.iskonto_tutar_kurus ? (o.iskonto_tutar_kurus / 100).toFixed(2) : '');
         setCashOverride(o.pesin_fiyat_elle_kurus ? (o.pesin_fiyat_elle_kurus / 100).toFixed(2) : '');
@@ -298,14 +303,17 @@ export const WorkOrderScreen: React.FC<WorkOrderScreenProps> = ({
   const calcResult = calculateWorkOrderTotals({
     lines: workOrderLinesInput,
     kdv_orani: vatRate,
-    kdv_dahil_mi: inclVat,
+    // Girilen fiyatlar her zaman KDV hariç sayılır
+    kdv_dahil_mi: false,
     iskonto_yuzde: parseFloat(discountPct) || 0,
     iskonto_tutar_kurus: Math.round((parseFloat(discountAmt.replace(',', '.')) || 0) * 100),
+    pesin_iskonto_yuzde: cashDiscRate,
     pesin_fiyat_elle_kurus: cashOverride ? Math.round((parseFloat(cashOverride.replace(',', '.')) || 0) * 100) : null
   });
 
   // Save Order
   const handleSave = async () => {
+    if (savingRef.current) return;
     const norm = normalizePlate(plate);
     if (norm.length < 4) {
       setFormError('Lütfen geçerli bir plaka girin (örn. 34 ABC 123).');
@@ -319,6 +327,7 @@ export const WorkOrderScreen: React.FC<WorkOrderScreenProps> = ({
     }
 
     setSaving(true);
+    savingRef.current = true;
     setFormError('');
 
     try {
@@ -328,6 +337,7 @@ export const WorkOrderScreen: React.FC<WorkOrderScreenProps> = ({
         const vehRes = await apiRequest('/vehicles', {
           method: 'POST',
           body: JSON.stringify({
+            ...(selectedCustomerId ? { musteri_id: selectedCustomerId } : {}),
             plaka: norm,
             marka: newVehicle.brand.trim() || 'Belirtilmedi',
             model: newVehicle.model.trim() || 'Belirtilmedi',
@@ -335,7 +345,7 @@ export const WorkOrderScreen: React.FC<WorkOrderScreenProps> = ({
             sasi_no: newVehicle.chassis.trim(),
             motor_kodu: newVehicle.engineCode.trim(),
             muayene_tarihi: newVehicle.inspectionDate || null,
-            musteri_ad: newVehicle.customer.trim() || 'Müşteri',
+            musteri_ad_soyad: newVehicle.customer.trim() || 'Müşteri',
             musteri_telefon: newVehicle.phone.trim()
           })
         });
@@ -348,20 +358,23 @@ export const WorkOrderScreen: React.FC<WorkOrderScreenProps> = ({
       }
 
       // Map stage to database status
-      const dbStatus = stage === 'accepted' ? 'kabul' : stage === 'repairing' ? 'onarımda' : stage === 'ready' ? 'tamamlandı' : 'teslim_edildi';
+      const dbStatus = stage === 'accepted' ? 'kabul' : stage === 'repairing' ? 'onarimda' : stage === 'ready' ? 'teslime_hazir' : 'teslim_edildi';
 
       // 2. Prepare work order body
       const orderBody: any = {
         arac_id: vehicleId,
         plaka: norm,
         giris_tarihi: date || todayISO(),
+        km: km ? parseInt(km, 10) : 0,
         kilometre: km ? parseInt(km, 10) : 0,
         durum: dbStatus,
         sikayet: complaint.trim(),
         kdv_orani: vatRate,
-        kdv_dahil_mi: inclVat,
+        // Girilen fiyatlar her zaman KDV hariç sayılır
+        kdv_dahil_mi: false,
         iskonto_yuzde: parseFloat(discountPct) || 0,
         iskonto_tutar_kurus: Math.round((parseFloat(discountAmt.replace(',', '.')) || 0) * 100),
+        pesin_iskonto_yuzde: cashDiscRate,
         pesin_fiyat_elle_kurus: cashOverride ? Math.round((parseFloat(cashOverride.replace(',', '.')) || 0) * 100) : null,
         sonraki_bakim_tarihi: nextServiceDate || null,
         sonraki_bakim_km: nextServiceKm ? parseInt(nextServiceKm, 10) : null,
@@ -410,6 +423,7 @@ export const WorkOrderScreen: React.FC<WorkOrderScreenProps> = ({
     } catch (err: any) {
       setFormError(err.message || 'İş emri kaydedilirken hata oluştu.');
     } finally {
+      savingRef.current = false;
       setSaving(false);
     }
   };
@@ -531,9 +545,39 @@ export const WorkOrderScreen: React.FC<WorkOrderScreenProps> = ({
                     type="tel"
                     placeholder="05xx xxx xx xx"
                     value={newVehicle.phone}
-                    onChange={(e) => setNewVehicle({ ...newVehicle, phone: e.target.value })}
+                    onChange={(e) => {
+                      setSelectedCustomerId(null);
+                      setNewVehicle({ ...newVehicle, phone: e.target.value });
+                    }}
                   />
                 </div>
+              </div>
+
+              <div className="field">
+                <label htmlFor="ofv-customer-select">Kayıtlı müşteri seç (isteğe bağlı)</label>
+                <select
+                  id="ofv-customer-select"
+                  value={selectedCustomerId ? String(selectedCustomerId) : ''}
+                  onChange={(e) => {
+                    const id = e.target.value ? parseInt(e.target.value, 10) : null;
+                    setSelectedCustomerId(id);
+                    const found = customersList.find((c) => c.id === id);
+                    if (found) {
+                      setNewVehicle((prev) => ({
+                        ...prev,
+                        customer: found.ad_soyad || '',
+                        phone: found.telefon || ''
+                      }));
+                    }
+                  }}
+                >
+                  <option value="">Yeni müşteri (elle yazın)</option>
+                  {customersList.map((c) => (
+                    <option key={c.id} value={c.id}>
+                      {c.ad_soyad}{c.telefon ? ` · ${c.telefon}` : ''}
+                    </option>
+                  ))}
+                </select>
               </div>
 
               <div className="field">
@@ -544,7 +588,10 @@ export const WorkOrderScreen: React.FC<WorkOrderScreenProps> = ({
                   list="custlist"
                   placeholder="Ad Soyad (cari hesap bu isimle tutulur)"
                   value={newVehicle.customer}
-                  onChange={(e) => setNewVehicle({ ...newVehicle, customer: e.target.value })}
+                  onChange={(e) => {
+                    setSelectedCustomerId(null);
+                    setNewVehicle({ ...newVehicle, customer: e.target.value });
+                  }}
                 />
               </div>
 
@@ -797,21 +844,12 @@ export const WorkOrderScreen: React.FC<WorkOrderScreenProps> = ({
             </div>
           </div>
 
-          <label className="check">
-            <input
-              type="checkbox"
-              checked={inclVat}
-              onChange={(e) => setInclVat(e.target.checked)}
-            />
-            Girilen fiyatlar KDV dahil
-          </label>
-
           {/* Totals Box */}
           <div className="totals-box">
             <dl className="totals">
               {calcResult.iskonto_kurus > 0 && (
                 <>
-                  <dt>Kalemler toplamı ({inclVat ? 'KDV dahil' : 'KDV hariç'})</dt>
+                  <dt>Kalemler toplamı (KDV hariç)</dt>
                   <dd>{money(calcResult.toplam_kurus)}</dd>
                   <dt>İskonto</dt>
                   <dd>-{money(calcResult.iskonto_kurus)}</dd>
@@ -825,7 +863,7 @@ export const WorkOrderScreen: React.FC<WorkOrderScreenProps> = ({
               <dd className="grand">{money(calcResult.brut_kurus)}</dd>
               <dt className="cash">
                 Peşin fiyat
-                {!cashOverride && <small> (%5 iskonto)</small>}
+                {!cashOverride && cashDiscRate > 0 && <small> (%{cashDiscRate} iskonto)</small>}
               </dt>
               <dd className="cash">{money(calcResult.pesin_fiyat_kurus)}</dd>
             </dl>
