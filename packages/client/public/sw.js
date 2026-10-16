@@ -1,9 +1,24 @@
-const CACHE_NAME = 'oto-servis-v1';
+const CACHE_NAME = 'oto-servis-v2';
 const STATIC_ASSETS = [
   '/',
   '/index.html',
   '/manifest.json'
 ];
+
+function offlineApiResponse() {
+  return new Response(
+    JSON.stringify({
+      success: false,
+      error: 'Şu anda çevrimdışısınız. Bağlantınız geldiğinde işlemler senkronize edilecektir.',
+      is_offline: true
+    }),
+    { headers: { 'Content-Type': 'application/json' }, status: 503 }
+  );
+}
+
+function sleep(ms) {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
 
 self.addEventListener('install', (event) => {
   event.waitUntil(
@@ -28,19 +43,21 @@ self.addEventListener('activate', (event) => {
 self.addEventListener('fetch', (event) => {
   const url = new URL(event.request.url);
 
-  // Network-first for API requests
+  // Network-first for API requests (3 deneme: sunucu yeniden başlama / tünel dalgalanmalarını tolere eder)
   if (url.pathname.startsWith('/api')) {
     event.respondWith(
-      fetch(event.request).catch(() => {
-        return new Response(
-          JSON.stringify({
-            success: false,
-            error: 'Şu anda çevrimdışısınız. Bağlantınız geldiğinde işlemler senkronize edilecektir.',
-            is_offline: true
-          }),
-          { headers: { 'Content-Type': 'application/json' }, status: 503 }
-        );
-      })
+      (async () => {
+        let lastError = null;
+        for (let attempt = 0; attempt < 3; attempt++) {
+          try {
+            return await fetch(event.request.clone());
+          } catch (err) {
+            lastError = err;
+            if (attempt < 2) await sleep(1200);
+          }
+        }
+        return offlineApiResponse();
+      })()
     );
     return;
   }

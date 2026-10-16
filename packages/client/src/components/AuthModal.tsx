@@ -10,9 +10,11 @@ export const AuthModal: React.FC<AuthModalProps> = ({ onSuccess }) => {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const [username, setUsername] = useState('admin');
-  const [password, setPassword] = useState('admin123');
+  const [username, setUsername] = useState('');
+  const [password, setPassword] = useState('');
   const [fullName, setFullName] = useState('');
+  // Tarayıcı otomatik-doldurmayı engellemek için: kutular dokunulana kadar salt-okunur
+  const [unlocked, setUnlocked] = useState(false);
 
   useEffect(() => {
     checkSetupStatus();
@@ -77,7 +79,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({ onSuccess }) => {
           <h2>{isSetup ? 'İlk Kurulum & Yönetici Şifresi' : 'Servis Girişi'}</h2>
         </div>
 
-        <form onSubmit={handleSubmit}>
+        <form onSubmit={handleSubmit} autoComplete="off">
           <div className="sheet-body">
             <p className="muted" style={{ fontSize: '0.9rem' }}>
               {isSetup
@@ -105,6 +107,9 @@ export const AuthModal: React.FC<AuthModalProps> = ({ onSuccess }) => {
                 id="auth-username"
                 type="text"
                 required
+                autoComplete="off"
+                readOnly={!unlocked}
+                onFocus={() => setUnlocked(true)}
                 value={username}
                 onChange={(e) => setUsername(e.target.value)}
                 placeholder="admin"
@@ -118,6 +123,9 @@ export const AuthModal: React.FC<AuthModalProps> = ({ onSuccess }) => {
                 id="auth-password"
                 type="password"
                 required
+                autoComplete="new-password"
+                readOnly={!unlocked}
+                onFocus={() => setUnlocked(true)}
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 placeholder="••••••••"
