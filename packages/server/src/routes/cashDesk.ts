@@ -1,6 +1,7 @@
 import type { FastifyPluginAsync } from 'fastify';
 import { getCashDeskSummary, generateCashDeskCsv } from '../services/cashDeskService.js';
 import { withCashDeskAliases } from '../services/responseCompat.js';
+import { reqDb, reqSqlite, reqCtx } from '../tenantContext.js';
 
 export const cashDeskRoutes: FastifyPluginAsync = async (fastify) => {
   fastify.addHook('preHandler', async (request, reply) => {
@@ -32,7 +33,7 @@ export const cashDeskRoutes: FastifyPluginAsync = async (fastify) => {
         endDate = end.toISOString();
       }
     }
-    const summary = await getCashDeskSummary(startDate, endDate);
+    const summary = await getCashDeskSummary(startDate, endDate, reqCtx(request));
     return { success: true, summary: withCashDeskAliases(summary) };
   });
 
@@ -45,7 +46,7 @@ export const cashDeskRoutes: FastifyPluginAsync = async (fastify) => {
   }, async (request, reply) => {
     const startDate = (request.query as any)?.startDate;
     const endDate = (request.query as any)?.endDate;
-    const summary = await getCashDeskSummary(startDate, endDate);
+    const summary = await getCashDeskSummary(startDate, endDate, reqCtx(request));
     const csvData = generateCashDeskCsv(summary);
 
     reply.header('Content-Type', 'text/csv; charset=utf-8');

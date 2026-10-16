@@ -1,6 +1,7 @@
 import type { FastifyPluginAsync } from 'fastify';
 import { createBackup, restoreBackup, getBackupStatus } from '../services/backupService.js';
 import path from 'path';
+import { reqDb, reqSqlite, reqCtx } from '../tenantContext.js';
 
 export const backupRoutes: FastifyPluginAsync = async (fastify) => {
   fastify.addHook('preHandler', async (request, reply) => {
@@ -28,7 +29,7 @@ export const backupRoutes: FastifyPluginAsync = async (fastify) => {
     }
   }, async (request, reply) => {
     try {
-      const result = await createBackup();
+      const result = await createBackup(undefined, reqCtx(request));
       return { success: true, message: 'Yedekleme başarıyla tamamlandı.', result };
     } catch (err: any) {
       return reply.status(500).send({ success: false, error: err.message });

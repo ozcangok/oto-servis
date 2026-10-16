@@ -5,6 +5,7 @@ import { getDb, payments, workOrders, users } from '../db/index.js';
 import { logAudit } from '../services/auditService.js';
 import { normalizePaymentMethod } from '../services/responseCompat.js';
 import type { PaymentMethod } from '@oto-servis/shared';
+import { reqDb, reqSqlite, reqCtx } from '../tenantContext.js';
 
 const paymentInputSchema = z.object({
   is_emri_id: z.number().int().positive('Geçerli bir iş emri seçiniz.'),
@@ -41,7 +42,7 @@ export const paymentRoutes: FastifyPluginAsync = async (fastify) => {
       });
     }
 
-    const db = getDb();
+    const db = reqDb(request);
     const order = db.select().from(workOrders).where(eq(workOrders.id, parse.data.is_emri_id)).get();
     if (!order) {
       return reply.status(404).send({ success: false, error: 'İş emri bulunamadı.' });
@@ -66,7 +67,7 @@ export const paymentRoutes: FastifyPluginAsync = async (fastify) => {
       hedef_id: newPayment.id,
       yeni_deger: newPayment,
       detay: `Ödeme alındı: ${(newPayment.tutar_kurus / 100).toFixed(2)} TL (${newPayment.yontem}) - İş Emri #${order.id}`
-    });
+    }, reqCtx(request));
 
     return { success: true, payment: newPayment };
   });
@@ -79,7 +80,7 @@ export const paymentRoutes: FastifyPluginAsync = async (fastify) => {
     }
   }, async (request) => {
     const id = Number((request.params as any).id);
-    const db = getDb();
+    const db = reqDb(request);
 
     const items = db
       .select({
@@ -107,7 +108,7 @@ export const paymentRoutes: FastifyPluginAsync = async (fastify) => {
     }
   }, async (request, reply) => {
     const id = Number((request.params as any).id);
-    const db = getDb();
+    const db = reqDb(request);
 
     const existing = db.select().from(payments).where(eq(payments.id, id)).get();
     if (!existing) {
@@ -124,7 +125,7 @@ export const paymentRoutes: FastifyPluginAsync = async (fastify) => {
       hedef_id: id,
       eski_deger: existing,
       detay: `Ödeme silindi: ${(existing.tutar_kurus / 100).toFixed(2)} TL - İş Emri #${existing.is_emri_id}`
-    });
+    }, reqCtx(request));
 
     return { success: true, message: 'Ödeme silindi.' };
   });

@@ -3,9 +3,10 @@ import { apiRequest, setAuthToken } from '../services/api.js';
 
 interface AuthModalProps {
   onSuccess: (user: any) => void;
+  onSwitchToRegister?: () => void;
 }
 
-export const AuthModal: React.FC<AuthModalProps> = ({ onSuccess }) => {
+export const AuthModal: React.FC<AuthModalProps> = ({ onSuccess, onSwitchToRegister }) => {
   const [isSetup, setIsSetup] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -56,7 +57,10 @@ export const AuthModal: React.FC<AuthModalProps> = ({ onSuccess }) => {
       } else {
         const res = await apiRequest('/auth/login', {
           method: 'POST',
-          body: JSON.stringify({ username, password })
+          body: JSON.stringify({
+            identifier: username,
+            password
+          })
         });
         if (res.success) {
           setAuthToken(res.token);
@@ -102,7 +106,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({ onSuccess }) => {
             )}
 
             <div className="field">
-              <label htmlFor="auth-username">Kullanıcı Adı</label>
+              <label htmlFor="auth-username">E-posta</label>
               <input
                 id="auth-username"
                 type="text"
@@ -112,7 +116,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({ onSuccess }) => {
                 onFocus={() => setUnlocked(true)}
                 value={username}
                 onChange={(e) => setUsername(e.target.value)}
-                placeholder="admin"
+                placeholder="ornek@firmaniz.com"
                 autoFocus
               />
             </div>
@@ -135,10 +139,19 @@ export const AuthModal: React.FC<AuthModalProps> = ({ onSuccess }) => {
             {error && <div className="form-error">{error}</div>}
           </div>
 
-          <div className="sheet-foot">
+          <div className="sheet-foot" style={{ flexDirection: 'column', gap: '10px', alignItems: 'stretch' }}>
             <button className="btn btn-primary" type="submit" disabled={loading} style={{ width: '100%' }}>
               {loading ? 'İşleniyor...' : isSetup ? 'Kurulumu Tamamla' : 'Giriş Yap'}
             </button>
+            {!isSetup && onSwitchToRegister && (
+              <button
+                className="btn btn-ghost"
+                type="button"
+                onClick={onSwitchToRegister}
+              >
+                Hesabınız yok mu? Kayıt olun
+              </button>
+            )}
           </div>
         </form>
       </div>

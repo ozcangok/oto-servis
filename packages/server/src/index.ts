@@ -1,5 +1,6 @@
 import { buildApp } from './app.js';
 import { initDatabase } from './db/index.js';
+import { initPlatformDb, migrateLegacySessions } from './db/platform.js';
 import path from 'path';
 
 const PORT = parseInt(process.env.PORT || '3001', 10);
@@ -10,7 +11,17 @@ async function main() {
   const dbPath = path.join(dataDir, 'oto-servis.sqlite');
 
   console.log(`[DATABASE] SQLite başlatılıyor: ${dbPath}`);
-  initDatabase({ dbPath });
+  const { sqlite } = initDatabase({ dbPath });
+
+  try {
+    initPlatformDb();
+    const moved = migrateLegacySessions(sqlite);
+    if (moved > 0) {
+      console.log(`[AUTH] ${moved} mevcut oturum platform veritabanına taşındı.`);
+    }
+  } catch (err) {
+    console.error('[PLATFORM DB ERROR]', err);
+  }
 
   const { seedDatabase } = await import('./db/seed.js');
   try {

@@ -1,5 +1,6 @@
 import type { FastifyPluginAsync } from 'fastify';
 import { exportCustomerKvkkData, anonymizeCustomer } from '../services/kvkkService.js';
+import { reqDb, reqSqlite, reqCtx } from '../tenantContext.js';
 
 export const kvkkRoutes: FastifyPluginAsync = async (fastify) => {
   fastify.addHook('preHandler', async (request, reply) => {
@@ -17,7 +18,7 @@ export const kvkkRoutes: FastifyPluginAsync = async (fastify) => {
   }, async (request, reply) => {
     const customerId = Number((request.params as any).customerId);
     try {
-      const data = await exportCustomerKvkkData(customerId);
+      const data = await exportCustomerKvkkData(customerId, reqCtx(request));
       return { success: true, data };
     } catch (err: any) {
       return reply.status(400).send({ success: false, error: err.message });
@@ -33,7 +34,7 @@ export const kvkkRoutes: FastifyPluginAsync = async (fastify) => {
   }, async (request, reply) => {
     const customerId = Number((request.params as any).customerId);
     try {
-      const result = await anonymizeCustomer(customerId, request.user!);
+      const result = await anonymizeCustomer(customerId, request.user!, reqCtx(request));
       return {
         success: true,
         message: 'Müşteri kişisel verileri başarıyla anonimleştirildi.',

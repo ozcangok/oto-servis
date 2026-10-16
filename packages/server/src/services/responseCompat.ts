@@ -14,6 +14,7 @@
  */
 
 import { getSettings } from './settingsService.js';
+import type { DbCtx } from '../db/index.js';
 
 export function withVehicleAliases<T extends Record<string, any>>(
   vehicle: T | null | undefined
@@ -88,10 +89,10 @@ export function paymentMethodDisplay(yontem: unknown): string {
  * Peşin iskontosu oranını belirler: istekte açıkça verildiyse o,
  * yoksa ayarlardaki varsayılan (ayar yoksa %5 geriye uyumluluk).
  */
-export async function getPesinRate(explicit?: number | null): Promise<number> {
+export async function getPesinRate(explicit?: number | null, ctx?: DbCtx): Promise<number> {
   if (explicit != null && Number.isFinite(explicit)) return explicit;
   try {
-    const settings = await getSettings();
+    const settings = await getSettings(ctx);
     if (typeof settings.default_cash_discount_rate === 'number') {
       return settings.default_cash_discount_rate;
     }

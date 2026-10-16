@@ -1,10 +1,10 @@
 import { eq, and, isNull } from 'drizzle-orm';
-import { getDb, customers, vehicles, workOrders, payments, workOrderLines } from '../db/index.js';
+import { dbFrom, customers, vehicles, workOrders, payments, workOrderLines, type DbCtx } from '../db/index.js';
 import { logAudit } from './auditService.js';
 import type { User } from '@oto-servis/shared';
 
-export async function exportCustomerKvkkData(customerId: number) {
-  const db = getDb();
+export async function exportCustomerKvkkData(customerId: number, ctx?: DbCtx) {
+  const db = dbFrom(ctx);
   const customer = db.select().from(customers).where(eq(customers.id, customerId)).get();
   if (!customer) {
     throw new Error('Müşteri bulunamadı.');
@@ -36,8 +36,8 @@ export async function exportCustomerKvkkData(customerId: number) {
   };
 }
 
-export async function anonymizeCustomer(customerId: number, adminUser: User) {
-  const db = getDb();
+export async function anonymizeCustomer(customerId: number, adminUser: User, ctx?: DbCtx) {
+  const db = dbFrom(ctx);
   const customer = db.select().from(customers).where(eq(customers.id, customerId)).get();
   if (!customer) {
     throw new Error('Müşteri bulunamadı.');
@@ -63,7 +63,7 @@ export async function anonymizeCustomer(customerId: number, adminUser: User) {
     eski_deger: { ad_soyad: customer.ad_soyad, telefon: customer.telefon },
     yeni_deger: anonymized,
     detay: `KVKK kapsamında müşteri anonimleştirildi: #${customerId}`
-  });
+  }, ctx);
 
   return anonymized;
 }

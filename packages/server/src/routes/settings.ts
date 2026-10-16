@@ -4,6 +4,7 @@ import QRCode from 'qrcode';
 import { getSettings, updateSettings } from '../services/settingsService.js';
 import { getDb, auditLog } from '../db/index.js';
 import { desc } from 'drizzle-orm';
+import { reqDb, reqSqlite, reqCtx } from '../tenantContext.js';
 
 function getLocalIpAddress(): string {
   const interfaces = os.networkInterfaces();
@@ -30,8 +31,8 @@ export const settingsRoutes: FastifyPluginAsync = async (fastify) => {
       tags: ['Ayarlar'],
       summary: 'Uygulama genel ayarlarını getir'
     }
-  }, async () => {
-    const settings = await getSettings();
+  }, async (request) => {
+    const settings = await getSettings(reqCtx(request));
     return { success: true, settings };
   });
 
@@ -45,7 +46,7 @@ export const settingsRoutes: FastifyPluginAsync = async (fastify) => {
     if (request.user!.role !== 'admin') {
       return reply.status(403).send({ success: false, error: 'Yalnızca yönetici ayarları değiştirebilir.' });
     }
-    const updated = await updateSettings(request.body as any);
+    const updated = await updateSettings(request.body as any, reqCtx(request));
     return { success: true, settings: updated };
   });
 
@@ -94,7 +95,7 @@ export const settingsRoutes: FastifyPluginAsync = async (fastify) => {
       return reply.status(403).send({ success: false, error: 'Yalnızca yönetici denetim kayıtlarını görebilir.' });
     }
 
-    const db = getDb();
+    const db = reqDb(request);
     const limit = Math.min(100, Math.max(1, parseInt((request.query as any)?.limit || '50', 10)));
     const logs = db.select().from(auditLog).orderBy(desc(auditLog.created_at)).limit(limit).all();
 

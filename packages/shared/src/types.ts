@@ -2,12 +2,13 @@
  * Shared Domain Types and Enums for Oto Servis
  */
 
-export type UserRole = 'admin' | 'cashier' | 'mechanic';
+export type UserRole = 'admin' | 'cashier' | 'mechanic' | 'superadmin';
 
 export const USER_ROLES: { [K in UserRole]: { label: string; description: string } } = {
   admin: { label: 'Yönetici', description: 'Tüm yetkilere sahiptir' },
   cashier: { label: 'Kasiyer', description: 'İş emri, ödeme, cari ve kasa işlemleri' },
-  mechanic: { label: 'Usta', description: 'İş emri ve durum güncelleme, parça ekleme (fiyat/kasa göremez)' }
+  mechanic: { label: 'Usta', description: 'İş emri ve durum güncelleme, parça ekleme (fiyat/kasa göremez)' },
+  superadmin: { label: 'Süper Admin', description: 'Platform sahibi, tüm firmaları yönetir' }
 };
 
 export type WorkOrderStatus = 'kabul' | 'onarimda' | 'teslime_hazir' | 'teslim_edildi';
@@ -63,6 +64,7 @@ export type AuditAction =
 export interface User {
   id: number;
   username: string;
+  eposta?: string | null;
   full_name: string;
   role: UserRole;
   is_active: boolean;

@@ -23,6 +23,7 @@ import {
 import { logAudit } from '../services/auditService.js';
 import { calculateWorkOrderTotals } from '@oto-servis/shared';
 import type { WorkOrderStatus, LineType, PaymentMethod } from '@oto-servis/shared';
+import { reqDb, reqSqlite, reqCtx } from '../tenantContext.js';
 
 const lineItemSchema = z.object({
   id: z.number().optional(),
@@ -67,7 +68,7 @@ export const workOrderRoutes: FastifyPluginAsync = async (fastify) => {
       summary: 'İş emirlerini listele ve filtrele'
     }
   }, async (request) => {
-    const db = getDb();
+    const db = reqDb(request);
     const status = (request.query as any)?.durum as WorkOrderStatus | undefined;
     const query = (request.query as any)?.q?.trim();
     const page = Math.max(1, parseInt((request.query as any)?.page || '1', 10));
@@ -106,7 +107,7 @@ export const workOrderRoutes: FastifyPluginAsync = async (fastify) => {
       .all();
 
     const isMechanic = request.user!.role === 'mechanic';
-    const pesinRate = await getPesinRate();
+    const pesinRate = await getPesinRate(undefined, reqCtx(request));
 
     const items = orders.map(({ workOrder, vehicle, customer }) => {
       // Get lines
@@ -180,7 +181,7 @@ export const workOrderRoutes: FastifyPluginAsync = async (fastify) => {
       summary: 'İş emri detayını, kalemlerini, ödemelerini ve fotoğraflarını getir'
     }
   }, async (request, reply) => {
-    const db = getDb();
+    const db = reqDb(request);
     const id = Number((request.params as any).id);
 
     const row = db
@@ -225,7 +226,7 @@ export const workOrderRoutes: FastifyPluginAsync = async (fastify) => {
 
     const isMechanic = request.user!.role === 'mechanic';
     const totalPaid = orderPayments.reduce((s, p) => s + p.tutar_kurus, 0);
-    const pesinRate = await getPesinRate();
+    const pesinRate = await getPesinRate(undefined, reqCtx(request));
 
     const calc = calculateWorkOrderTotals({
       lines: lines.map((l) => ({ adet: l.adet, birim_fiyat_kuruş: l.birim_fiyat_kurus })),
@@ -283,8 +284,8 @@ export const workOrderRoutes: FastifyPluginAsync = async (fastify) => {
       });
     }
 
-    const db = getDb();
-    const sqlite = getSqlite();
+    const db = reqDb(request);
+    const sqlite = reqSqlite(request);
 
     const vehicle = db
       .select()
@@ -345,7 +346,8 @@ export const workOrderRoutes: FastifyPluginAsync = async (fastify) => {
         newOrder.id,
         partUsages,
         request.user!.id,
-        parse.data.override_negative_stock || request.user!.role === 'admin'
+        parse.data.override_negative_stock || request.user!.role === 'admin',
+        reqCtx(request)
       );
 
       return newOrder;
@@ -359,7 +361,7 @@ export const workOrderRoutes: FastifyPluginAsync = async (fastify) => {
       hedef_id: result.id,
       yeni_deger: result,
       detay: `Yeni iş emri oluşturuldu #${result.id} (${vehicle.plaka_gorunen})`
-    });
+    }, reqCtx(request));
 
     return {
       success: true,
@@ -384,8 +386,8 @@ export const workOrderRoutes: FastifyPluginAsync = async (fastify) => {
       });
     }
 
-    const db = getDb();
-    const sqlite = getSqlite();
+    const db = reqDb(request);
+    const sqlite = reqSqlite(request);
 
     const existing = db
       .select()
@@ -443,7 +445,8 @@ export const workOrderRoutes: FastifyPluginAsync = async (fastify) => {
         id,
         partUsages,
         request.user!.id,
-        parse.data.override_negative_stock || request.user!.role === 'admin'
+        parse.data.override_negative_stock || request.user!.role === 'admin',
+        reqCtx(request)
       );
 
       return upd;
@@ -458,7 +461,7 @@ export const workOrderRoutes: FastifyPluginAsync = async (fastify) => {
       eski_deger: existing,
       yeni_deger: updated,
       detay: `İş emri güncellendi #${id}`
-    });
+    }, reqCtx(request));
 
     return { success: true, workOrder: updated, warnings };
   });
@@ -484,7 +487,7 @@ export const workOrderRoutes: FastifyPluginAsync = async (fastify) => {
       : durum === 'tamamlandı' ? 'teslime_hazir'
       : durum;
 
-    const db = getDb();
+    const db = reqDb(request);
     const existing = db
       .select()
       .from(workOrders)
@@ -514,7 +517,7 @@ export const workOrderRoutes: FastifyPluginAsync = async (fastify) => {
       eski_deger: { durum: existing.durum },
       yeni_deger: { durum: updated.durum },
       detay: `İş emri durumu güncellendi #${id}: ${updated.durum}`
-    });
+    }, reqCtx(request));
 
     return { success: true, workOrder: withOrderAliases(updated, {}) };
   });
@@ -538,7 +541,7 @@ export const workOrderRoutes: FastifyPluginAsync = async (fastify) => {
       return reply.status(400).send({ success: false, error: 'Ödeme tutarı 0\'dan büyük olmalıdır.' });
     }
 
-    const db = getDb();
+    const db = reqDb(request);
     const order = db
       .select()
       .from(workOrders)
@@ -568,7 +571,7 @@ export const workOrderRoutes: FastifyPluginAsync = async (fastify) => {
       hedef_id: newPayment.id,
       yeni_deger: newPayment,
       detay: `Ödeme alındı: ${(newPayment.tutar_kurus / 100).toFixed(2)} TL (${newPayment.yontem}) - İş Emri #${id}`
-    });
+    }, reqCtx(request));
 
     return { success: true, payment: newPayment };
   });
@@ -585,8 +588,8 @@ export const workOrderRoutes: FastifyPluginAsync = async (fastify) => {
     }
 
     const id = Number((request.params as any).id);
-    const db = getDb();
-    const sqlite = getSqlite();
+    const db = reqDb(request);
+    const sqlite = reqSqlite(request);
 
     const order = db
       .select()
@@ -601,7 +604,7 @@ export const workOrderRoutes: FastifyPluginAsync = async (fastify) => {
     const lines = db.select().from(workOrderLines).where(eq(workOrderLines.is_emri_id, id)).all();
     const existingPayments = db.select().from(payments).where(eq(payments.is_emri_id, id)).all();
     const paidSoFar = existingPayments.reduce((s, p) => s + p.tutar_kurus, 0);
-    const pesinRate = await getPesinRate();
+    const pesinRate = await getPesinRate(undefined, reqCtx(request));
 
     const calc = calculateWorkOrderTotals({
       lines: lines.map((l) => ({ adet: l.adet, birim_fiyat_kuruş: l.birim_fiyat_kurus })),
@@ -646,7 +649,7 @@ export const workOrderRoutes: FastifyPluginAsync = async (fastify) => {
       hedef_tablo: 'work_orders',
       hedef_id: id,
       detay: `İş emri peşin kapatıldı #${id}. Tahsil edilen peşin bakiye: ${(calc.pesin_kalan_kurus / 100).toFixed(2)} TL`
-    });
+    }, reqCtx(request));
 
     return {
       success: true,
@@ -666,7 +669,7 @@ export const workOrderRoutes: FastifyPluginAsync = async (fastify) => {
     }
 
     const id = Number((request.params as any).id);
-    const db = getDb();
+    const db = reqDb(request);
 
     const order = db
       .select()
@@ -692,7 +695,7 @@ export const workOrderRoutes: FastifyPluginAsync = async (fastify) => {
       hedef_tablo: 'work_orders',
       hedef_id: id,
       detay: `İş emri yeniden açıldı #${id}`
-    });
+    }, reqCtx(request));
 
     return { success: true, message: 'İş emri yeniden açıldı.' };
   });
@@ -709,8 +712,8 @@ export const workOrderRoutes: FastifyPluginAsync = async (fastify) => {
     }
 
     const id = Number((request.params as any).id);
-    const db = getDb();
-    const sqlite = getSqlite();
+    const db = reqDb(request);
+    const sqlite = reqSqlite(request);
 
     const order = db
       .select()
@@ -732,7 +735,7 @@ export const workOrderRoutes: FastifyPluginAsync = async (fastify) => {
       }).where(eq(workOrders.id, id)).run();
 
       // 2. Reverse stock movements
-      reverseWorkOrderStock(id, request.user!.id);
+      reverseWorkOrderStock(id, request.user!.id, reqCtx(request));
     })();
 
     await logAudit({
@@ -742,7 +745,7 @@ export const workOrderRoutes: FastifyPluginAsync = async (fastify) => {
       hedef_tablo: 'work_orders',
       hedef_id: id,
       detay: `İş emri silindi ve parçalar stoka iade edildi #${id}`
-    });
+    }, reqCtx(request));
 
     return {
       success: true,

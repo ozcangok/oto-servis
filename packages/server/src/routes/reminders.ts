@@ -1,5 +1,6 @@
 import type { FastifyPluginAsync } from 'fastify';
 import { getDueReminders } from '../services/reminderService.js';
+import { reqDb, reqSqlite, reqCtx } from '../tenantContext.js';
 
 export const reminderRoutes: FastifyPluginAsync = async (fastify) => {
   fastify.addHook('preHandler', async (request, reply) => {
@@ -14,8 +15,8 @@ export const reminderRoutes: FastifyPluginAsync = async (fastify) => {
       tags: ['Hatırlatıcılar'],
       summary: 'Yaklaşan muayene, bakım ve teslime hazır araç hatırlatıcıları'
     }
-  }, async () => {
-    const reminders = await getDueReminders();
+  }, async (request) => {
+    const reminders = await getDueReminders(reqCtx(request));
     return {
       success: true,
       count: reminders.length,

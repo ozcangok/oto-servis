@@ -1,5 +1,5 @@
 import { eq, and, isNull, lte, or } from 'drizzle-orm';
-import { getDb, vehicles, customers, workOrders } from '../db/index.js';
+import { dbFrom, vehicles, customers, workOrders, type DbCtx } from '../db/index.js';
 import { formatDate } from '@oto-servis/shared';
 
 export interface NotificationProvider {
@@ -33,8 +33,8 @@ export interface DueReminder {
   telefon: string;
 }
 
-export async function getDueReminders(): Promise<DueReminder[]> {
-  const db = getDb();
+export async function getDueReminders(ctx?: DbCtx): Promise<DueReminder[]> {
+  const db = dbFrom(ctx);
   const now = new Date();
   const thirtyDaysLater = new Date(now.getTime() + 30 * 24 * 60 * 60 * 1000).toISOString();
   const fifteenDaysLater = new Date(now.getTime() + 15 * 24 * 60 * 60 * 1000).toISOString();
