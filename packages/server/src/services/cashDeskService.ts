@@ -1,5 +1,5 @@
 import { and, gte, lte, eq, isNull } from 'drizzle-orm';
-import { dbFrom, payments, workOrders, vehicles, customers, users, workOrderLines, type DbCtx } from '../db/index.js';
+import { getDb, payments, workOrders, vehicles, customers, users, workOrderLines } from '../db/index.js';
 import { formatCurrency, formatDateTime } from '@oto-servis/shared';
 import type { PaymentMethod } from '@oto-servis/shared';
 
@@ -21,8 +21,8 @@ export interface CashDeskSummary {
   laborItems: any[];
 }
 
-export async function getCashDeskSummary(startDate?: string, endDate?: string, ctx?: DbCtx): Promise<CashDeskSummary> {
-  const db = dbFrom(ctx);
+export async function getCashDeskSummary(startDate?: string, endDate?: string): Promise<CashDeskSummary> {
+  const db = getDb();
 
   // Defaults to today if not provided
   const now = new Date();

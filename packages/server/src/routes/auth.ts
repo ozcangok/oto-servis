@@ -4,22 +4,16 @@ import {
   isSetupNeeded,
   setupInitialAdmin,
   loginUser,
-  loginTenantUser,
-  loginWithIdentifier,
   logoutUser,
   createUser,
-  updateUser,
   deleteUser,
   resetUserPassword,
   listUsers
 } from '../services/authService.js';
 import type { UserRole } from '@oto-servis/shared';
-import { reqCtx } from '../tenantContext.js';
 
 const loginSchema = z.object({
-  identifier: z.string().min(1, 'E-posta veya kullanıcı adı gereklidir.').optional().nullable(),
-  username: z.string().min(1).optional().nullable(),
-  firma_kodu: z.string().optional().nullable(),
+  username: z.string().min(1, 'Kullanıcı adı gereklidir.'),
   password: z.string().min(1, 'Parola gereklidir.')
 });
 
@@ -33,15 +27,7 @@ const createUserSchema = z.object({
   username: z.string().min(3, 'Kullanıcı adı en az 3 karakter olmalıdır.'),
   password: z.string().min(6, 'Parola en az 6 karakter olmalıdır.'),
   full_name: z.string().min(2, 'Ad soyad gereklidir.'),
-  eposta: z.string().email('Geçerli bir e-posta girin.').optional().nullable(),
-  role: z.enum(['admin', 'cashier', 'mechanic'])
-});
-
-const updateUserSchema = z.object({
-  full_name: z.string().min(2, 'Ad soyad en az 2 karakter olmalıdır.').optional(),
-  eposta: z.string().email('Geçerli bir e-posta girin.').nullable().optional(),
-  role: z.enum(['admin', 'cashier', 'mechanic']).optional(),
-  is_active: z.boolean().optional()
+  role: z.enum(['owner', 'staff'])
 });
 
 const resetPasswordSchema = z.object({
@@ -115,32 +101,14 @@ export const authRoutes: FastifyPluginAsync = async (fastify) => {
     }
 
     try {
-      const firmaKodu = parse.data.firma_kodu?.trim().toLowerCase() || null;
-      const identifier = (parse.data.identifier || parse.data.username || '').trim();
-      if (!identifier) {
-        return reply.status(400).send({ success: false, error: 'E-posta veya kullanıcı adı gereklidir.' });
-      }
-      const credentials = firmaKodu
-        ? await loginTenantUser({
-            companySlug: firmaKodu,
-            username: identifier,
-            password: parse.data.password,
-            ipAddress: request.ip
-          })
-        : await loginWithIdentifier(identifier, parse.data.password, request.ip);
-      const { token, user } = credentials;
+      const { token, user } = await loginUser(parse.data.username, parse.data.password, request.ip);
       reply.setCookie('session_token', token, {
         path: '/',
         httpOnly: true,
         sameSite: 'lax',
         maxAge: 30 * 24 * 60 * 60
       });
-      return {
-        success: true,
-        user,
-        token,
-        ...('company' in credentials ? { company: (credentials as any).company } : {})
-      };
+      return { success: true, user, token };
     } catch (err: any) {
       return reply.status(401).send({ success: false, error: err.message });
     }
@@ -181,10 +149,10 @@ export const authRoutes: FastifyPluginAsync = async (fastify) => {
       summary: 'Kullanıcıları listele (Yalnızca Yönetici)'
     }
   }, async (request, reply) => {
-    if (!request.user || request.user.role !== 'admin') {
-      return reply.status(403).send({ success: false, error: 'Bu işlem için yönetici yetkisi gereklidir.' });
+    if (!request.user || request.user.role !== 'owner') {
+      return reply.status(403).send({ success: false, error: 'Bu işlem için dükkan sahibi yetkisi gereklidir.' });
     }
-    const users = await listUsers(reqCtx(request));
+    const users = await listUsers();
     return { success: true, users };
   });
 
@@ -195,8 +163,8 @@ export const authRoutes: FastifyPluginAsync = async (fastify) => {
       summary: 'Yeni kullanıcı ekle (Yalnızca Yönetici)'
     }
   }, async (request, reply) => {
-    if (!request.user || request.user.role !== 'admin') {
-      return reply.status(403).send({ success: false, error: 'Bu işlem için yönetici yetkisi gereklidir.' });
+    if (!request.user || request.user.role !== 'owner') {
+      return reply.status(403).send({ success: false, error: 'Bu işlem için dükkan sahibi yetkisi gereklidir.' });
     }
 
     const parse = createUserSchema.safeParse(request.body);
@@ -208,40 +176,8 @@ export const authRoutes: FastifyPluginAsync = async (fastify) => {
     }
 
     try {
-      const newUser = await createUser(request.user, parse.data, reqCtx(request));
+      const newUser = await createUser(request.user, parse.data);
       return { success: true, user: newUser };
-    } catch (err: any) {
-      return reply.status(400).send({ success: false, error: err.message });
-    }
-  });
-
-  // Update user (Admin only)
-  fastify.put('/users/:id', {
-    schema: {
-      tags: ['Kullanıcı Yönetimi'],
-      summary: 'Kullanıcı güncelle (Yalnızca Yönetici)'
-    }
-  }, async (request, reply) => {
-    if (!request.user || request.user.role !== 'admin') {
-      return reply.status(403).send({ success: false, error: 'Bu işlem için yönetici yetkisi gereklidir.' });
-    }
-
-    const userId = Number((request.params as any).id);
-    if (!userId || isNaN(userId)) {
-      return reply.status(400).send({ success: false, error: 'Geçersiz kullanıcı ID.' });
-    }
-
-    const parse = updateUserSchema.safeParse(request.body);
-    if (!parse.success) {
-      return reply.status(400).send({
-        success: false,
-        error: parse.error.issues[0]?.message || 'Geçersiz kullanıcı bilgisi.'
-      });
-    }
-
-    try {
-      const updated = await updateUser(request.user, userId, parse.data, reqCtx(request));
-      return { success: true, user: updated };
     } catch (err: any) {
       return reply.status(400).send({ success: false, error: err.message });
     }
@@ -254,8 +190,8 @@ export const authRoutes: FastifyPluginAsync = async (fastify) => {
       summary: 'Kullanıcı sil (Yalnızca Yönetici)'
     }
   }, async (request, reply) => {
-    if (!request.user || request.user.role !== 'admin') {
-      return reply.status(403).send({ success: false, error: 'Bu işlem için yönetici yetkisi gereklidir.' });
+    if (!request.user || request.user.role !== 'owner') {
+      return reply.status(403).send({ success: false, error: 'Bu işlem için dükkan sahibi yetkisi gereklidir.' });
     }
 
     const userId = Number((request.params as any).id);
@@ -264,7 +200,7 @@ export const authRoutes: FastifyPluginAsync = async (fastify) => {
     }
 
     try {
-      await deleteUser(request.user, userId, reqCtx(request));
+      await deleteUser(request.user, userId);
       return { success: true, message: 'Kullanıcı silindi.' };
     } catch (err: any) {
       return reply.status(400).send({ success: false, error: err.message });
@@ -278,8 +214,8 @@ export const authRoutes: FastifyPluginAsync = async (fastify) => {
       summary: 'Kullanıcı parolasını sıfırla (Yalnızca Yönetici)'
     }
   }, async (request, reply) => {
-    if (!request.user || request.user.role !== 'admin') {
-      return reply.status(403).send({ success: false, error: 'Bu işlem için yönetici yetkisi gereklidir.' });
+    if (!request.user || request.user.role !== 'owner') {
+      return reply.status(403).send({ success: false, error: 'Bu işlem için dükkan sahibi yetkisi gereklidir.' });
     }
 
     const userId = Number((request.params as any).id);
@@ -292,7 +228,7 @@ export const authRoutes: FastifyPluginAsync = async (fastify) => {
     }
 
     try {
-      await resetUserPassword(request.user, userId, parse.data.new_password, reqCtx(request));
+      await resetUserPassword(request.user, userId, parse.data.new_password);
       return { success: true, message: 'Parola başarıyla güncellendi.' };
     } catch (err: any) {
       return reply.status(400).send({ success: false, error: err.message });

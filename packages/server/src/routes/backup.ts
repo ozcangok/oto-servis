@@ -1,12 +1,11 @@
 import type { FastifyPluginAsync } from 'fastify';
 import { createBackup, restoreBackup, getBackupStatus } from '../services/backupService.js';
 import path from 'path';
-import { reqDb, reqSqlite, reqCtx } from '../tenantContext.js';
 
 export const backupRoutes: FastifyPluginAsync = async (fastify) => {
   fastify.addHook('preHandler', async (request, reply) => {
-    if (!request.user || request.user.role !== 'admin') {
-      return reply.status(403).send({ success: false, error: 'Yedekleme ve geri yükleme işlemleri yalnızca yönetici tarafından yapılabilir.' });
+    if (!request.user || request.user.role !== 'owner') {
+      return reply.status(403).send({ success: false, error: 'Yedekleme ve geri yükleme işlemleri yalnızca dükkan sahibi tarafından yapılabilir.' });
     }
   });
 
@@ -29,7 +28,7 @@ export const backupRoutes: FastifyPluginAsync = async (fastify) => {
     }
   }, async (request, reply) => {
     try {
-      const result = await createBackup(undefined, reqCtx(request));
+      const result = await createBackup();
       return { success: true, message: 'Yedekleme başarıyla tamamlandı.', result };
     } catch (err: any) {
       return reply.status(500).send({ success: false, error: err.message });

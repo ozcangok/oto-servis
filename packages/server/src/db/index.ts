@@ -12,47 +12,6 @@ export interface InitDbOptions {
   inMemory?: boolean;
 }
 
-export type DbHandle = ReturnType<typeof drizzle<typeof schema>>;
-export type SqliteHandle = Database.Database;
-
-export interface DbHandles {
-  db: DbHandle;
-  sqlite: SqliteHandle;
-  dbFilePath: string;
-}
-
-/** Servis fonksiyonlarına istek bağlamını taşımak için kullanılır. */
-export interface DbCtx {
-  db?: DbHandle;
-  sqlite?: SqliteHandle;
-}
-
-export function dbFrom(ctx?: DbCtx): DbHandle {
-  return ctx?.db ?? getDb();
-}
-
-export function sqliteFrom(ctx?: DbCtx): SqliteHandle {
-  return ctx?.sqlite ?? getSqlite();
-}
-
-function openDatabaseFile(dbFilePath: string, inMemory: boolean): DbHandles {
-  const sqlite = new Database(dbFilePath);
-
-  // WAL mode for high concurrency and performance
-  if (!inMemory) {
-    sqlite.pragma('journal_mode = WAL');
-  }
-  sqlite.pragma('foreign_keys = ON');
-  sqlite.pragma('busy_timeout = 5000');
-  sqlite.pragma('synchronous = NORMAL');
-
-  // Ensure all tables and indexes exist
-  bootstrapSchema(sqlite);
-
-  const db = drizzle(sqlite, { schema });
-  return { db, sqlite, dbFilePath };
-}
-
 export function initDatabase(options: InitDbOptions = {}) {
   let dbFilePath: string;
 
@@ -72,60 +31,24 @@ export function initDatabase(options: InitDbOptions = {}) {
     dbFilePath = path.join(dataDir, 'oto-servis.sqlite');
   }
 
-  const { db, sqlite } = openDatabaseFile(dbFilePath, !!options.inMemory);
+  const sqlite = new Database(dbFilePath);
+
+  // WAL mode for high concurrency and performance
+  if (!options.inMemory) {
+    sqlite.pragma('journal_mode = WAL');
+  }
+  sqlite.pragma('foreign_keys = ON');
+  sqlite.pragma('busy_timeout = 5000');
+  sqlite.pragma('synchronous = NORMAL');
+
+  // Ensure all tables and indexes exist
+  bootstrapSchema(sqlite);
+
+  const db = drizzle(sqlite, { schema });
   currentSqlite = sqlite;
   currentDb = db;
 
   return { db, sqlite, dbFilePath };
-}
-
-/**
- * Kiracı (tenant) veritabanını açar. Global varsayılan DB'ye dokunmaz;
- * her kiracı dosyası için bağımsız tutamaç döner. Açık dosyalar önbellekte
- * tutulur (çok kiracılı çalışmada dosya tanıtıcısı patlamasını önler).
- */
-const tenantHandleCache = new Map<string, DbHandles>();
-const MAX_TENANT_HANDLES = 50;
-
-export function openTenantDb(dbFilePath: string): DbHandles {
-  const cached = tenantHandleCache.get(dbFilePath);
-  if (cached) {
-    // LRU: yeniden erişileni sona taşı
-    tenantHandleCache.delete(dbFilePath);
-    tenantHandleCache.set(dbFilePath, cached);
-    return cached;
-  }
-
-  const parentDir = path.dirname(dbFilePath);
-  if (!fs.existsSync(parentDir)) {
-    fs.mkdirSync(parentDir, { recursive: true });
-  }
-
-  const handles = openDatabaseFile(dbFilePath, false);
-  tenantHandleCache.set(dbFilePath, handles);
-
-  while (tenantHandleCache.size > MAX_TENANT_HANDLES) {
-    const oldest = tenantHandleCache.keys().next();
-    if (oldest.done) break;
-    const key = oldest.value;
-    const h = tenantHandleCache.get(key);
-    tenantHandleCache.delete(key);
-    try {
-      h?.sqlite.close();
-    } catch {}
-  }
-
-  return handles;
-}
-
-export function closeTenantDb(dbFilePath: string) {
-  const h = tenantHandleCache.get(dbFilePath);
-  tenantHandleCache.delete(dbFilePath);
-  if (h) {
-    try {
-      h.sqlite.close();
-    } catch {}
-  }
 }
 
 export function getDb() {
@@ -151,10 +74,10 @@ export function bootstrapSchema(sqlite: Database.Database) {
     CREATE TABLE IF NOT EXISTS users (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
       username TEXT NOT NULL UNIQUE,
-      password_hash TEXT NOT NULL,
       eposta TEXT,
+      password_hash TEXT NOT NULL,
       full_name TEXT NOT NULL,
-      role TEXT NOT NULL DEFAULT 'mechanic',
+      role TEXT NOT NULL DEFAULT 'owner',
       is_active INTEGER NOT NULL DEFAULT 1,
       failed_login_attempts INTEGER NOT NULL DEFAULT 0,
       locked_until TEXT,
@@ -349,18 +272,20 @@ export function bootstrapSchema(sqlite: Database.Database) {
     UPDATE work_orders SET durum = 'teslime_hazir' WHERE durum = 'tamamlandı';
   `);
 
-  // Sonradan eklenen kolonlar (mevcut DB'ler için migration)
-  ensureColumn(sqlite, 'users', 'eposta', 'TEXT');
+  // Eski sürümlerden gelen `eposta` sütunu yoksa ekle (tek dükkân girişinde
+  // kullanıcı adı yerine e-posta ile de giriş yapılabilsin).
+  const userColumns = sqlite.prepare('PRAGMA table_info(users)').all() as Array<{ name: string }>;
+  if (!userColumns.some((c) => c.name === 'eposta')) {
+    sqlite.exec('ALTER TABLE users ADD COLUMN eposta TEXT');
+  }
+
+  // Rol sistemi tek dükkân modeline indirildi: owner (Dükkan Sahibi) / staff
+  // (Dükkan Elemanı). Eski rolleri (admin/cashier/mechanic) yeni rollere taşı.
+  sqlite.exec(`
+    UPDATE users SET role = 'owner' WHERE role = 'admin';
+    UPDATE users SET role = 'staff' WHERE role IN ('cashier', 'mechanic');
+    UPDATE users SET role = 'staff' WHERE role NOT IN ('owner', 'staff');
+  `);
 }
 
 export * from './schema.js';
-
-/**
- * Eski veritabanlarına sonradan eklenen kolonları idempotent şekilde ekler.
- */
-export function ensureColumn(sqlite: Database.Database, table: string, column: string, ddl: string) {
-  const cols = sqlite.prepare(`PRAGMA table_info(${table})`).all() as Array<{ name: string }>;
-  if (!cols.some((c) => c.name === column)) {
-    sqlite.exec(`ALTER TABLE ${table} ADD COLUMN ${column} ${ddl}`);
-  }
-}

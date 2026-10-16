@@ -8,14 +8,14 @@ import { formatCurrency } from '@oto-servis/shared';
 describe('Phase 2: Vehicles, Customers, Parts, Work Orders, Stock & Plate Search API', () => {
   let app: any;
   let adminToken: string;
-  let mechanicToken: string;
+  let staffToken: string;
   let cashierToken: string;
 
   beforeEach(async () => {
     initDatabase({ inMemory: true });
     app = await buildApp({ enableRateLimit: false });
 
-    // Setup admin
+    // Setup owner (Dükkan Sahibi)
     const admin = await setupInitialAdmin({
       username: 'admin',
       password: 'AdminPassword123',
@@ -24,22 +24,22 @@ describe('Phase 2: Vehicles, Customers, Parts, Work Orders, Stock & Plate Search
     const adminLogin = await loginUser('admin', 'AdminPassword123');
     adminToken = adminLogin.token;
 
-    // Create mechanic & cashier
-    const cashier = await createUser(admin as any, {
+    // Staff (Dükkan Elemanı) hesapları
+    await createUser(admin as any, {
       username: 'kasiyer',
       password: 'CashierPassword123',
-      full_name: 'Selin Kasiyer',
-      role: 'cashier'
+      full_name: 'Selin Eleman',
+      role: 'staff'
     });
     cashierToken = (await loginUser('kasiyer', 'CashierPassword123')).token;
 
-    const mechanic = await createUser(admin as any, {
+    await createUser(admin as any, {
       username: 'usta',
       password: 'MechanicPassword123',
       full_name: 'Kemal Usta',
-      role: 'mechanic'
+      role: 'staff'
     });
-    mechanicToken = (await loginUser('usta', 'MechanicPassword123')).token;
+    staffToken = (await loginUser('usta', 'MechanicPassword123')).token;
   });
 
   it('creates and searches customer with soft deletion', async () => {
@@ -855,29 +855,31 @@ describe('Phase 2: Vehicles, Customers, Parts, Work Orders, Stock & Plate Search
     expect(resBad.statusCode).toBe(400);
   });
 
-  it('enforces role-based permissions (Mechanic cannot see prices or payments)', async () => {
-    // Mechanic gets list of parts
+  it('enforces role-based permissions (staff kasa göremez, sahibi görür)', async () => {
+    // Personel (staff) parça listesini görebilir (fiyatlar artık gizlenmez)
     const resParts = await app.inject({
       method: 'GET',
       url: '/api/parts',
-      headers: { authorization: `Bearer ${mechanicToken}` }
+      headers: { authorization: `Bearer ${staffToken}` }
     });
     expect(resParts.statusCode).toBe(200);
-    // If parts exist, prices should be hidden (0)
-    for (const p of JSON.parse(resParts.body).items) {
-      expect(p.alis_kurus).toBe(0);
-      expect(p.satis_kurus).toBe(0);
-    }
 
-    // Mechanic cannot add payment
-    const resPay = await app.inject({
-      method: 'POST',
-      url: '/api/payments',
-      headers: { authorization: `Bearer ${mechanicToken}` },
-      payload: { is_emri_id: 1, tutar_kurus: 5000, yontem: 'nakit' }
+    // Personel kasa özetine erişemez
+    const resCashStaff = await app.inject({
+      method: 'GET',
+      url: '/api/cash-desk/summary',
+      headers: { authorization: `Bearer ${staffToken}` }
     });
-    expect(resPay.statusCode).toBe(403);
-    expect(JSON.parse(resPay.body).error).toContain('Usta rolü');
+    expect(resCashStaff.statusCode).toBe(403);
+    expect(JSON.parse(resCashStaff.body).error).toContain('dükkan sahibi');
+
+    // Dükkan sahibi kasa özetine erişebilir
+    const resCashOwner = await app.inject({
+      method: 'GET',
+      url: '/api/cash-desk/summary',
+      headers: { authorization: `Bearer ${adminToken}` }
+    });
+    expect(resCashOwner.statusCode).toBe(200);
   });
 
   it('silinen aracin tahsilati kasa raporundan duser', async () => {

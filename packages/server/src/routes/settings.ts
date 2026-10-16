@@ -4,7 +4,6 @@ import QRCode from 'qrcode';
 import { getSettings, updateSettings } from '../services/settingsService.js';
 import { getDb, auditLog } from '../db/index.js';
 import { desc } from 'drizzle-orm';
-import { reqDb, reqSqlite, reqCtx } from '../tenantContext.js';
 
 function getLocalIpAddress(): string {
   const interfaces = os.networkInterfaces();
@@ -31,8 +30,8 @@ export const settingsRoutes: FastifyPluginAsync = async (fastify) => {
       tags: ['Ayarlar'],
       summary: 'Uygulama genel ayarlarını getir'
     }
-  }, async (request) => {
-    const settings = await getSettings(reqCtx(request));
+  }, async () => {
+    const settings = await getSettings();
     return { success: true, settings };
   });
 
@@ -43,10 +42,10 @@ export const settingsRoutes: FastifyPluginAsync = async (fastify) => {
       summary: 'Uygulama ayarlarını güncelle (Yalnızca Yönetici)'
     }
   }, async (request, reply) => {
-    if (request.user!.role !== 'admin') {
-      return reply.status(403).send({ success: false, error: 'Yalnızca yönetici ayarları değiştirebilir.' });
+    if (request.user!.role !== 'owner') {
+      return reply.status(403).send({ success: false, error: 'Yalnızca dükkan sahibi ayarları değiştirebilir.' });
     }
-    const updated = await updateSettings(request.body as any, reqCtx(request));
+    const updated = await updateSettings(request.body as any);
     return { success: true, settings: updated };
   });
 
@@ -91,11 +90,11 @@ export const settingsRoutes: FastifyPluginAsync = async (fastify) => {
       summary: 'Denetim izi / Audit log kayıtlarını listele (Yalnızca Yönetici)'
     }
   }, async (request, reply) => {
-    if (request.user!.role !== 'admin') {
-      return reply.status(403).send({ success: false, error: 'Yalnızca yönetici denetim kayıtlarını görebilir.' });
+    if (request.user!.role !== 'owner') {
+      return reply.status(403).send({ success: false, error: 'Yalnızca dükkan sahibi denetim kayıtlarını görebilir.' });
     }
 
-    const db = reqDb(request);
+    const db = getDb();
     const limit = Math.min(100, Math.max(1, parseInt((request.query as any)?.limit || '50', 10)));
     const logs = db.select().from(auditLog).orderBy(desc(auditLog.created_at)).limit(limit).all();
 

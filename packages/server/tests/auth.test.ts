@@ -27,7 +27,7 @@ describe('Auth Service and RBAC Permissions', () => {
     });
 
     expect(admin.username).toBe('admin');
-    expect(admin.role).toBe('admin');
+    expect(admin.role).toBe('owner');
     expect(admin.full_name).toBe('Ahmet Usta');
 
     // Second call must fail
@@ -51,7 +51,7 @@ describe('Auth Service and RBAC Permissions', () => {
     const loginRes = await loginUser('admin', 'CorrectPassword123');
     expect(loginRes.token).toBeDefined();
     expect(loginRes.user.username).toBe('admin');
-    expect(loginRes.user.role).toBe('admin');
+    expect(loginRes.user.role).toBe('owner');
   });
 
   it('protects against brute force: locks account after 5 failed attempts', async () => {
@@ -64,7 +64,7 @@ describe('Auth Service and RBAC Permissions', () => {
     // 4 failed attempts
     for (let i = 1; i <= 4; i++) {
       await expect(loginUser('admin', 'WrongPassword')).rejects.toThrow(
-        /Kullanıcı adı veya parola hatalı/
+        /parola hatalı/
       );
     }
 
@@ -79,40 +79,40 @@ describe('Auth Service and RBAC Permissions', () => {
     );
   });
 
-  it('allows admin to create cashier and mechanic users and manage them', async () => {
+  it('allows owner to create staff users and manage them', async () => {
     const admin = await setupInitialAdmin({
       username: 'admin',
       password: 'AdminPassword123',
       full_name: 'Patron'
     });
 
-    // Create cashier
+    // Create staff
     const cashier = await createUser(admin as any, {
-      username: 'kasiyer1',
+      username: 'eleman1',
       password: 'CashierPassword123',
-      full_name: 'Mehmet Kasiyer',
-      role: 'cashier'
+      full_name: 'Mehmet Eleman',
+      role: 'staff'
     });
-    expect(cashier.role).toBe('cashier');
+    expect(cashier.role).toBe('staff');
 
-    // Create mechanic
+    // Create second staff
     const mechanic = await createUser(admin as any, {
       username: 'usta1',
       password: 'MechanicPassword123',
       full_name: 'Hasan Usta',
-      role: 'mechanic'
+      role: 'staff'
     });
-    expect(mechanic.role).toBe('mechanic');
+    expect(mechanic.role).toBe('staff');
 
     const allUsers = await listUsers();
     expect(allUsers.length).toBe(3);
 
-    // Reset mechanic password
+    // Reset staff password
     await resetUserPassword(admin as any, mechanic.id, 'NewMechanicPassword456');
     const ustaLogin = await loginUser('usta1', 'NewMechanicPassword456');
     expect(ustaLogin.user.id).toBe(mechanic.id);
 
-    // Delete cashier
+    // Delete first staff
     await deleteUser(admin as any, cashier.id);
     const remainingUsers = await listUsers();
     expect(remainingUsers.length).toBe(2);

@@ -1,15 +1,14 @@
 import type { FastifyPluginAsync } from 'fastify';
 import { getCashDeskSummary, generateCashDeskCsv } from '../services/cashDeskService.js';
 import { withCashDeskAliases } from '../services/responseCompat.js';
-import { reqDb, reqSqlite, reqCtx } from '../tenantContext.js';
 
 export const cashDeskRoutes: FastifyPluginAsync = async (fastify) => {
   fastify.addHook('preHandler', async (request, reply) => {
     if (!request.user) {
       return reply.status(401).send({ success: false, error: 'Oturum açmanız gerekmektedir.' });
     }
-    if (request.user.role === 'mechanic') {
-      return reply.status(403).send({ success: false, error: 'Usta rolü kasa raporlarına erişemez.' });
+    if (request.user.role !== 'owner') {
+      return reply.status(403).send({ success: false, error: 'Kasa yalnızca dükkan sahibi tarafından görüntülenebilir.' });
     }
   });
 
@@ -33,7 +32,7 @@ export const cashDeskRoutes: FastifyPluginAsync = async (fastify) => {
         endDate = end.toISOString();
       }
     }
-    const summary = await getCashDeskSummary(startDate, endDate, reqCtx(request));
+    const summary = await getCashDeskSummary(startDate, endDate);
     return { success: true, summary: withCashDeskAliases(summary) };
   });
 
@@ -46,7 +45,7 @@ export const cashDeskRoutes: FastifyPluginAsync = async (fastify) => {
   }, async (request, reply) => {
     const startDate = (request.query as any)?.startDate;
     const endDate = (request.query as any)?.endDate;
-    const summary = await getCashDeskSummary(startDate, endDate, reqCtx(request));
+    const summary = await getCashDeskSummary(startDate, endDate);
     const csvData = generateCashDeskCsv(summary);
 
     reply.header('Content-Type', 'text/csv; charset=utf-8');

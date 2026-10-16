@@ -2,7 +2,7 @@ import path from 'path';
 import fs from 'fs';
 import archiver from 'archiver';
 import AdmZip from 'adm-zip';
-import { getSqlite, sqliteFrom, initDatabase, type DbCtx } from '../db/index.js';
+import { getSqlite, initDatabase } from '../db/index.js';
 import { getSettings, updateSettings } from './settingsService.js';
 import { logAudit } from './auditService.js';
 
@@ -28,7 +28,7 @@ export function getBackupDirectory(): string {
   return defaultDir;
 }
 
-export async function createBackup(customDestDir?: string, ctx?: DbCtx) {
+export async function createBackup(customDestDir?: string) {
   const destDir = customDestDir || getBackupDirectory();
   if (!fs.existsSync(destDir)) {
     fs.mkdirSync(destDir, { recursive: true });
@@ -38,7 +38,7 @@ export async function createBackup(customDestDir?: string, ctx?: DbCtx) {
   const zipFileName = `oto-servis-backup-${timestamp}.zip`;
   const zipFilePath = path.join(destDir, zipFileName);
 
-  const sqlite = sqliteFrom(ctx);
+  const sqlite = getSqlite();
 
   // Temporary snapshot using SQLite VACUUM INTO
   const tempDbSnapshot = path.join(destDir, `temp-snap-${Date.now()}.sqlite`);
@@ -89,7 +89,7 @@ export async function createBackup(customDestDir?: string, ctx?: DbCtx) {
   // Prune backups beyond last 30
   pruneOldBackups(destDir);
 
-  await updateSettings({ backup_dir: destDir }, ctx);
+  await updateSettings({ backup_dir: destDir });
 
   return {
     backupFile: zipFileName,

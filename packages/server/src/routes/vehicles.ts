@@ -6,7 +6,6 @@ import { reverseWorkOrderStock } from '../services/stockService.js';
 import { normalizePlate, formatPlateDisplay, calculateWorkOrderTotals } from '@oto-servis/shared';
 import { logAudit } from '../services/auditService.js';
 import { withVehicleAliases, withOrderAliases, flattenOrderContext, getPesinRate } from '../services/responseCompat.js';
-import { reqDb, reqSqlite, reqCtx } from '../tenantContext.js';
 
 const vehicleInputSchema = z.object({
   musteri_id: z.number().int().positive().optional().nullable(),
@@ -60,7 +59,7 @@ export const vehicleRoutes: FastifyPluginAsync = async (fastify) => {
       summary: 'Araçları plaka, müşteri, telefon, şasi veya model ile ara'
     }
   }, async (request) => {
-    const db = reqDb(request);
+    const db = getDb();
     const query = (request.query as any)?.q?.trim() || '';
     const page = Math.max(1, parseInt((request.query as any)?.page || '1', 10));
     const limit = Math.min(100, Math.max(1, parseInt((request.query as any)?.limit || '20', 10)));
@@ -132,7 +131,7 @@ export const vehicleRoutes: FastifyPluginAsync = async (fastify) => {
       summary: 'Plaka ile araç sorgulama ve geçmiş servis dökümü'
     }
   }, async (request, reply) => {
-    const db = reqDb(request);
+    const db = getDb();
     const rawPlate = (request.params as any).plate;
     const normPlate = normalizePlate(rawPlate);
 
@@ -168,7 +167,7 @@ export const vehicleRoutes: FastifyPluginAsync = async (fastify) => {
     let grandTotalGrossKurus = 0;
     let grandTotalCashPriceKurus = 0;
     let grandTotalPaidKurus = 0;
-    const pesinRate = await getPesinRate(undefined, reqCtx(request));
+    const pesinRate = await getPesinRate();
 
     const enrichedOrders = orders.map((order) => {
       // Lines
@@ -253,7 +252,7 @@ export const vehicleRoutes: FastifyPluginAsync = async (fastify) => {
       summary: 'Araç detayını getir'
     }
   }, async (request, reply) => {
-    const db = reqDb(request);
+    const db = getDb();
     const id = Number((request.params as any).id);
 
     const row = db
@@ -301,7 +300,7 @@ export const vehicleRoutes: FastifyPluginAsync = async (fastify) => {
       return reply.status(400).send({ success: false, error: 'Geçerli bir plaka giriniz.' });
     }
 
-    const db = reqDb(request);
+    const db = getDb();
 
     // Check if plate already exists and not deleted
     const existing = db
@@ -407,7 +406,7 @@ export const vehicleRoutes: FastifyPluginAsync = async (fastify) => {
         hedef_id: restored.id,
         yeni_deger: restored,
         detay: `Silinmiş araç kaydı geri getirildi: ${restored.plaka_gorunen}`
-      }, reqCtx(request));
+      });
 
       return {
         success: true,
@@ -453,7 +452,7 @@ export const vehicleRoutes: FastifyPluginAsync = async (fastify) => {
       hedef_id: newVehicle.id,
       yeni_deger: newVehicle,
       detay: `Yeni araç kaydedildi: ${newVehicle.plaka_gorunen}`
-    }, reqCtx(request));
+    });
 
     return {
       success: true,
@@ -480,7 +479,7 @@ export const vehicleRoutes: FastifyPluginAsync = async (fastify) => {
       });
     }
 
-    const db = reqDb(request);
+    const db = getDb();
     const existing = db
       .select()
       .from(vehicles)
@@ -569,7 +568,7 @@ export const vehicleRoutes: FastifyPluginAsync = async (fastify) => {
       eski_deger: existing,
       yeni_deger: updated,
       detay: `Araç güncellendi: ${updated.plaka_gorunen}`
-    }, reqCtx(request));
+    });
 
     return { success: true, vehicle: withVehicleAliases(updated) };
   });
@@ -582,7 +581,7 @@ export const vehicleRoutes: FastifyPluginAsync = async (fastify) => {
     }
   }, async (request, reply) => {
     const id = Number((request.params as any).id);
-    const db = reqDb(request);
+    const db = getDb();
 
     const existing = db
       .select()
@@ -595,7 +594,7 @@ export const vehicleRoutes: FastifyPluginAsync = async (fastify) => {
     }
 
     const now = new Date().toISOString();
-    const sqlite = reqSqlite(request);
+    const sqlite = getSqlite();
 
     // Araca bağlı açık iş emirleri de yumuşak silinir (stok iadesiyle),
     // yoksa panoda ve cari hesapta yetim kayıtlar görünür.
@@ -609,7 +608,7 @@ export const vehicleRoutes: FastifyPluginAsync = async (fastify) => {
       db.update(vehicles).set({ deleted_at: now, updated_at: now }).where(eq(vehicles.id, id)).run();
       for (const o of openOrders) {
         db.update(workOrders).set({ deleted_at: now, updated_at: now }).where(eq(workOrders.id, o.id)).run();
-        reverseWorkOrderStock(o.id, request.user!.id, reqCtx(request));
+        reverseWorkOrderStock(o.id, request.user!.id);
       }
     })();
 
@@ -621,7 +620,7 @@ export const vehicleRoutes: FastifyPluginAsync = async (fastify) => {
       hedef_id: id,
       eski_deger: existing,
       detay: `Araç silindi: ${existing.plaka_gorunen} (${openOrders.length} bağlı iş emriyle birlikte)`
-    }, reqCtx(request));
+    });
 
     return {
       success: true,

@@ -5,7 +5,6 @@ import { getDb, parts, stockMovements } from '../db/index.js';
 import { getPartStock, adjustStock } from '../services/stockService.js';
 import { logAudit } from '../services/auditService.js';
 import type { Part } from '@oto-servis/shared';
-import { reqDb, reqSqlite, reqCtx } from '../tenantContext.js';
 
 const partInputSchema = z.object({
   ad: z.string().min(2, 'Parça adı gereklidir.'),
@@ -42,7 +41,7 @@ export const partRoutes: FastifyPluginAsync = async (fastify) => {
       summary: 'Parçaları ara ve listele (ad, kod, barkod, uyumlu araç)'
     }
   }, async (request) => {
-    const db = reqDb(request);
+    const db = getDb();
     const query = (request.query as any)?.q?.trim();
     const page = Math.max(1, parseInt((request.query as any)?.page || '1', 10));
     const limit = Math.min(100, Math.max(1, parseInt((request.query as any)?.limit || '20', 10)));
@@ -83,12 +82,11 @@ export const partRoutes: FastifyPluginAsync = async (fastify) => {
 
     // Enrich with calculated current stock
     const enriched = items.map((p) => {
-      const stock = getPartStock(p.id, reqCtx(request));
+      const stock = getPartStock(p.id);
       return {
         ...p,
-        // Hide prices if user is mechanic (Usta)
-        alis_kurus: request.user!.role === 'mechanic' ? 0 : p.alis_kurus,
-        satis_kurus: request.user!.role === 'mechanic' ? 0 : p.satis_kurus,
+        alis_kurus: p.alis_kurus,
+        satis_kurus: p.satis_kurus,
         stok_miktari: stock,
         is_critical: stock <= p.kritik_stok
       };
@@ -113,7 +111,7 @@ export const partRoutes: FastifyPluginAsync = async (fastify) => {
       summary: 'Barkod ile anında parça sorgulama'
     }
   }, async (request, reply) => {
-    const db = reqDb(request);
+    const db = getDb();
     const barcode = (request.params as any).barcode?.trim();
 
     if (!barcode) {
@@ -130,13 +128,13 @@ export const partRoutes: FastifyPluginAsync = async (fastify) => {
       return reply.status(404).send({ success: false, error: 'Bu barkoda ait parça bulunamadı.' });
     }
 
-    const stock = getPartStock(part.id, reqCtx(request));
+    const stock = getPartStock(part.id);
     return {
       success: true,
       part: {
         ...part,
-        alis_kurus: request.user!.role === 'mechanic' ? 0 : part.alis_kurus,
-        satis_kurus: request.user!.role === 'mechanic' ? 0 : part.satis_kurus,
+        alis_kurus: part.alis_kurus,
+        satis_kurus: part.satis_kurus,
         stok_miktari: stock,
         is_critical: stock <= part.kritik_stok
       }
@@ -150,17 +148,17 @@ export const partRoutes: FastifyPluginAsync = async (fastify) => {
       summary: 'Kritik stok seviyesinin altına inen parçalar'
     }
   }, async (request) => {
-    const db = reqDb(request);
+    const db = getDb();
     const all = db.select().from(parts).where(isNull(parts.deleted_at)).all();
 
     const criticalList = [];
     for (const p of all) {
-      const stock = getPartStock(p.id, reqCtx(request));
+      const stock = getPartStock(p.id);
       if (stock <= p.kritik_stok) {
         criticalList.push({
           ...p,
-          alis_kurus: request.user!.role === 'mechanic' ? 0 : p.alis_kurus,
-          satis_kurus: request.user!.role === 'mechanic' ? 0 : p.satis_kurus,
+          alis_kurus: p.alis_kurus,
+          satis_kurus: p.satis_kurus,
           stok_miktari: stock,
           is_critical: true
         });
@@ -177,7 +175,7 @@ export const partRoutes: FastifyPluginAsync = async (fastify) => {
       summary: 'Parça detayı ve stok hareket geçmişi'
     }
   }, async (request, reply) => {
-    const db = reqDb(request);
+    const db = getDb();
     const id = Number((request.params as any).id);
 
     const part = db
@@ -190,7 +188,7 @@ export const partRoutes: FastifyPluginAsync = async (fastify) => {
       return reply.status(404).send({ success: false, error: 'Parça bulunamadı.' });
     }
 
-    const stock = getPartStock(part.id, reqCtx(request));
+    const stock = getPartStock(part.id);
     const movements = db
       .select()
       .from(stockMovements)
@@ -203,8 +201,8 @@ export const partRoutes: FastifyPluginAsync = async (fastify) => {
       success: true,
       part: {
         ...part,
-        alis_kurus: request.user!.role === 'mechanic' ? 0 : part.alis_kurus,
-        satis_kurus: request.user!.role === 'mechanic' ? 0 : part.satis_kurus,
+        alis_kurus: part.alis_kurus,
+        satis_kurus: part.satis_kurus,
         stok_miktari: stock,
         is_critical: stock <= part.kritik_stok
       },
@@ -228,7 +226,7 @@ export const partRoutes: FastifyPluginAsync = async (fastify) => {
       });
     }
 
-    const db = reqDb(request);
+    const db = getDb();
     const now = new Date().toISOString();
 
     // Check barcode uniqueness
@@ -271,7 +269,7 @@ export const partRoutes: FastifyPluginAsync = async (fastify) => {
       hedef_id: newPart.id,
       yeni_deger: newPart,
       detay: `Yeni parça eklendi: ${newPart.ad} (${newPart.kod})`
-    }, reqCtx(request));
+    });
 
     return { success: true, part: newPart };
   });
@@ -292,7 +290,7 @@ export const partRoutes: FastifyPluginAsync = async (fastify) => {
       });
     }
 
-    const db = reqDb(request);
+    const db = getDb();
     const existing = db
       .select()
       .from(parts)
@@ -343,7 +341,7 @@ export const partRoutes: FastifyPluginAsync = async (fastify) => {
       eski_deger: existing,
       yeni_deger: updated,
       detay: `Parça güncellendi: ${updated.ad}`
-    }, reqCtx(request));
+    });
 
     return { success: true, part: updated };
   });
@@ -372,10 +370,9 @@ export const partRoutes: FastifyPluginAsync = async (fastify) => {
         request.user!.id,
         {
           notlar: parse.data.notlar || undefined,
-          overrideNegativeStock: parse.data.override_negative || request.user!.role === 'admin',
+          overrideNegativeStock: parse.data.override_negative || request.user!.role === 'owner',
           ipAddress: request.ip
-        },
-        reqCtx(request)
+        }
       );
 
       return {
@@ -395,12 +392,8 @@ export const partRoutes: FastifyPluginAsync = async (fastify) => {
       summary: 'Parçayı sil (Yumuşak silme)'
     }
   }, async (request, reply) => {
-    if (request.user!.role === 'mechanic') {
-      return reply.status(403).send({ success: false, error: 'Usta rolü parça silemez.' });
-    }
-
     const id = Number((request.params as any).id);
-    const db = reqDb(request);
+    const db = getDb();
 
     const existing = db
       .select()
@@ -423,7 +416,7 @@ export const partRoutes: FastifyPluginAsync = async (fastify) => {
       hedef_id: id,
       eski_deger: existing,
       detay: `Parça silindi: ${existing.ad}`
-    }, reqCtx(request));
+    });
 
     return { success: true, message: 'Parça silindi.' };
   });

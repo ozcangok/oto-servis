@@ -1,5 +1,5 @@
 import { sql, eq, and } from 'drizzle-orm';
-import { dbFrom, sqliteFrom, parts, stockMovements, type DbCtx } from '../db/index.js';
+import { getDb, getSqlite, parts, stockMovements } from '../db/index.js';
 import { logAudit } from './auditService.js';
 import { getSettings } from './settingsService.js';
 import type { StockMovementType } from '@oto-servis/shared';
@@ -7,8 +7,8 @@ import type { StockMovementType } from '@oto-servis/shared';
 /**
  * Returns current stock balance for a part calculated from stock movements
  */
-export function getPartStock(partId: number, ctx?: DbCtx): number {
-  const db = dbFrom(ctx);
+export function getPartStock(partId: number): number {
+  const db = getDb();
   const row = db
     .select({ total: sql<number>`coalesce(sum(${stockMovements.miktar}), 0)` })
     .from(stockMovements)
@@ -32,11 +32,10 @@ export function adjustStock(
     notlar?: string;
     overrideNegativeStock?: boolean;
     ipAddress?: string;
-  } = {},
-  ctx?: DbCtx
+  } = {}
 ) {
-  const sqlite = sqliteFrom(ctx);
-  const db = dbFrom(ctx);
+  const sqlite = getSqlite();
+  const db = getDb();
 
   // Fetch part
   const part = db.select().from(parts).where(eq(parts.id, partId)).get();
@@ -45,7 +44,7 @@ export function adjustStock(
   }
 
   const runTx = sqlite.transaction(() => {
-    const currentStock = getPartStock(partId, ctx);
+    const currentStock = getPartStock(partId);
     const newStock = currentStock + miktar;
 
     if (newStock < 0 && !options.overrideNegativeStock) {
@@ -86,7 +85,7 @@ export function adjustStock(
     yeni_deger: { stock: result.newStock, delta: miktar, type: tur },
     ip_adresi: options.ipAddress,
     detay: `Stok hareketi: ${part.ad} (${miktar > 0 ? '+' : ''}${miktar}) - Yeni Stok: ${result.newStock}`
-  }, ctx);
+  });
 
   return result;
 }
@@ -99,11 +98,10 @@ export function applyWorkOrderStockDelta(
   workOrderId: number,
   newPartUsages: Array<{ parca_id: number; adet: number }>,
   userId: number,
-  overrideNegativeStock?: boolean,
-  ctx?: DbCtx
+  overrideNegativeStock?: boolean
 ) {
-  const sqlite = sqliteFrom(ctx);
-  const db = dbFrom(ctx);
+  const sqlite = getSqlite();
+  const db = getDb();
 
   const runTx = sqlite.transaction(() => {
     // 1. Get existing stock movements for this work order
@@ -142,7 +140,7 @@ export function applyWorkOrderStockDelta(
         const part = db.select().from(parts).where(eq(parts.id, partId)).get();
         if (!part) continue;
 
-        const currentStock = getPartStock(partId, ctx);
+        const currentStock = getPartStock(partId);
         // If deltaQty > 0, we need deltaQty more parts, so movement miktar is -deltaQty
         const miktarChange = -deltaQty;
         const projectedStock = currentStock + miktarChange;
@@ -179,9 +177,9 @@ export function applyWorkOrderStockDelta(
 /**
  * Reverses all stock movements for a work order upon soft deletion
  */
-export function reverseWorkOrderStock(workOrderId: number, userId: number, ctx?: DbCtx) {
-  const sqlite = sqliteFrom(ctx);
-  const db = dbFrom(ctx);
+export function reverseWorkOrderStock(workOrderId: number, userId: number) {
+  const sqlite = getSqlite();
+  const db = getDb();
 
   const runTx = sqlite.transaction(() => {
     const movements = db

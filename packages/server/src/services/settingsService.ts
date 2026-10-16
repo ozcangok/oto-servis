@@ -1,5 +1,5 @@
 import { eq } from 'drizzle-orm';
-import { dbFrom, settings, type DbCtx } from '../db/index.js';
+import { getDb, settings } from '../db/index.js';
 import type { AppSettings } from '@oto-servis/shared';
 
 const DEFAULT_SETTINGS: AppSettings = {
@@ -17,8 +17,8 @@ const DEFAULT_SETTINGS: AppSettings = {
   allow_negative_stock: false
 };
 
-export async function getSettings(ctx?: DbCtx): Promise<AppSettings> {
-  const db = dbFrom(ctx);
+export async function getSettings(): Promise<AppSettings> {
+  const db = getDb();
   const rows = db.select().from(settings).all();
   const map: Record<string, any> = {};
 
@@ -46,8 +46,8 @@ export async function getSettings(ctx?: DbCtx): Promise<AppSettings> {
   };
 }
 
-export async function updateSettings(newSettings: Partial<AppSettings>, ctx?: DbCtx): Promise<AppSettings> {
-  const db = dbFrom(ctx);
+export async function updateSettings(newSettings: Partial<AppSettings>): Promise<AppSettings> {
+  const db = getDb();
   const now = new Date().toISOString();
 
   for (const [key, value] of Object.entries(newSettings)) {

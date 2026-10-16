@@ -26,7 +26,7 @@ describe('Phase 7: Performance & Load Benchmark (50.000 Work Orders, 20.000 Vehi
     const now = new Date().toISOString();
 
     // 1. Insert user id 1 for foreign key
-    sqlite.prepare('INSERT INTO users (id, username, password_hash, full_name, role, created_at, updated_at) VALUES (1, ?, ?, ?, ?, ?, ?)').run('admin', 'hash', 'Admin', 'admin', now, now);
+    sqlite.prepare('INSERT INTO users (id, username, password_hash, full_name, role, created_at, updated_at) VALUES (1, ?, ?, ?, ?, ?, ?)').run('admin', 'hash', 'Admin', 'owner', now, now);
 
     // Batch insert customers & vehicles
     const insertVehiclesBatch = sqlite.transaction(() => {

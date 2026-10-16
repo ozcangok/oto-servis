@@ -5,7 +5,6 @@ import { getDb, getSqlite, customers, vehicles, workOrders, payments, workOrderL
 import { reverseWorkOrderStock } from '../services/stockService.js';
 import { logAudit } from '../services/auditService.js';
 import type { Customer } from '@oto-servis/shared';
-import { reqDb, reqSqlite, reqCtx } from '../tenantContext.js';
 
 const customerInputSchema = z.object({
   ad_soyad: z.string().min(2, 'Müşteri adı soyadı en az 2 karakter olmalıdır.'),
@@ -30,7 +29,7 @@ export const customerRoutes: FastifyPluginAsync = async (fastify) => {
       summary: 'Müşterileri ara ve listele (sayfalı)'
     }
   }, async (request) => {
-    const db = reqDb(request);
+    const db = getDb();
     const query = (request.query as any)?.q?.trim();
     const page = Math.max(1, parseInt((request.query as any)?.page || '1', 10));
     const limit = Math.min(100, Math.max(1, parseInt((request.query as any)?.limit || '20', 10)));
@@ -86,7 +85,7 @@ export const customerRoutes: FastifyPluginAsync = async (fastify) => {
       summary: 'Müşteri detayını ve araçlarını getir'
     }
   }, async (request, reply) => {
-    const db = reqDb(request);
+    const db = getDb();
     const id = Number((request.params as any).id);
 
     const customer = db
@@ -119,7 +118,7 @@ export const customerRoutes: FastifyPluginAsync = async (fastify) => {
       summary: 'Müşteri cari hesap ekstresi ve bakiye özeti'
     }
   }, async (request, reply) => {
-    const db = reqDb(request);
+    const db = getDb();
     const id = Number((request.params as any).id);
 
     const customer = db
@@ -165,7 +164,7 @@ export const customerRoutes: FastifyPluginAsync = async (fastify) => {
           iskonto_yuzde: o.iskonto_yuzde,
           iskonto_tutar_kurus: o.iskonto_tutar_kurus,
           pesin_fiyat_elle_kurus: o.pesin_fiyat_elle_kurus,
-          pesin_iskonto_yuzde: await getPesinRate(undefined, reqCtx(request)),
+          pesin_iskonto_yuzde: await getPesinRate(),
           odenen_kurus: paid
         });
 
@@ -218,7 +217,7 @@ export const customerRoutes: FastifyPluginAsync = async (fastify) => {
       });
     }
 
-    const db = reqDb(request);
+    const db = getDb();
     const now = new Date().toISOString();
 
     const newCustomer = db.insert(customers).values({
@@ -240,7 +239,7 @@ export const customerRoutes: FastifyPluginAsync = async (fastify) => {
       hedef_id: newCustomer.id,
       yeni_deger: newCustomer,
       detay: `Yeni müşteri eklendi: ${newCustomer.ad_soyad}`
-    }, reqCtx(request));
+    });
 
     return { success: true, customer: newCustomer };
   });
@@ -261,7 +260,7 @@ export const customerRoutes: FastifyPluginAsync = async (fastify) => {
       });
     }
 
-    const db = reqDb(request);
+    const db = getDb();
     const existing = db
       .select()
       .from(customers)
@@ -291,7 +290,7 @@ export const customerRoutes: FastifyPluginAsync = async (fastify) => {
       eski_deger: existing,
       yeni_deger: updated,
       detay: `Müşteri güncellendi: ${updated.ad_soyad}`
-    }, reqCtx(request));
+    });
 
     return { success: true, customer: updated };
   });
@@ -304,7 +303,7 @@ export const customerRoutes: FastifyPluginAsync = async (fastify) => {
     }
   }, async (request, reply) => {
     const id = Number((request.params as any).id);
-    const db = reqDb(request);
+    const db = getDb();
 
     const existing = db
       .select()
@@ -317,7 +316,7 @@ export const customerRoutes: FastifyPluginAsync = async (fastify) => {
     }
 
     const now = new Date().toISOString();
-    const sqlite = reqSqlite(request);
+    const sqlite = getSqlite();
 
     // Müşterinin araçları ve onlara bağlı açık iş emirleri de yumuşak
     // silinir (stok iadesiyle), yoksa panoda yetim kayıtlar görünür.
@@ -337,7 +336,7 @@ export const customerRoutes: FastifyPluginAsync = async (fastify) => {
           .all();
         for (const o of openOrders) {
           db.update(workOrders).set({ deleted_at: now, updated_at: now }).where(eq(workOrders.id, o.id)).run();
-          reverseWorkOrderStock(o.id, request.user!.id, reqCtx(request));
+          reverseWorkOrderStock(o.id, request.user!.id);
           closedOrders++;
         }
         db.update(vehicles).set({ deleted_at: now, updated_at: now }).where(eq(vehicles.id, v.id)).run();
@@ -353,7 +352,7 @@ export const customerRoutes: FastifyPluginAsync = async (fastify) => {
       hedef_id: id,
       eski_deger: existing,
       detay: `Müşteri silindi: ${existing.ad_soyad} (${customerVehicles.length} araç, ${closedOrders} iş emriyle birlikte)`
-    }, reqCtx(request));
+    });
 
     return {
       success: true,

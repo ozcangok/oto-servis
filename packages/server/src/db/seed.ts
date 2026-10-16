@@ -21,7 +21,7 @@ export async function seedDatabase() {
       username: 'admin',
       password_hash: passHash,
       full_name: 'Ahmet Usta (Yönetici)',
-      role: 'admin',
+      role: 'owner',
       is_active: true,
       created_at: now,
       updated_at: now
@@ -34,7 +34,7 @@ export async function seedDatabase() {
       username: 'kasiyer',
       password_hash: cashierHash,
       full_name: 'Selin Kasiyer',
-      role: 'cashier',
+      role: 'staff',
       is_active: true,
       created_at: now,
       updated_at: now
@@ -46,7 +46,7 @@ export async function seedDatabase() {
       username: 'usta',
       password_hash: mechanicHash,
       full_name: 'Kemal Usta',
-      role: 'mechanic',
+      role: 'staff',
       is_active: true,
       created_at: now,
       updated_at: now

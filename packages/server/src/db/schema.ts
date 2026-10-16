@@ -6,10 +6,10 @@ import { sqliteTable, text, integer, index } from 'drizzle-orm/sqlite-core';
 export const users = sqliteTable('users', {
   id: integer('id').primaryKey({ autoIncrement: true }),
   username: text('username').notNull().unique(),
-  password_hash: text('password_hash').notNull(),
   eposta: text('eposta'),
+  password_hash: text('password_hash').notNull(),
   full_name: text('full_name').notNull(),
-  role: text('role', { enum: ['admin', 'cashier', 'mechanic'] }).notNull().default('mechanic'),
+  role: text('role', { enum: ['owner', 'staff'] }).notNull().default('staff'),
   is_active: integer('is_active', { mode: 'boolean' }).notNull().default(true),
   failed_login_attempts: integer('failed_login_attempts').notNull().default(0),
   locked_until: text('locked_until'), // ISO UTC string

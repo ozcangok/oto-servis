@@ -1,4 +1,4 @@
-import { dbFrom, auditLog, type DbCtx } from '../db/index.js';
+import { getDb, auditLog } from '../db/index.js';
 import type { AuditAction } from '@oto-servis/shared';
 
 export interface LogAuditOptions {
@@ -13,9 +13,9 @@ export interface LogAuditOptions {
   detay?: string | null;
 }
 
-export async function logAudit(options: LogAuditOptions, ctx?: DbCtx) {
+export async function logAudit(options: LogAuditOptions) {
   try {
-    const db = dbFrom(ctx);
+    const db = getDb();
     const now = new Date().toISOString();
 
     db.insert(auditLog).values({

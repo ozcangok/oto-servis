@@ -7,20 +7,13 @@ import fastifySwaggerUi from '@fastify/swagger-ui';
 import fastifyStatic from '@fastify/static';
 import path from 'path';
 import fs from 'fs';
-import { resolveRequestAuth } from './services/authService.js';
+import { validateSession } from './services/authService.js';
 import { authRoutes } from './routes/auth.js';
-import { platformRoutes } from './routes/platform.js';
 import type { User, UserRole } from '@oto-servis/shared';
 
 declare module 'fastify' {
   interface FastifyRequest {
     user: User | null;
-    tenant: {
-      company: import('./db/platform.js').Company | null;
-      db: import('./db/index.js').DbHandle;
-      sqlite: import('./db/index.js').SqliteHandle;
-      isSuperadmin: boolean;
-    } | null;
   }
 }
 
@@ -122,29 +115,20 @@ export async function buildApp(options: AppOptions = {}): Promise<FastifyInstanc
     });
   }
 
-  // User session authentication hook (platform oturumları + kiracı bağlamı)
+  // User session authentication hook
   app.decorateRequest('user', null);
-  app.decorateRequest('tenant', null);
 
   app.addHook('onRequest', async (request) => {
     const token =
       (request.cookies as any)?.session_token ||
       request.headers.authorization?.replace(/^Bearer\s+/i, '');
 
-    if (!token) {
+    if (token) {
+      const user = await validateSession(token);
+      request.user = user;
+    } else {
       request.user = null;
-      request.tenant = null;
-      return;
     }
-
-    const ctx = await resolveRequestAuth(token);
-    request.user = ctx?.user ?? null;
-    // Kiracı oturumu varsa istek o kiracının DB'sine bağlanır.
-    // Süper admin ve legacy oturumlarda tenant null kalır;
-    // servisler varsayılan (legacy) DB'ye düşer.
-    request.tenant = ctx?.handles
-      ? { company: ctx.company, db: ctx.handles.db, sqlite: ctx.handles.sqlite, isSuperadmin: false }
-      : null;
   });
 
   // Global error handler for consistent Turkish error messages
@@ -160,11 +144,6 @@ export async function buildApp(options: AppOptions = {}): Promise<FastifyInstanc
 
   // Register Routes
   await app.register(authRoutes, { prefix: '/api/auth' });
-
-  await app.register(platformRoutes, { prefix: '/api/platform' });
-
-  const { companyRoutes } = await import('./routes/companies.js');
-  await app.register(companyRoutes, { prefix: '/api/companies' });
 
   const { customerRoutes } = await import('./routes/customers.js');
   await app.register(customerRoutes, { prefix: '/api/customers' });
@@ -198,8 +177,8 @@ export async function buildApp(options: AppOptions = {}): Promise<FastifyInstanc
 
   // Sample data management endpoints
   app.post('/api/admin/seed', async (request, reply) => {
-    if (!request.user || request.user.role !== 'admin') {
-      return reply.status(403).send({ success: false, error: 'Yalnızca yönetici örnek veri yükleyebilir.' });
+    if (!request.user || request.user.role !== 'owner') {
+      return reply.status(403).send({ success: false, error: 'Yalnızca dükkan sahibi örnek veri yükleyebilir.' });
     }
     const { seedDatabase } = await import('./db/seed.js');
     await seedDatabase();
@@ -207,8 +186,8 @@ export async function buildApp(options: AppOptions = {}): Promise<FastifyInstanc
   });
 
   app.post('/api/admin/purge-samples', async (request, reply) => {
-    if (!request.user || request.user.role !== 'admin') {
-      return reply.status(403).send({ success: false, error: 'Yalnızca yönetici örnek verileri silebilir.' });
+    if (!request.user || request.user.role !== 'owner') {
+      return reply.status(403).send({ success: false, error: 'Yalnızca dükkan sahibi örnek verileri silebilir.' });
     }
     const { purgeSampleData } = await import('./db/seed.js');
     await purgeSampleData();

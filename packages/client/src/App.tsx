@@ -1,7 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { apiRequest, setAuthToken } from './services/api.js';
 import { AuthModal } from './components/AuthModal.js';
-import { RegisterScreen } from './screens/RegisterScreen.js';
 import { VehicleSearchScreen } from './screens/VehicleSearchScreen.js';
 import { CustomersScreen } from './screens/CustomersScreen.js';
 import { VehiclesScreen } from './screens/VehiclesScreen.js';
@@ -15,7 +14,6 @@ import { SettingsScreen } from './screens/SettingsScreen.js';
 export function App() {
   const [currentUser, setCurrentUser] = useState<any | null>(null);
   const [authChecked, setAuthChecked] = useState(false);
-  const [authMode, setAuthMode] = useState<'login' | 'register'>('login');
   const [activeTab, setActiveTab] = useState<'sorgu' | 'arac' | 'musteri' | 'parca' | 'cari' | 'kasa' | 'hatir'>('sorgu');
 
   // Work order sheet modal state
@@ -110,6 +108,16 @@ export function App() {
     setCurrentUser(null);
   };
 
+  // Kasa yalnızca dükkan sahibine (owner) açıktır. Personel (staff) için
+  // sekme gizlenir ve aktif sekme kasa ise başka bölüme alınır.
+  const isOwner = currentUser?.role === 'owner';
+
+  useEffect(() => {
+    if (currentUser && !isOwner && activeTab === 'kasa') {
+      setActiveTab('sorgu');
+    }
+  }, [currentUser, isOwner, activeTab]);
+
   const handleNewWorkOrder = (plate?: string) => {
     setActiveWorkOrderId(null);
     setWorkOrderPlate(plate || selectedPlate || '');
@@ -148,27 +156,13 @@ export function App() {
       </div>
 
       {/* Auth Modal if unauthenticated */}
-      {!currentUser && authMode === 'login' && (
+      {!currentUser && (
         <AuthModal
           onSuccess={(user) => {
             setCurrentUser(user);
             loadRemindersBadge();
             loadSettings();
           }}
-          onSwitchToRegister={() => setAuthMode('register')}
-        />
-      )}
-
-      {/* Register Screen */}
-      {!currentUser && authMode === 'register' && (
-        <RegisterScreen
-          onSuccess={(user) => {
-            setCurrentUser(user);
-            setAuthMode('login');
-            loadRemindersBadge();
-            loadSettings();
-          }}
-          onBackToLogin={() => setAuthMode('login')}
         />
       )}
 
@@ -255,14 +249,16 @@ export function App() {
             >
               Cari hesap
             </button>
-            <button
-              className="tab"
-              role="tab"
-              aria-selected={activeTab === 'kasa'}
-              onClick={() => setActiveTab('kasa')}
-            >
-              Kasa
-            </button>
+            {isOwner && (
+              <button
+                className="tab"
+                role="tab"
+                aria-selected={activeTab === 'kasa'}
+                onClick={() => setActiveTab('kasa')}
+              >
+                Kasa
+              </button>
+            )}
             <button
               className="tab"
               role="tab"
@@ -305,7 +301,7 @@ export function App() {
           />
         )}
 
-        {activeTab === 'kasa' && <CashDeskScreen />}
+        {isOwner && activeTab === 'kasa' && <CashDeskScreen />}
 
         {activeTab === 'hatir' && <RemindersScreen />}
       </main>
