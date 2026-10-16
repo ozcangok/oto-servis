@@ -125,6 +125,11 @@ export const workOrderRoutes: FastifyPluginAsync = async (fastify) => {
 
       const totalPaid = orderPayments.reduce((s, p) => s + p.tutar_kurus, 0);
 
+      // Bu ay toplam işçilik bedeli için: işçilik kalemleri toplamı
+      const iscilikToplamKurus = lines
+        .filter((l) => l.tur === 'iscilik')
+        .reduce((s, l) => s + (Number(l.adet) || 0) * (l.birim_fiyat_kurus || 0), 0);
+
       const calc = calculateWorkOrderTotals({
         lines: lines.map((l) => ({ adet: l.adet, birim_fiyat_kuruş: l.birim_fiyat_kurus })),
         kdv_orani: workOrder.kdv_orani,
@@ -149,7 +154,8 @@ export const workOrderRoutes: FastifyPluginAsync = async (fastify) => {
           brut_kurus: isMechanic ? undefined : calc.brut_kurus,
           pesin_fiyat_kurus: isMechanic ? undefined : calc.pesin_fiyat_kurus,
           odenen_kurus: isMechanic ? undefined : totalPaid,
-          kalan_kurus: isMechanic ? undefined : calc.kalan_kurus
+          kalan_kurus: isMechanic ? undefined : calc.kalan_kurus,
+          iscilik_toplam_kurus: isMechanic ? undefined : iscilikToplamKurus
         },
         flattenOrderContext(vehicle, customer)
       );

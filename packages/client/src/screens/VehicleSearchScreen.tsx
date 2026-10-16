@@ -38,6 +38,7 @@ export const VehicleSearchScreen: React.FC<VehicleSearchScreenProps> = ({
   const [dashboardStats, setDashboardStats] = useState({
     inShopCount: 0,
     monthTotalKurus: 0,
+    monthLaborKurus: 0,
     openCariKurus: 0,
     lowPartsCount: 0
   });
@@ -141,12 +142,14 @@ export const VehicleSearchScreen: React.FC<VehicleSearchScreenProps> = ({
 
       const thisMonth = new Date().toISOString().slice(0, 7);
       let monthGross = 0;
+      let monthLabor = 0;
       let totalOpen = 0;
 
       allOrders.forEach((o: any) => {
         const orderDate = String(o.giris_tarihi || o.created_at || '');
         if (orderDate.startsWith(thisMonth)) {
           monthGross += o.brut_tutar_kurus || 0;
+          monthLabor += o.iscilik_toplam_kurus || 0;
         }
         totalOpen += Math.max(0, o.kalan_tutar_kurus || 0);
       });
@@ -154,6 +157,7 @@ export const VehicleSearchScreen: React.FC<VehicleSearchScreenProps> = ({
       setDashboardStats({
         inShopCount: inShop.length,
         monthTotalKurus: monthGross,
+        monthLaborKurus: monthLabor,
         openCariKurus: totalOpen,
         lowPartsCount: lowParts.length
       });
@@ -460,6 +464,10 @@ export const VehicleSearchScreen: React.FC<VehicleSearchScreenProps> = ({
             <div className="stat">
               <span>Bu ay (KDV dahil)</span>
               <b>{money(dashboardStats.monthTotalKurus)}</b>
+            </div>
+            <div className="stat">
+              <span>Bu ay toplam işçilik bedeli</span>
+              <b>{money(dashboardStats.monthLaborKurus)}</b>
             </div>
             <div className="stat">
               <span>Açık cari</span>

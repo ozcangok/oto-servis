@@ -615,6 +615,7 @@ describe('Phase 2: Vehicles, Customers, Parts, Work Orders, Stock & Plate Search
     expect(item.arac_marka).toBe('Tofaş');
     expect(item.giris_tarihi).toBeDefined();
     expect(item.brut_tutar_kurus).toBe(120000);
+    expect(item.iscilik_toplam_kurus).toBe(100000);
 
     // 3. vehicles search: plaka alias present
     const resSearch = await app.inject({
