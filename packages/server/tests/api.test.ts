@@ -879,4 +879,137 @@ describe('Phase 2: Vehicles, Customers, Parts, Work Orders, Stock & Plate Search
     expect(resPay.statusCode).toBe(403);
     expect(JSON.parse(resPay.body).error).toContain('Usta rolü');
   });
+
+  it('silinen aracin tahsilati kasa raporundan duser', async () => {
+    const nowLocal = new Date();
+    const localDate = `${nowLocal.getFullYear()}-${String(nowLocal.getMonth() + 1).padStart(2, '0')}-${String(nowLocal.getDate()).padStart(2, '0')}`;
+
+    const resCust = await app.inject({
+      method: 'POST',
+      url: '/api/customers',
+      headers: { authorization: `Bearer ${adminToken}` },
+      payload: { ad_soyad: 'Kasa Arac Silme', telefon: '05551112233' }
+    });
+    const custId = JSON.parse(resCust.body).customer.id;
+
+    const resVeh = await app.inject({
+      method: 'POST',
+      url: '/api/vehicles',
+      headers: { authorization: `Bearer ${adminToken}` },
+      payload: { musteri_id: custId, plaka: '34 KASA 01', marka: 'Honda', model: 'Civic' }
+    });
+    const vehId = JSON.parse(resVeh.body).vehicle.id;
+
+    const resOrder = await app.inject({
+      method: 'POST',
+      url: '/api/work-orders',
+      headers: { authorization: `Bearer ${adminToken}` },
+      payload: {
+        arac_id: vehId,
+        km: 500,
+        sikayet: 'Kasa arac silme',
+        kalemler: [{ tur: 'iscilik', ad: 'Bakım', adet: 1, birim: 'Adet', birim_fiyat_kurus: 50000 }]
+      }
+    });
+    const orderId = JSON.parse(resOrder.body).workOrder.id;
+
+    await app.inject({
+      method: 'POST',
+      url: `/api/work-orders/${orderId}/payments`,
+      headers: { authorization: `Bearer ${adminToken}` },
+      payload: { tutar_kurus: 30000, odeme_yontemi: 'Nakit', odeme_tarihi: localDate }
+    });
+
+    const before = JSON.parse(
+      (
+        await app.inject({
+          method: 'GET',
+          url: '/api/cash-desk/summary',
+          headers: { authorization: `Bearer ${adminToken}` }
+        })
+      ).body
+    ).summary;
+    expect(before.payments.some((p: any) => p.is_emri_id === orderId)).toBe(true);
+    expect(before.totalCollectedKurus).toBeGreaterThanOrEqual(30000);
+
+    const resDel = await app.inject({
+      method: 'DELETE',
+      url: `/api/vehicles/${vehId}`,
+      headers: { authorization: `Bearer ${adminToken}` }
+    });
+    expect(resDel.statusCode).toBe(200);
+
+    const after = JSON.parse(
+      (
+        await app.inject({
+          method: 'GET',
+          url: '/api/cash-desk/summary',
+          headers: { authorization: `Bearer ${adminToken}` }
+        })
+      ).body
+    ).summary;
+    expect(after.payments.some((p: any) => p.is_emri_id === orderId)).toBe(false);
+    expect(after.totalCollectedKurus).toBe(0);
+  });
+
+  it('silinen musterinin tahsilati kasa raporundan duser', async () => {
+    const nowLocal = new Date();
+    const localDate = `${nowLocal.getFullYear()}-${String(nowLocal.getMonth() + 1).padStart(2, '0')}-${String(nowLocal.getDate()).padStart(2, '0')}`;
+
+    const resCust = await app.inject({
+      method: 'POST',
+      url: '/api/customers',
+      headers: { authorization: `Bearer ${adminToken}` },
+      payload: { ad_soyad: 'Kasa Musteri Silme', telefon: '05552223344' }
+    });
+    const custId = JSON.parse(resCust.body).customer.id;
+
+    const resVeh = await app.inject({
+      method: 'POST',
+      url: '/api/vehicles',
+      headers: { authorization: `Bearer ${adminToken}` },
+      payload: { musteri_id: custId, plaka: '34 KASA 02', marka: 'Toyota', model: 'Corolla' }
+    });
+    const vehId = JSON.parse(resVeh.body).vehicle.id;
+
+    const resOrder = await app.inject({
+      method: 'POST',
+      url: '/api/work-orders',
+      headers: { authorization: `Bearer ${adminToken}` },
+      payload: {
+        arac_id: vehId,
+        km: 700,
+        sikayet: 'Kasa müşteri silme',
+        kalemler: [{ tur: 'iscilik', ad: 'Onarım', adet: 1, birim: 'Adet', birim_fiyat_kurus: 80000 }]
+      }
+    });
+    const orderId = JSON.parse(resOrder.body).workOrder.id;
+
+    await app.inject({
+      method: 'POST',
+      url: `/api/work-orders/${orderId}/payments`,
+      headers: { authorization: `Bearer ${adminToken}` },
+      payload: { tutar_kurus: 40000, odeme_yontemi: 'Nakit', odeme_tarihi: localDate }
+    });
+
+    const resDel = await app.inject({
+      method: 'DELETE',
+      url: `/api/customers/${custId}`,
+      headers: { authorization: `Bearer ${adminToken}` }
+    });
+    expect(resDel.statusCode).toBe(200);
+
+    const after = JSON.parse(
+      (
+        await app.inject({
+          method: 'GET',
+          url: '/api/cash-desk/summary',
+          headers: { authorization: `Bearer ${adminToken}` }
+        })
+      ).body
+    ).summary;
+    expect(after.payments.some((p: any) => p.is_emri_id === orderId)).toBe(false);
+    expect(after.totalCollectedKurus).toBe(0);
+    expect(after.grandTotalLaborKurus).toBe(0);
+  });
 });

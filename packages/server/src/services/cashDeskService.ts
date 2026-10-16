@@ -29,7 +29,16 @@ export async function getCashDeskSummary(startDate?: string, endDate?: string, c
   const start = startDate || new Date(now.getFullYear(), now.getMonth(), now.getDate(), 0, 0, 0).toISOString();
   const end = endDate || new Date(now.getFullYear(), now.getMonth(), now.getDate(), 23, 59, 59, 999).toISOString();
 
-  const whereClause = and(gte(payments.tarih, start), lte(payments.tarih, end))!;
+  // Silinen (yumuşak silme) iş emirleri, araçlar ve müşterilere ait
+  // tahsilatlar kasa raporunda görünmez; yoksa silinen kayıtların
+  // tutarları kasadan düşmez.
+  const whereClause = and(
+    gte(payments.tarih, start),
+    lte(payments.tarih, end),
+    isNull(workOrders.deleted_at),
+    isNull(vehicles.deleted_at),
+    isNull(customers.deleted_at)
+  )!;
 
   const rows = db
     .select({
@@ -92,6 +101,8 @@ export async function getCashDeskSummary(startDate?: string, endDate?: string, c
       and(
         eq(workOrderLines.tur, 'iscilik'),
         isNull(workOrders.deleted_at),
+        isNull(vehicles.deleted_at),
+        isNull(customers.deleted_at),
         gte(workOrders.tarih, start),
         lte(workOrders.tarih, end)
       )
