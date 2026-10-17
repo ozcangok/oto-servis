@@ -14,7 +14,6 @@ export const PartsScreen: React.FC<PartsScreenProps> = ({ initialFilter = 'all' 
   const [loading, setLoading] = useState(false);
   const [filter, setFilter] = useState<'all' | 'low'>(initialFilter);
   const [searchTerm, setSearchTerm] = useState('');
-  const [vatRate, setVatRate] = useState(20);
 
   // Edit / Add Part Modal State
   const [partModal, setPartModal] = useState<{
@@ -78,17 +77,7 @@ export const PartsScreen: React.FC<PartsScreenProps> = ({ initialFilter = 'all' 
 
   useEffect(() => {
     loadParts();
-    loadSettings();
   }, []);
-
-  const loadSettings = async () => {
-    try {
-      const res = await apiRequest('/settings');
-      if (res.success && res.settings?.default_kdv_rate) {
-        setVatRate(res.settings.default_kdv_rate);
-      }
-    } catch {}
-  };
 
   const loadParts = async () => {
     setLoading(true);
@@ -368,7 +357,7 @@ export const PartsScreen: React.FC<PartsScreenProps> = ({ initialFilter = 'all' 
                   <th>Parça</th>
                   <th className="num">Stok</th>
                   <th className="num">Alış</th>
-                  <th className="num">Satış (KDV hariç)</th>
+                  <th className="num">Satış</th>
                   <th></th>
                 </tr>
               </thead>
@@ -377,7 +366,6 @@ export const PartsScreen: React.FC<PartsScreenProps> = ({ initialFilter = 'all' 
                   filtered.map((p) => {
                     const buyKurus = p.alis_kurus || 0;
                     const sellKurus = p.satis_kurus || 0;
-                    const sellVatKurus = Math.round(sellKurus * (1 + vatRate / 100));
                     const margin = buyKurus > 0 && sellKurus > 0 ? Math.round(((sellKurus - buyKurus) / buyKurus) * 100) : null;
                     const low = isLowStock(p);
 
@@ -410,10 +398,7 @@ export const PartsScreen: React.FC<PartsScreenProps> = ({ initialFilter = 'all' 
                         <td className="num">{money(buyKurus)}</td>
                         <td className="num">
                           {money(sellKurus)}
-                          <div className="subtxt">
-                            KDV dahil {money(sellVatKurus)}
-                            {margin !== null ? ` · %${margin}` : ''}
-                          </div>
+                          {margin !== null && <div className="subtxt">%{margin}</div>}
                         </td>
                         <td className="num">
                           <button

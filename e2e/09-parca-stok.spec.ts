@@ -101,4 +101,36 @@ test.describe('9) Parça arşivi — opsiyonel fiyat & stok güncelleme', () => 
     // Arayüzde de yeni stok görünür
     await expect(page.locator('tr', { hasText: ad }).first()).toContainText('7');
   });
+
+  test('parça tablosunda KDV GEÇMEZ: sütun "Satış", altında yalnızca kâr marjı (regresyon)', async ({
+    page,
+    request
+  }) => {
+    const token = await apiLogin(request, OWNER);
+
+    const ad = `E2E Marj Parça ${Date.now().toString().slice(-6)}`;
+    const { part } = await createPart(request, token, { ad, stok: 2 }); // alış 1000, satış 5000
+
+    await login(page, OWNER);
+    await page.getByRole('tab', { name: 'Parça arşivi' }).click();
+    await page.locator('#pq').fill(part.kod);
+
+    const panel = page.locator('.panel', { has: page.locator('table.ptbl') });
+    await expect(panel).toBeVisible();
+
+    // Sütun başlığı artık düz "Satış" (parçanın KDV ile ilgisi yok)
+    await expect(panel.getByRole('columnheader', { name: 'Satış', exact: true })).toBeVisible();
+    await expect(panel.getByRole('columnheader', { name: /KDV/i })).toHaveCount(0);
+
+    // Tablonun hiçbir yerinde KDV ifadesi bulunmamalı
+    await expect(panel).not.toContainText('KDV');
+    await expect(panel).not.toContainText('kdv');
+
+    // Satır: satış fiyatı + kâr marjı; KDV dahil satırı YOK
+    const row = page.locator('tr', { hasText: ad }).first();
+    await expect(row).toBeVisible();
+    await expect(row).toContainText('50,00'); // 5000 kuruş = 50,00 ₺
+    await expect(row).toContainText('400'); // (5000-1000)/1000 = %400 marj
+    await expect(row).not.toContainText('KDV');
+  });
 });
