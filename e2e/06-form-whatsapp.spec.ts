@@ -14,23 +14,25 @@ test.describe('6) Form doğrulama ve harici entegrasyon', () => {
     await page.getByRole('tab', { name: 'Giderler' }).click();
     await expect(page.locator('#gx-tutar')).toBeVisible();
 
-    const before = await page.locator('.tbl tbody tr').count();
+    const aciklama = 'E2E geçersiz tutar';
     const input = page.locator('#gx-tutar');
-    await page.locator('#gx-aciklama').fill('E2E geçersiz tutar');
+    await page.locator('#gx-aciklama').fill(aciklama);
 
     // (a) Eksi tutar: sayı alanı geçersizdir; tarayıcı formu göndermez
     await input.fill('-5');
     expect(await input.evaluate((el: HTMLInputElement) => el.validity.valid)).toBe(false);
     await page.getByRole('button', { name: 'Gider Ekle' }).click();
     await page.waitForTimeout(400);
-    expect(await page.locator('.tbl tbody tr').count()).toBe(before);
+    // Satır sayımı asenkron yükleme nedeniyle oynak olabilir; asıl doğrulama:
+    // bu gider hiçbir şekilde kaydedilmemiş olmalı.
+    await expect(page.locator('.tbl tbody tr', { hasText: aciklama })).toHaveCount(0);
 
     // (b) Sıfır tutar: tarayıcı izin verir, uygulama kendi doğrulamasıyla reddeder
     await input.fill('0');
     await page.getByRole('button', { name: 'Gider Ekle' }).click();
     await expect(page.locator('#toast')).toContainText('Sıfırdan büyük bir tutar girin');
     await page.waitForTimeout(400);
-    expect(await page.locator('.tbl tbody tr').count()).toBe(before);
+    await expect(page.locator('.tbl tbody tr', { hasText: aciklama })).toHaveCount(0);
   });
 
   test('Gider formunda harf girilemez (sayı alanı)', async ({ page }) => {
@@ -44,12 +46,12 @@ test.describe('6) Form doğrulama ve harici entegrasyon', () => {
     await expect(input).toHaveValue('');
 
     // Harf (boş değer) ile göndermeye çalışınca uyarı verir, kayıt olmaz
-    const before = await page.locator('.tbl tbody tr').count();
-    await page.locator('#gx-aciklama').fill('E2E harf testi');
+    const aciklama = 'E2E harf testi';
+    await page.locator('#gx-aciklama').fill(aciklama);
     await page.getByRole('button', { name: 'Gider Ekle' }).click();
     await expect(page.locator('#toast')).toContainText('Sıfırdan büyük bir tutar girin');
     await page.waitForTimeout(500);
-    expect(await page.locator('.tbl tbody tr').count()).toBe(before);
+    await expect(page.locator('.tbl tbody tr', { hasText: aciklama })).toHaveCount(0);
   });
 
   test('WhatsApp bağlantısı doğru müşteri telefonu ve plakayla üretilir', async ({ page }) => {

@@ -241,6 +241,22 @@ export function bootstrapSchema(sqlite: Database.Database) {
     CREATE INDEX IF NOT EXISTS idx_reminders_tur ON reminders(tur);
     CREATE INDEX IF NOT EXISTS idx_reminders_hedef_tarih ON reminders(hedef_tarih);
 
+    CREATE TABLE IF NOT EXISTS whatsapp_messages (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      is_emri_id INTEGER NOT NULL REFERENCES work_orders(id),
+      durum TEXT NOT NULL,
+      musteri_id INTEGER REFERENCES customers(id),
+      musteri_ad TEXT NOT NULL,
+      telefon TEXT NOT NULL,
+      plaka TEXT NOT NULL,
+      mesaj TEXT NOT NULL,
+      gonderildi_tarihi TEXT,
+      created_at TEXT NOT NULL
+    );
+    CREATE INDEX IF NOT EXISTS idx_whatsapp_messages_is_emri_id ON whatsapp_messages(is_emri_id);
+    CREATE INDEX IF NOT EXISTS idx_whatsapp_messages_durum ON whatsapp_messages(durum);
+    CREATE INDEX IF NOT EXISTS idx_whatsapp_messages_created_at ON whatsapp_messages(created_at);
+
     CREATE TABLE IF NOT EXISTS settings (
       anahtar TEXT PRIMARY KEY,
       deger TEXT NOT NULL,

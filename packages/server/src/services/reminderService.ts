@@ -41,36 +41,7 @@ export async function getDueReminders(): Promise<DueReminder[]> {
 
   const results: DueReminder[] = [];
 
-  // 1. Ready for delivery (durum: 'teslime_hazir')
-  const readyOrders = db
-    .select({
-      order: workOrders,
-      vehicle: vehicles,
-      customer: customers
-    })
-    .from(workOrders)
-    .leftJoin(vehicles, eq(workOrders.arac_id, vehicles.id))
-    .leftJoin(customers, eq(vehicles.musteri_id, customers.id))
-    .where(and(eq(workOrders.durum, 'teslime_hazir'), isNull(workOrders.deleted_at)))
-    .all();
-
-  for (const r of readyOrders) {
-    if (r.vehicle && r.customer) {
-      results.push({
-        id: `ready-${r.order.id}`,
-        tur: 'teslim_hazir',
-        baslik: 'Araç Teslime Hazır',
-        mesaj: `Sayın ${r.customer.ad_soyad}, ${r.vehicle.plaka_gorunen} plakalı aracınızın servis işlemleri tamamlanmış olup teslime hazırdır.`,
-        arac_id: r.vehicle.id,
-        plaka: r.vehicle.plaka_gorunen,
-        musteri_id: r.customer.id,
-        musteri_ad: r.customer.ad_soyad,
-        telefon: r.customer.telefon
-      });
-    }
-  }
-
-  // 2. Upcoming / Expired inspection (muayene)
+  // 1. Upcoming / Expired inspection (muayene)
   const allVehicles = db
     .select({
       vehicle: vehicles,
@@ -102,7 +73,7 @@ export async function getDueReminders(): Promise<DueReminder[]> {
     }
   }
 
-  // 3. Upcoming maintenance (bakim)
+  // 2. Upcoming maintenance (bakim)
   const maintenanceOrders = db
     .select({
       order: workOrders,

@@ -234,3 +234,27 @@ export async function getPart(request: APIRequestContext, token: string, id: num
   const { body } = await apiJson(request, 'GET', `/api/parts/${id}`, token);
   return body.part;
 }
+
+// ---------------------------------------------- WhatsApp durum bildirimleri
+
+export async function setWorkOrderStatus(
+  request: APIRequestContext,
+  token: string,
+  id: number,
+  durum: string
+): Promise<{ status: number; body: any }> {
+  return apiJson(request, 'PUT', `/api/work-orders/${id}/status`, token, { durum });
+}
+
+export async function getWhatsAppMessages(
+  request: APIRequestContext,
+  token: string
+): Promise<any[]> {
+  const { body } = await apiJson(request, 'GET', '/api/reminders/messages', token);
+  return body.items as any[];
+}
+
+/** Belirli bir plaka için (en yeni) gönderim kayıtlarını süzer. */
+export function messagesForPlate(items: any[], plaka: string): any[] {
+  return items.filter((m) => m.plaka === plaka);
+}

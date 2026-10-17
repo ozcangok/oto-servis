@@ -216,6 +216,30 @@ export const reminders = sqliteTable('reminders', {
 }));
 
 /**
+ * WhatsApp durum bildirimleri (İletişim Merkezi)
+ *
+ * İş emrinin "Servis Durumu" her değiştiğinde bu tabloya bir kayıt düşer.
+ * Hatırlatıcılar sayfası bu kayıtları listeler; her kaydın "WhatsApp Gönder"
+ * bağlantısı uluslararası telefon + kurumsal mesajla wa.me açar.
+ */
+export const whatsappMessages = sqliteTable('whatsapp_messages', {
+  id: integer('id').primaryKey({ autoIncrement: true }),
+  is_emri_id: integer('is_emri_id').notNull().references(() => workOrders.id),
+  durum: text('durum', { enum: ['kabul', 'onarimda', 'teslime_hazir', 'teslim_edildi'] }).notNull(),
+  musteri_id: integer('musteri_id').references(() => customers.id),
+  musteri_ad: text('musteri_ad').notNull(),
+  telefon: text('telefon').notNull(),
+  plaka: text('plaka').notNull(),
+  mesaj: text('mesaj').notNull(),
+  gonderildi_tarihi: text('gonderildi_tarihi'),
+  created_at: text('created_at').notNull()
+}, (table) => ({
+  isEmriIdIdx: index('idx_whatsapp_messages_is_emri_id').on(table.is_emri_id),
+  durumIdx: index('idx_whatsapp_messages_durum').on(table.durum),
+  createdAtIdx: index('idx_whatsapp_messages_created_at').on(table.created_at)
+}));
+
+/**
  * Settings (Ayarlar)
  */
 export const settings = sqliteTable('settings', {

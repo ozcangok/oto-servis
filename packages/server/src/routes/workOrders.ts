@@ -21,6 +21,7 @@ import {
   reverseWorkOrderStock
 } from '../services/stockService.js';
 import { logAudit } from '../services/auditService.js';
+import { recordStatusNotification } from '../services/whatsappService.js';
 import { calculateWorkOrderTotals } from '@oto-servis/shared';
 import type { WorkOrderStatus, LineType, PaymentMethod } from '@oto-servis/shared';
 
@@ -363,6 +364,9 @@ export const workOrderRoutes: FastifyPluginAsync = async (fastify) => {
       detay: `Yeni iş emri oluşturuldu #${result.id} (${vehicle.plaka_gorunen})`
     });
 
+    // İletişim merkezi: yeni iş emri kabul durumuyla açıldıysa WhatsApp kaydı düş
+    recordStatusNotification(result.id, result.durum);
+
     return {
       success: true,
       workOrder: result,
@@ -451,6 +455,11 @@ export const workOrderRoutes: FastifyPluginAsync = async (fastify) => {
       return upd;
     })();
 
+    // Servis durumu değiştiyse iletişim merkezine WhatsApp kaydı düş
+    if (updated.durum !== existing.durum) {
+      recordStatusNotification(id, updated.durum);
+    }
+
     await logAudit({
       kullanici_id: request.user!.id,
       kullanici_adi: request.user!.username,
@@ -506,6 +515,11 @@ export const workOrderRoutes: FastifyPluginAsync = async (fastify) => {
         : {}),
       updated_at: now
     }).where(eq(workOrders.id, id)).returning().get();
+
+    // Servis durumu değiştiyse iletişim merkezine WhatsApp kaydı düş
+    if (updated.durum !== existing.durum) {
+      recordStatusNotification(id, updated.durum);
+    }
 
     await logAudit({
       kullanici_id: request.user!.id,
@@ -633,6 +647,11 @@ export const workOrderRoutes: FastifyPluginAsync = async (fastify) => {
       }).where(eq(workOrders.id, id)).run();
     })();
 
+    // Servis durumu teslim edildi'ye geçtiyse iletişim merkezine kayıt düş
+    if (order.durum !== 'teslim_edildi') {
+      recordStatusNotification(id, 'teslim_edildi');
+    }
+
     await logAudit({
       kullanici_id: request.user!.id,
       kullanici_adi: request.user!.username,
@@ -674,6 +693,11 @@ export const workOrderRoutes: FastifyPluginAsync = async (fastify) => {
       kapanis_tarihi: null,
       updated_at: now
     }).where(eq(workOrders.id, id)).run();
+
+    // Servis durumu onarımda'ya döndüyse iletişim merkezine kayıt düş
+    if (order.durum !== 'onarimda') {
+      recordStatusNotification(id, 'onarimda');
+    }
 
     await logAudit({
       kullanici_id: request.user!.id,
