@@ -596,7 +596,6 @@ export function App() {
       {/* Settings Modal */}
       {showSettings && (
         <SettingsScreen
-          currentUser={currentUser}
           onClose={() => setShowSettings(false)}
           onSettingsSaved={(newSettings) => {
             if (newSettings?.shop_name) {
