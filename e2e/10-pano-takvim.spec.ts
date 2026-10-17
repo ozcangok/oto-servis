@@ -140,4 +140,28 @@ test.describe('10) Araç sorgu panosu & takvim', () => {
     await expect(q).toHaveValue('34/');
     await expect(q).toBeFocused();
   });
+
+  test('yerleşim: arama kutusu büyük kalır; formdaki plaka kutusu normal kontrol yüksekliğinde', async ({
+    page
+  }) => {
+    await login(page, OWNER);
+
+    const height = (sel) =>
+      page.locator(sel).first().evaluate((el) => Math.round(el.getBoundingClientRect().height));
+
+    // Pano arama kutusu BÜYÜK kalmalı (Bölüm 6.3)
+    const searchBoxH = await height('.plate-row .plate-input');
+    expect(searchBoxH).toBeGreaterThan(70);
+
+    // Yeni iş emri formu açılır
+    await page.getByRole('button', { name: 'Yeni iş emri' }).first().click();
+    await expect(page.getByRole('dialog')).toBeVisible();
+
+    // Formdaki plaka kutusu satır yüksekliğine YAYILMAMALI (regresyon koruması)
+    const formPlateH = await height('.field > .plate-input');
+    const dateH = await height('#of-date');
+    expect(formPlateH).toBeLessThan(80);
+    expect(formPlateH).toBeGreaterThanOrEqual(40);
+    expect(Math.abs(formPlateH - dateH)).toBeLessThanOrEqual(14);
+  });
 });
