@@ -23,7 +23,9 @@ const EMPTY_FORM: CustomerForm = {
 
 const PAGE_SIZE = 50;
 
-export const CustomersScreen: React.FC = () => {
+export const CustomersScreen: React.FC<{ currentUser?: any }> = ({ currentUser }) => {
+  // Silme yalnızca dükkan sahibine açıktır (silme, bağlı araç/kasa kayıtlarını etkiler).
+  const isOwner = currentUser?.role === 'owner';
   const [searchTerm, setSearchTerm] = useState('');
   const [debouncedSearch, setDebouncedSearch] = useState('');
   const [loading, setLoading] = useState(false);
@@ -214,13 +216,15 @@ export const CustomersScreen: React.FC = () => {
                     >
                       Düzenle
                     </button>
-                    <button
-                      className={`btn btn-sm btn-danger ${armedDeleteId === c.id ? 'armed' : ''}`}
-                      type="button"
-                      onClick={() => handleDelete(c.id)}
-                    >
-                      {armedDeleteId === c.id ? 'Emin misin? Tekrar tıkla' : 'Sil'}
-                    </button>
+                    {isOwner && (
+                      <button
+                        className={`btn btn-sm btn-danger ${armedDeleteId === c.id ? 'armed' : ''}`}
+                        type="button"
+                        onClick={() => handleDelete(c.id)}
+                      >
+                        {armedDeleteId === c.id ? 'Emin misin? Tekrar tıkla' : 'Sil'}
+                      </button>
+                    )}
                   </span>
                 </div>
               ))}

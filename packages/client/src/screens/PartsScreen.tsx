@@ -5,11 +5,15 @@ import { money, numfmt, toast } from '../services/ui.js';
 
 interface PartsScreenProps {
   initialFilter?: 'all' | 'low';
+  /** Oturumdaki kullanıcı: alış (maliyet) fiyatı ve silme yalnızca dükkan sahibine açıktır. */
+  currentUser?: any;
 }
 
 const UNITS = ['adet', 'litre', 'takım', 'metre', 'kg'];
 
-export const PartsScreen: React.FC<PartsScreenProps> = ({ initialFilter = 'all' }) => {
+export const PartsScreen: React.FC<PartsScreenProps> = ({ initialFilter = 'all', currentUser }) => {
+  // Alış (maliyet) fiyatı ve silme yalnızca dükkan sahibine açıktır.
+  const isOwner = currentUser?.role === 'owner';
   const [parts, setParts] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
   const [filter, setFilter] = useState<'all' | 'low'>(initialFilter);
@@ -356,7 +360,7 @@ export const PartsScreen: React.FC<PartsScreenProps> = ({ initialFilter = 'all' 
                   <th>Kod / barkod</th>
                   <th>Parça</th>
                   <th className="num">Stok</th>
-                  <th className="num">Alış</th>
+                  {isOwner && <th className="num">Alış</th>}
                   <th className="num">Satış</th>
                   <th></th>
                 </tr>
@@ -366,7 +370,7 @@ export const PartsScreen: React.FC<PartsScreenProps> = ({ initialFilter = 'all' 
                   filtered.map((p) => {
                     const buyKurus = p.alis_kurus || 0;
                     const sellKurus = p.satis_kurus || 0;
-                    const margin = buyKurus > 0 && sellKurus > 0 ? Math.round(((sellKurus - buyKurus) / buyKurus) * 100) : null;
+                    const margin = isOwner && buyKurus > 0 && sellKurus > 0 ? Math.round(((sellKurus - buyKurus) / buyKurus) * 100) : null;
                     const low = isLowStock(p);
 
                     return (
@@ -395,7 +399,7 @@ export const PartsScreen: React.FC<PartsScreenProps> = ({ initialFilter = 'all' 
                             `${numfmt(p.stok_miktari)} ${p.birim || 'adet'}`
                           )}
                         </td>
-                        <td className="num">{money(buyKurus)}</td>
+                        {isOwner && <td className="num">{money(buyKurus)}</td>}
                         <td className="num">
                           {money(sellKurus)}
                           {margin !== null && <div className="subtxt">%{margin}</div>}
@@ -435,9 +439,11 @@ export const PartsScreen: React.FC<PartsScreenProps> = ({ initialFilter = 'all' 
             <span>
               {parts.length} kalem · {lowStockCount} azalan
             </span>
-            <span>
-              Stoktaki parçaların alış değeri: <b className="tnum">{money(totalStockValueKurus)}</b>
-            </span>
+            {isOwner && (
+              <span>
+                Stoktaki parçaların alış değeri: <b className="tnum">{money(totalStockValueKurus)}</b>
+              </span>
+            )}
           </div>
         </div>
       )}

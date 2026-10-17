@@ -724,6 +724,12 @@ export const workOrderRoutes: FastifyPluginAsync = async (fastify) => {
       summary: 'İş emrini sil (Stok hareketleri otomatik tersine döner)'
     }
   }, async (request, reply) => {
+    // Silme, parça stok hareketlerini ve kasa/cari kayıtlarını geri döndürülemez
+    // şekilde etkiler: yalnızca dükkan sahibi silebilir.
+    if (request.user!.role !== 'owner') {
+      return reply.status(403).send({ success: false, error: 'Bu işlem için dükkan sahibi yetkisi gereklidir.' });
+    }
+
     const id = Number((request.params as any).id);
     const db = getDb();
     const sqlite = getSqlite();

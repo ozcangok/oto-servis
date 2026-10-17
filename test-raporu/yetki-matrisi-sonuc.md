@@ -66,12 +66,12 @@ Toplam uç nokta: **52** · Uygun: **52** · Sapma: **0**
 
 | Uç nokta | Anonim | Personel | Sahip | Sonuç | Not |
 |---|---|---|---|---|---|
-| `DELETE /api/customers/:id` | 401 | 200 | 200 | ⚠️ | personel silebildi — varsayılan matrise göre yalnızca sahip silmeli (Tasarım kararı bekliyor) |
-| `DELETE /api/vehicles/:id` | 401 | 200 | 200 | ⚠️ | personel silebildi — varsayılan matrise göre yalnızca sahip silmeli (Tasarım kararı bekliyor) |
-| `DELETE /api/parts/:id` | 401 | 200 | 200 | ⚠️ | personel silebildi — varsayılan matrise göre yalnızca sahip silmeli (Tasarım kararı bekliyor) |
-| `DELETE /api/work-orders/:id` | 401 | 200 | 200 | ⚠️ | personel silebildi — varsayılan matrise göre yalnızca sahip silmeli (Tasarım kararı bekliyor) |
-| `DELETE /api/payments/:id` | 401 | 200 | 200 | ⚠️ | personel silebildi — varsayılan matrise göre yalnızca sahip silmeli (Tasarım kararı bekliyor) |
+| `DELETE /api/customers/:id` | 401 | 403 | 200 | ✅ | personel reddedildi (varsayılan matrise uygun) |
+| `DELETE /api/vehicles/:id` | 401 | 403 | 200 | ✅ | personel reddedildi (varsayılan matrise uygun) |
+| `DELETE /api/parts/:id` | 401 | 403 | 200 | ✅ | personel reddedildi (varsayılan matrise uygun) |
+| `DELETE /api/work-orders/:id` | 401 | 403 | 200 | ✅ | personel reddedildi (varsayılan matrise uygun) |
+| `DELETE /api/payments/:id` | 401 | 403 | 200 | ✅ | personel reddedildi (varsayılan matrise uygun) |
 | `DELETE /api/expenses/:id` | 401 | 403 | 200 | ✅ | personel reddedildi (varsayılan matrise uygun) |
 | `DELETE /api/auth/users/:id` | 403 | 403 | 200 | ✅ | personel reddedildi (varsayılan matrise uygun) |
 
-Personelin silebildiği uç sayısı: **5 / 7** (varsayılan matrise göre 0 olmalı)
+Personelin silebildiği uç sayısı: **0 / 7** (varsayılan matrise göre 0 olmalı)

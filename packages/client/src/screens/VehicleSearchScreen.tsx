@@ -36,6 +36,8 @@ interface VehicleSearchScreenProps {
   initialPlate?: string;
   /** Sağ üstteki kilit ikonu: ekranı ANINDA güvenliğe alır (3 dk beklenmez). */
   onLockScreen?: () => void;
+  /** Oturumdaki kullanıcı: mali özetler ve silme yalnızca dükkan sahibine açıktır. */
+  currentUser?: any;
 }
 
 /** İş emri durumunu rozet tonuna çevirir (başarılı / uyarı / tehlike / nötr). */
@@ -65,8 +67,11 @@ export const VehicleSearchScreen: React.FC<VehicleSearchScreenProps> = ({
   onOpenWorkOrder,
   onNavigateToParts,
   initialPlate = '',
-  onLockScreen
+  onLockScreen,
+  currentUser
 }) => {
+  // Mali özetler (ciro/işçilik/açık cari) ve silme yalnızca dükkan sahibine açıktır.
+  const isOwner = currentUser?.role === 'owner';
   const [searchTerm, setSearchTerm] = useState(initialPlate);
   const [loading, setLoading] = useState(false);
   const [vehicleData, setVehicleData] = useState<any | null>(null);
@@ -664,32 +669,38 @@ export const VehicleSearchScreen: React.FC<VehicleSearchScreenProps> = ({
               <div className="kpi-sub">{dashboardStats.readyCount} teslime hazır</div>
             </div>
 
-            <div className="kpi">
-              <div className="kpi-top">
-                <span className="kpi-label">Bu ay (KDV dahil)</span>
-                <span className="kpi-ic"><TrendingUp size={18} strokeWidth={1.75} aria-hidden="true" /></span>
-              </div>
-              <div className="kpi-val">{money(dashboardStats.monthTotalKurus)}</div>
-              <div className="kpi-sub">{monthLabel}</div>
-            </div>
+            {/* Ciro / işçilik / açık cari yalnızca dükkan sahibine gösterilir:
+                personel mali rakamları görmez (ticari mahremiyet). */}
+            {isOwner && (
+              <>
+                <div className="kpi">
+                  <div className="kpi-top">
+                    <span className="kpi-label">Bu ay (KDV dahil)</span>
+                    <span className="kpi-ic"><TrendingUp size={18} strokeWidth={1.75} aria-hidden="true" /></span>
+                  </div>
+                  <div className="kpi-val">{money(dashboardStats.monthTotalKurus)}</div>
+                  <div className="kpi-sub">{monthLabel}</div>
+                </div>
 
-            <div className="kpi">
-              <div className="kpi-top">
-                <span className="kpi-label">Toplam işçilik</span>
-                <span className="kpi-ic"><Coins size={18} strokeWidth={1.75} aria-hidden="true" /></span>
-              </div>
-              <div className="kpi-val">{money(dashboardStats.monthLaborKurus)}</div>
-              <div className="kpi-sub">Bu ay</div>
-            </div>
+                <div className="kpi">
+                  <div className="kpi-top">
+                    <span className="kpi-label">Toplam işçilik</span>
+                    <span className="kpi-ic"><Coins size={18} strokeWidth={1.75} aria-hidden="true" /></span>
+                  </div>
+                  <div className="kpi-val">{money(dashboardStats.monthLaborKurus)}</div>
+                  <div className="kpi-sub">Bu ay</div>
+                </div>
 
-            <div className="kpi">
-              <div className="kpi-top">
-                <span className="kpi-label">Açık cari</span>
-                <span className="kpi-ic"><Wallet size={18} strokeWidth={1.75} aria-hidden="true" /></span>
-              </div>
-              <div className="kpi-val">{money(dashboardStats.openCariKurus)}</div>
-              <div className="kpi-sub">{dashboardStats.openCustomersCount} müşteri</div>
-            </div>
+                <div className="kpi">
+                  <div className="kpi-top">
+                    <span className="kpi-label">Açık cari</span>
+                    <span className="kpi-ic"><Wallet size={18} strokeWidth={1.75} aria-hidden="true" /></span>
+                  </div>
+                  <div className="kpi-val">{money(dashboardStats.openCariKurus)}</div>
+                  <div className="kpi-sub">{dashboardStats.openCustomersCount} müşteri</div>
+                </div>
+              </>
+            )}
 
             <button
               className="kpi clickable"
@@ -1149,13 +1160,15 @@ export const VehicleSearchScreen: React.FC<VehicleSearchScreenProps> = ({
                         >
                           PDF döküm
                         </button>
-                        <button
-                          className={`btn btn-sm btn-danger ${armedDeleteId === o.id ? 'armed' : ''}`}
-                          type="button"
-                          onClick={() => handleDeleteOrder(o.id)}
-                        >
-                          {armedDeleteId === o.id ? 'Emin misin? Tekrar tıkla' : 'Sil'}
-                        </button>
+                        {isOwner && (
+                          <button
+                            className={`btn btn-sm btn-danger ${armedDeleteId === o.id ? 'armed' : ''}`}
+                            type="button"
+                            onClick={() => handleDeleteOrder(o.id)}
+                          >
+                            {armedDeleteId === o.id ? 'Emin misin? Tekrar tıkla' : 'Sil'}
+                          </button>
+                        )}
                       </div>
 
                       <dl className="totals">

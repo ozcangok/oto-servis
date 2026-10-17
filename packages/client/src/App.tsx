@@ -315,6 +315,13 @@ export function App() {
         setActiveTab('sorgu');
         return;
       }
+      // Cari hesap (bakiyeler/alacaklar) ticari mahremiyet kapsamındadır:
+      // personel doğrudan adresle de açamaz.
+      if (name === 'cari' && !isOwner) {
+        window.history.replaceState(null, '', '#/sorgu');
+        setActiveTab('sorgu');
+        return;
+      }
       if (name === 'login') {
         window.history.replaceState(null, '', '#/' + TAB_TO_HASH[activeTab]);
         return;
@@ -458,16 +465,18 @@ export function App() {
 
             <div className="menu-group">
               <div className="menu-label">Finans</div>
-              <a
-                className="menu-item"
-                href="#/cari"
-                role="tab"
-                aria-selected={activeTab === 'cari'}
-                aria-current={activeTab === 'cari' ? 'page' : undefined}
-              >
-                <Wallet size={18} strokeWidth={1.75} aria-hidden="true" />
-                Cari hesap
-              </a>
+              {isOwner && (
+                <a
+                  className="menu-item"
+                  href="#/cari"
+                  role="tab"
+                  aria-selected={activeTab === 'cari'}
+                  aria-current={activeTab === 'cari' ? 'page' : undefined}
+                >
+                  <Wallet size={18} strokeWidth={1.75} aria-hidden="true" />
+                  Cari hesap
+                </a>
+              )}
               {isOwner && (
                 <a
                   className="menu-item"
@@ -554,18 +563,22 @@ export function App() {
             onOpenWorkOrder={(id) => handleOpenWorkOrder(id)}
             onNavigateToParts={() => setActiveTab('parca')}
             onLockScreen={handleLockNow}
+            currentUser={currentUser}
           />
         )}
 
         {activeTab === 'arac' && (
-          <VehiclesScreen onNewWorkOrder={(p) => handleNewWorkOrder(p)} />
+          <VehiclesScreen
+            onNewWorkOrder={(p) => handleNewWorkOrder(p)}
+            currentUser={currentUser}
+          />
         )}
 
-        {activeTab === 'musteri' && <CustomersScreen />}
+        {activeTab === 'musteri' && <CustomersScreen currentUser={currentUser} />}
 
-        {activeTab === 'parca' && <PartsScreen />}
+        {activeTab === 'parca' && <PartsScreen currentUser={currentUser} />}
 
-        {activeTab === 'cari' && (
+        {isOwner && activeTab === 'cari' && (
           <CustomerAccountsScreen
             onOpenPlate={(p) => {
               setSelectedPlate(p);

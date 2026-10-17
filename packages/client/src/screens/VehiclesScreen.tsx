@@ -7,6 +7,8 @@ import { normalizePlate } from '@oto-servis/shared';
 
 interface VehiclesScreenProps {
   onNewWorkOrder?: (plate: string) => void;
+  /** Oturumdaki kullanıcı: silme yalnızca dükkan sahibine açıktır. */
+  currentUser?: any;
 }
 
 interface VehicleForm {
@@ -41,7 +43,9 @@ const EMPTY_FORM: VehicleForm = {
 
 const PAGE_SIZE = 50;
 
-export const VehiclesScreen: React.FC<VehiclesScreenProps> = ({ onNewWorkOrder }) => {
+export const VehiclesScreen: React.FC<VehiclesScreenProps> = ({ onNewWorkOrder, currentUser }) => {
+  // Silme yalnızca dükkan sahibine açıktır (silme, kasa/stok kayıtlarını geri döndürür).
+  const isOwner = currentUser?.role === 'owner';
   const [searchTerm, setSearchTerm] = useState('');
   const [debouncedSearch, setDebouncedSearch] = useState('');
   const [loading, setLoading] = useState(false);
@@ -302,13 +306,15 @@ export const VehiclesScreen: React.FC<VehiclesScreenProps> = ({ onNewWorkOrder }
                     >
                       Düzenle
                     </button>
-                    <button
-                      className={`btn btn-sm btn-danger ${armedDeleteId === v.id ? 'armed' : ''}`}
-                      type="button"
-                      onClick={() => handleDelete(v.id)}
-                    >
-                      {armedDeleteId === v.id ? 'Emin misin? Tekrar tıkla' : 'Sil'}
-                    </button>
+                    {isOwner && (
+                      <button
+                        className={`btn btn-sm btn-danger ${armedDeleteId === v.id ? 'armed' : ''}`}
+                        type="button"
+                        onClick={() => handleDelete(v.id)}
+                      >
+                        {armedDeleteId === v.id ? 'Emin misin? Tekrar tıkla' : 'Sil'}
+                      </button>
+                    )}
                   </span>
                 </div>
               ))}

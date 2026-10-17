@@ -96,13 +96,19 @@ export const paymentRoutes: FastifyPluginAsync = async (fastify) => {
     return { success: true, items };
   });
 
-  // Delete payment (Admin / Cashier only)
+  // Delete payment (yalnızca dükkan sahibi)
   fastify.delete('/:id', {
     schema: {
       tags: ['Ödemeler'],
       summary: 'Ödemeyi sil'
     }
   }, async (request, reply) => {
+    // Tahsilat silme doğrudan kasa toplamını düşürür (mali kayıt):
+    // yalnızca dükkan sahibi silebilir.
+    if (request.user!.role !== 'owner') {
+      return reply.status(403).send({ success: false, error: 'Bu işlem için dükkan sahibi yetkisi gereklidir.' });
+    }
+
     const id = Number((request.params as any).id);
     const db = getDb();
 

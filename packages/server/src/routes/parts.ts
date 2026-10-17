@@ -38,6 +38,24 @@ const stockMovementInputSchema = z.object({
   override_negative: z.boolean().optional()
 });
 
+/**
+ * Parça yanıtı (ticari mahremiyet).
+ *
+ * `alis_kurus` (alış/maliyet fiyatı) YALNIZCA dükkan sahibine gönderilir;
+ * personel maliyet ve dolayısıyla kâr marjını göremez. Alan personel yanıtında
+ * hiç bulunmaz (undefined/null değil, tamamen yok).
+ */
+function partView(p: any, isOwner: boolean, stock: number) {
+  const { alis_kurus, ...rest } = p;
+  return {
+    ...rest,
+    ...(isOwner ? { alis_kurus } : {}),
+    satis_kurus: p.satis_kurus,
+    stok_miktari: stock,
+    is_critical: stock <= p.kritik_stok
+  };
+}
+
 export const partRoutes: FastifyPluginAsync = async (fastify) => {
   fastify.addHook('preHandler', async (request, reply) => {
     if (!request.user) {
@@ -92,16 +110,8 @@ export const partRoutes: FastifyPluginAsync = async (fastify) => {
       .all();
 
     // Enrich with calculated current stock
-    const enriched = items.map((p) => {
-      const stock = getPartStock(p.id);
-      return {
-        ...p,
-        alis_kurus: p.alis_kurus,
-        satis_kurus: p.satis_kurus,
-        stok_miktari: stock,
-        is_critical: stock <= p.kritik_stok
-      };
-    });
+    const isOwner = request.user!.role === 'owner';
+    const enriched = items.map((p) => partView(p, isOwner, getPartStock(p.id)));
 
     return {
       success: true,
@@ -142,13 +152,7 @@ export const partRoutes: FastifyPluginAsync = async (fastify) => {
     const stock = getPartStock(part.id);
     return {
       success: true,
-      part: {
-        ...part,
-        alis_kurus: part.alis_kurus,
-        satis_kurus: part.satis_kurus,
-        stok_miktari: stock,
-        is_critical: stock <= part.kritik_stok
-      }
+      part: partView(part, request.user!.role === 'owner', stock)
     };
   });
 
@@ -162,17 +166,12 @@ export const partRoutes: FastifyPluginAsync = async (fastify) => {
     const db = getDb();
     const all = db.select().from(parts).where(isNull(parts.deleted_at)).all();
 
+    const isOwner = request.user!.role === 'owner';
     const criticalList = [];
     for (const p of all) {
       const stock = getPartStock(p.id);
       if (stock <= p.kritik_stok) {
-        criticalList.push({
-          ...p,
-          alis_kurus: p.alis_kurus,
-          satis_kurus: p.satis_kurus,
-          stok_miktari: stock,
-          is_critical: true
-        });
+        criticalList.push(partView(p, isOwner, stock));
       }
     }
 
@@ -210,13 +209,7 @@ export const partRoutes: FastifyPluginAsync = async (fastify) => {
 
     return {
       success: true,
-      part: {
-        ...part,
-        alis_kurus: part.alis_kurus,
-        satis_kurus: part.satis_kurus,
-        stok_miktari: stock,
-        is_critical: stock <= part.kritik_stok
-      },
+      part: partView(part, request.user!.role === 'owner', stock),
       movements
     };
   });
@@ -263,7 +256,9 @@ export const partRoutes: FastifyPluginAsync = async (fastify) => {
       muadil: parse.data.muadil?.trim() || null,
       birim: parse.data.birim || 'Adet',
       kritik_stok: parse.data.kritik_stok ?? 3,
-      alis_kurus: parse.data.alis_kurus ?? 0,
+      // Alış fiyatı yalnızca dükkan sahibi tarafından yazılabilir; personel
+      // gönderse bile 0 (bilinmiyor) kalır.
+      alis_kurus: request.user!.role === 'owner' ? (parse.data.alis_kurus ?? 0) : 0,
       satis_kurus: parse.data.satis_kurus ?? 0,
       raf: parse.data.raf?.trim() || null,
       aktif: parse.data.aktif ?? true,
@@ -291,7 +286,10 @@ export const partRoutes: FastifyPluginAsync = async (fastify) => {
       detay: `Yeni parça eklendi: ${newPart.ad} (${newPart.kod})`
     });
 
-    return { success: true, part: { ...newPart, stok_miktari: getPartStock(newPart.id) } };
+    return {
+      success: true,
+      part: partView(newPart, request.user!.role === 'owner', getPartStock(newPart.id))
+    };
   });
 
   // Update part
@@ -346,7 +344,11 @@ export const partRoutes: FastifyPluginAsync = async (fastify) => {
       // Gönderilmeyen alanlar mevcut değerini KORUR (kısmi güncelleme güvenli).
       birim: parse.data.birim || existing.birim,
       kritik_stok: parse.data.kritik_stok ?? existing.kritik_stok,
-      alis_kurus: parse.data.alis_kurus ?? existing.alis_kurus,
+      // Alış fiyatı yalnızca dükkan sahibi tarafından değiştirilebilir; personel
+      // gönderse bile mevcut değer korunur.
+      alis_kurus: request.user!.role === 'owner'
+        ? (parse.data.alis_kurus ?? existing.alis_kurus)
+        : existing.alis_kurus,
       satis_kurus: parse.data.satis_kurus ?? existing.satis_kurus,
       raf: parse.data.raf?.trim() || null,
       aktif: parse.data.aktif ?? existing.aktif,
@@ -378,7 +380,7 @@ export const partRoutes: FastifyPluginAsync = async (fastify) => {
       detay: `Parça güncellendi: ${updated.ad}`
     });
 
-    return { success: true, part: { ...updated, stok_miktari: getPartStock(id) } };
+    return { success: true, part: partView(updated, request.user!.role === 'owner', getPartStock(id)) };
   });
 
   // Manual stock movement (giriş, sayım düzeltme, iade)
@@ -456,7 +458,8 @@ export const partRoutes: FastifyPluginAsync = async (fastify) => {
         ipAddress: request.ip
       });
 
-      if (parse.data.yeni_alis_fiyati_kurus !== undefined) {
+      // Yeni alış fiyatı yalnızca dükkan sahibi tarafından güncellenebilir.
+      if (parse.data.yeni_alis_fiyati_kurus !== undefined && request.user!.role === 'owner') {
         db.update(parts)
           .set({ alis_kurus: parse.data.yeni_alis_fiyati_kurus, updated_at: new Date().toISOString() })
           .where(eq(parts.id, id))
@@ -476,6 +479,11 @@ export const partRoutes: FastifyPluginAsync = async (fastify) => {
       summary: 'Parçayı sil (Yumuşak silme)'
     }
   }, async (request, reply) => {
+    // Silme, stok hareketlerini ve raporlamayı etkiler: yalnızca dükkan sahibi.
+    if (request.user!.role !== 'owner') {
+      return reply.status(403).send({ success: false, error: 'Bu işlem için dükkan sahibi yetkisi gereklidir.' });
+    }
+
     const id = Number((request.params as any).id);
     const db = getDb();
 

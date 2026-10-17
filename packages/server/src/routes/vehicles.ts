@@ -580,6 +580,12 @@ export const vehicleRoutes: FastifyPluginAsync = async (fastify) => {
       summary: 'Araç sil (Yumuşak silme)'
     }
   }, async (request, reply) => {
+    // Silme, bağlı tahsilat/kasa ve stok kayıtlarını geri döndürülemez şekilde
+    // etkiler: yalnızca dükkan sahibi silebilir.
+    if (request.user!.role !== 'owner') {
+      return reply.status(403).send({ success: false, error: 'Bu işlem için dükkan sahibi yetkisi gereklidir.' });
+    }
+
     const id = Number((request.params as any).id);
     const db = getDb();
 
