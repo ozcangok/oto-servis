@@ -323,12 +323,6 @@ export const WorkOrderScreen: React.FC<WorkOrderScreenProps> = ({
       return;
     }
 
-    const validLines = lines.filter((l) => l.name.trim());
-    if (!validLines.length) {
-      setFormError('En az bir parça veya işçilik satırı yazın.');
-      return;
-    }
-
     setSaving(true);
     savingRef.current = true;
     setFormError('');
@@ -381,7 +375,7 @@ export const WorkOrderScreen: React.FC<WorkOrderScreenProps> = ({
         pesin_fiyat_elle_kurus: cashOverride ? Math.round((parseFloat(cashOverride.replace(',', '.')) || 0) * 100) : null,
         sonraki_bakim_tarihi: nextServiceDate || null,
         sonraki_bakim_km: nextServiceKm ? parseInt(nextServiceKm, 10) : null,
-        kalemler: validLines.map((l) => ({
+        kalemler: lines.filter((l) => l.name.trim()).map((l) => ({
           tur: l.kind === 'labor' ? 'iscilik' : 'parca',
           parca_id: l.partId || null,
           ad: l.name.trim(),
