@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { apiRequest } from '../services/api.js';
+import { Spinner } from '../components/Spinner.js';
 import {
   fdate,
   money,
@@ -235,7 +236,7 @@ export const CustomerAccountsScreen: React.FC<CustomerAccountsScreenProps> = ({ 
 
       {loading && (
         <div className="panel" style={{ padding: '24px', textAlign: 'center', color: 'var(--muted)' }}>
-          <div className="spin" style={{ fontSize: '1.4rem', marginBottom: '8px' }}>⌛</div>
+          <div style={{ marginBottom: '8px' }}><Spinner size={24} /></div>
           <div>Cari hesaplar yükleniyor...</div>
         </div>
       )}

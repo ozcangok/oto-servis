@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { apiRequest } from '../services/api.js';
+import { Spinner } from '../components/Spinner.js';
 import { fdate, toast } from '../services/ui.js';
 
 interface CustomerForm {
@@ -176,7 +177,7 @@ export const CustomersScreen: React.FC = () => {
 
       {loading && (
         <div className="panel" style={{ padding: '24px', textAlign: 'center', color: 'var(--muted)' }}>
-          <div className="spin" style={{ fontSize: '1.4rem', marginBottom: '8px' }}>⌛</div>
+          <div style={{ marginBottom: '8px' }}><Spinner size={24} /></div>
           <div>Müşteriler getiriliyor...</div>
         </div>
       )}

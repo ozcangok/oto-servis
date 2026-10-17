@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { apiRequest } from '../services/api.js';
+import { Spinner } from '../components/Spinner.js';
 import { fdate, toast } from '../services/ui.js';
 import { PlateBadge } from '../components/PlateInput.js';
 import { normalizePlate } from '@oto-servis/shared';
@@ -254,7 +255,7 @@ export const VehiclesScreen: React.FC<VehiclesScreenProps> = ({ onNewWorkOrder }
 
       {loading && (
         <div className="panel" style={{ padding: '24px', textAlign: 'center', color: 'var(--muted)' }}>
-          <div className="spin" style={{ fontSize: '1.4rem', marginBottom: '8px' }}>⌛</div>
+          <div style={{ marginBottom: '8px' }}><Spinner size={24} /></div>
           <div>Araçlar getiriliyor...</div>
         </div>
       )}

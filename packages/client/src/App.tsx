@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
+import { Moon, Sun, LogOut } from 'lucide-react';
 import { apiRequest, setAuthToken, setUnauthorizedHandler } from './services/api.js';
 import { LoginScreen } from './components/LoginScreen.js';
 import { clearOfflineQueue } from './services/offlineQueue.js';
@@ -315,23 +316,8 @@ export function App() {
     return <LoginScreen onSuccess={handleAuthSuccess} />;
   }
 
-  const shopNameUpper = (shopName || 'GÜVEN OTO').toUpperCase();
-
   return (
     <React.Fragment key={sessionNonce}>
-      {/* Background Watermark */}
-      <div className="wm" aria-hidden="true">
-        <div className="wm-in">
-          {Array.from({ length: 10 }).map((_, i) => (
-            <div key={i} className="wm-row">
-              {Array.from({ length: 8 }).map((_, j) => (
-                <span key={j}>{shopNameUpper}</span>
-              ))}
-            </div>
-          ))}
-        </div>
-      </div>
-
       {/* Sticky Top Bar */}
       <header className="topbar">
         <div className="topbar-in">
@@ -359,8 +345,9 @@ export function App() {
               type="button"
               onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')}
               title="Açık / Koyu Tema"
+              aria-label="Açık / Koyu tema"
             >
-              {theme === 'dark' ? '☀️' : '🌙'}
+              {theme === 'dark' ? <Sun size={18} strokeWidth={1.75} /> : <Moon size={18} strokeWidth={1.75} />}
             </button>
             {currentUser && (
               <button
@@ -368,8 +355,9 @@ export function App() {
                 type="button"
                 onClick={handleLogout}
                 title="Çıkış Yap"
+                aria-label="Çıkış yap"
               >
-                🚪
+                <LogOut size={18} strokeWidth={1.75} />
               </button>
             )}
           </div>

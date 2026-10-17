@@ -1,6 +1,14 @@
 import React from 'react';
 import ReactDOM from 'react-dom/client';
 import { App } from './App.js';
+// Tipografi: IBM Plex Sans (gövde) + IBM Plex Sans Condensed (yalnızca plaka).
+// Kendi barındırılan (self-host) fontlar; Türkçe karakterler için latin-ext dahil.
+import '@fontsource/ibm-plex-sans/400.css';
+import '@fontsource/ibm-plex-sans/500.css';
+import '@fontsource/ibm-plex-sans/600.css';
+import '@fontsource/ibm-plex-sans/700.css';
+import '@fontsource/ibm-plex-sans-condensed/600.css';
+import '@fontsource/ibm-plex-sans-condensed/700.css';
 import './styles/index.css';
 
 // Service Worker yalnızca üretim derlemesinde (PROD) kaydedilir.

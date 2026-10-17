@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { apiRequest } from '../services/api.js';
+import { Spinner } from '../components/Spinner.js';
 import { money, numfmt, toast } from '../services/ui.js';
 
 interface PartsScreenProps {
@@ -352,7 +353,7 @@ export const PartsScreen: React.FC<PartsScreenProps> = ({ initialFilter = 'all' 
 
       {loading && (
         <div className="panel" style={{ padding: '24px', textAlign: 'center', color: 'var(--muted)' }}>
-          <div className="spin" style={{ fontSize: '1.4rem', marginBottom: '8px' }}>⌛</div>
+          <div style={{ marginBottom: '8px' }}><Spinner size={24} /></div>
           <div>Parçalar yükleniyor...</div>
         </div>
       )}

@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { apiRequest } from '../services/api.js';
+import { Spinner } from '../components/Spinner.js';
 import { PlateBadge } from '../components/PlateInput.js';
 import { STATUS_NOTIFICATION_LABELS } from '@oto-servis/shared';
 import {
@@ -173,7 +174,7 @@ export const RemindersScreen: React.FC = () => {
       {/* ----------------------------- Yaklaşan müşteri hatırlatıcıları ----------------------------- */}
       {loading && (
         <div className="panel" style={{ padding: '24px', textAlign: 'center', color: 'var(--muted)' }}>
-          <div className="spin" style={{ fontSize: '1.4rem', marginBottom: '8px' }}>⌛</div>
+          <div style={{ marginBottom: '8px' }}><Spinner size={24} /></div>
           <div>Hatırlatıcılar yükleniyor...</div>
         </div>
       )}
