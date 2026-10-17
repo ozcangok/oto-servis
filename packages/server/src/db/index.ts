@@ -66,6 +66,27 @@ export function getSqlite() {
 }
 
 /**
+ * Veritabanını NAZİKÇE kapatır: WAL içeriği ana dosyaya işlenir
+ * (`wal_checkpoint(TRUNCATE)`) ve bağlantı kapatılır. Böylece zorunlu yedek
+ * TEK dosyayla (`oto-servis.sqlite`) eksiksiz ve taşınabilir olur.
+ */
+export function closeDatabase(): void {
+  if (!currentSqlite) return;
+  try {
+    currentSqlite.pragma('wal_checkpoint(TRUNCATE)');
+  } catch {
+    /* yoksay */
+  }
+  try {
+    currentSqlite.close();
+  } catch {
+    /* yoksay */
+  }
+  currentSqlite = null;
+  currentDb = null;
+}
+
+/**
  * Creates all tables and indexes directly if they don't already exist.
  * This ensures single-click zero-configuration startup for desktop, local, and tests.
  */

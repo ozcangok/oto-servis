@@ -148,6 +148,9 @@ test.describe('12) Premium masaüstü katmanı (splash · kilit · güvenli kapa
     // Kabuk hâlâ DOM'da (kilit onun üzerinde)
     await expect(page.locator('.topbar')).toHaveCount(1);
 
+    // Yerleşme süresi (600 ms) geçmeli: kilit yeni inmişken gelen hareket yok sayılır
+    await page.waitForTimeout(750);
+
     // İlk fare hareketi → kilit kalkar, token/session sıfırlanır, giriş ekranı
     await page.mouse.move(420, 320);
     await expect(page.getByTestId('login-screen')).toBeVisible({ timeout: 10_000 });
@@ -157,6 +160,45 @@ test.describe('12) Premium masaüstü katmanı (splash · kilit · güvenli kapa
       'Güvenliğiniz için oturumunuz otomatik kapatıldı'
     );
 
+    expect(await page.evaluate(() => localStorage.getItem('auth_token'))).toBeNull();
+  });
+
+  test('elle kilit: "Ekranı kilitle" düğmesi 3 dakika beklemeden katmanı indirir', async ({ page }) => {
+    await login(page, OWNER);
+
+    // Düğme, menüde "Hatırlatıcılar" öğesinin bulunduğu Takip grubundadır
+    const takipGrubu = page
+      .locator('.menu-group')
+      .filter({ has: page.getByRole('tab', { name: 'Hatırlatıcılar' }) });
+    const lockBtn = page.getByTestId('lock-now');
+    await expect(takipGrubu.getByTestId('lock-now')).toBeVisible();
+    await expect(lockBtn).toHaveText('Ekranı kilitle');
+
+    // Beklemeden kilit: oturum açıkken tıkla → buzlu cam ANINDA iner
+    await lockBtn.click();
+
+    const lock = page.getByTestId('idle-lock');
+    await expect(lock).toBeVisible();
+    await expect(page.getByTestId('idle-title')).toHaveText('İyi çalışmalar');
+    await expect(page.getByTestId('idle-sub')).toHaveText('Oturumunuz güvenliğe alındı.');
+    // Kilit indiği anda oturum hâlâ ayakta (henüz açılmadı)
+    await expect(page.locator('.topbar')).toHaveCount(1);
+    expect(await page.evaluate(() => localStorage.getItem('auth_token'))).not.toBeNull();
+
+    // Yerleşme süresi: düğmeye basan tıklamanın sarsıntısı kilidi kaldırmaz
+    await page.waitForTimeout(150);
+    await expect(lock).toBeVisible();
+
+    // Yerleşme süresi geçtikten sonraki ilk hareket → hareketsizlik kilidiyle
+    // AYNI davranış: token/session sıfırlanır, giriş ekranı + güvenlik bildirimi
+    await page.waitForTimeout(650);
+    await page.mouse.move(460, 300);
+    await expect(page.getByTestId('login-screen')).toBeVisible({ timeout: 10_000 });
+    await expect(page.getByTestId('idle-lock')).toHaveCount(0);
+    await expect(page.locator('.topbar')).toHaveCount(0);
+    await expect(page.getByTestId('login-notice')).toContainText(
+      'Güvenliğiniz için oturumunuz otomatik kapatıldı'
+    );
     expect(await page.evaluate(() => localStorage.getItem('auth_token'))).toBeNull();
   });
 

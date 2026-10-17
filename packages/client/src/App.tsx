@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import {
-  Moon, Sun, LogOut, Search, Car, Users, Package, Wallet, Banknote, Receipt, Bell, Settings
+  Moon, Sun, LogOut, Search, Car, Users, Package, Wallet, Banknote, Receipt, Bell, Settings, Lock
 } from 'lucide-react';
 import { apiRequest, setAuthToken, setUnauthorizedHandler } from './services/api.js';
 import { LoginScreen } from './components/LoginScreen.js';
@@ -103,6 +103,10 @@ export function App() {
   // Güvenlik bildirimi (hareketsizlik nedeniyle otomatik kapatılan oturum).
   const [securityNotice, setSecurityNotice] = useState<string | null>(null);
 
+  // Güvenlik kilidi: 3 dakikalık hareketsizlik OTOMATİK, "Ekranı kilitle"
+  // düğmesi ise ANINDA indirir. Kilit katmanı bu durumdan yönetilir.
+  const [locked, setLocked] = useState(false);
+
   useEffect(() => {
     document.documentElement.setAttribute('data-theme', theme);
     localStorage.setItem('oto_theme', theme);
@@ -188,6 +192,7 @@ export function App() {
     setSelectedPlate('');
     setShowSettings(false);
     setRemindersCount(0);
+    setLocked(false); // kilit ekranı (varsa) kalıcı kalmasın
     setSessionNonce((n) => n + 1); // uygulama kabuğunu sıfırdan mount et
   };
 
@@ -272,6 +277,13 @@ export function App() {
     } catch {}
     clearSession();
   };
+
+  /**
+   * Elle güvenlik kilidi ("Ekranı kilitle"): 3 dakika beklenmeden buzlu cam
+   * katmanı ANINDA iner. Açılma davranışı hareketsizlik kilidiyle birebir
+   * aynıdır → oturum güvenle kapanır ve giriş ekranına dönülür.
+   */
+  const handleLockNow = () => setLocked(true);
 
   // Rota → sekme eşlemesi + ROL KORUMASI. Personel (staff) `/kasa` veya
   // `/ayarlar` adreslerine doğrudan girse bile sayfa render edilmez; ana sayfaya
@@ -483,6 +495,17 @@ export function App() {
                 Hatırlatıcılar
                 {remindersCount > 0 && <span className="cnt">{remindersCount}</span>}
               </a>
+              {/* Elle güvenlik kilidi: 3 dakika beklemeden buzlu cam iner. */}
+              <button
+                className="menu-item"
+                type="button"
+                onClick={handleLockNow}
+                title="Ekranı kilitle (oturum güvenliğe alınır)"
+                data-testid="lock-now"
+              >
+                <Lock size={18} strokeWidth={1.75} aria-hidden="true" />
+                Ekranı kilitle
+              </button>
             </div>
           </nav>
 
@@ -580,8 +603,9 @@ export function App() {
         />
       )}
 
-      {/* Hareketsizlik (idle) güvenlik kilidi: 3 dk hareketsizlikte buzlu cam */}
-      <IdleLock onUnlock={handleIdleUnlock} />
+      {/* Hareketsizlik (idle) güvenlik kilidi: 3 dk hareketsizlikte buzlu cam.
+          "Ekranı kilitle" düğmesi aynı katmanı anında indirir. */}
+      <IdleLock locked={locked} onLock={() => setLocked(true)} onUnlock={handleIdleUnlock} />
 
       {/* Toast Element */}
       <div id="toast" role="status" aria-live="polite"></div>

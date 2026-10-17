@@ -28,6 +28,7 @@ Oto tamir ve bakım servisleri için özel olarak geliştirilmiş; gerçek SQLit
    - **Kasiyer (Cashier):** İş emri, tahsilat alma, cari hesap ve kasa gün sonu raporları.
    - **Usta (Mechanic):** İş emri ve durum güncelleme, parça ekleme; fiyatları, kasayı ve cari hesapları **kesinlikle göremez**.
    - Brute-force saldırılarına karşı 5 hatalı giriş sonrası 15 dakika hesap kilitleme koruması.
+   - **Hareketsizlik (idle) güvenlik kilidi:** 3 dakika boyunca fare/klavye hareketi olmazsa ekran buzlu camla kapanır; ilk harekette oturum hem sunucuda hem cihazda kapatılır. Aynı katman sol menüdeki **Ekranı kilitle** düğmesiyle beklemeden de indirilebilir.
    - İlk kurulumda otomatik Yönetici Oluşturma Sihirbazı.
 
 5. **Stok Yönetimi ve Atomik Transaction'lar:**
@@ -157,6 +158,22 @@ cd /root/oto-servis/packages/electron
 npm run dist:win
 ```
 Çıktı `dist-electron/` klasörü altına oluşturulur.
+
+### Paketlemeden Masaüstü Denemesi (geliştirici)
+```bash
+npm run start:desktop                          # derler + gömülü sunucu + masaüstü pencere (port 3001)
+OTO_SERVER_PORT=3100 npm run start:desktop     # 3001 doluysa boş port seçin
+```
+Pencereyi **X** ile (veya Cmd+Q ile) kapatın: veda ekranı en az 10 saniye ekranda kalır, veritabanı
+`Belgelerim/CinarOto_Yedekler/oto-servis-YYYYAAAAGG-SSDDss.sqlite` olarak yedeklenir ve uygulama güvenle kapanır.
+Sunucu kapanırken WAL ana dosyaya işlendiği için yedek **tek dosya** halinde eksiksizdir.
+
+Kapanış akışını ekrana bakmadan uçtan uca doğrulamak (geliştirici duman testi — pencere görünmez,
+sonuçlar konsola yazılır):
+```bash
+npm run build:desktop
+OTO_SMOKE_TEST=1 OTO_USE_DIST=1 OTO_SERVER_PORT=3100 npm run start --workspace=@oto-servis/electron
+```
 
 ---
 

@@ -14,14 +14,27 @@
 
 const { app, BrowserWindow, ipcMain } = require('electron');
 const path = require('path');
-const { fork } = require('child_process');
+const { fork, spawn } = require('child_process');
 const { createDatabaseBackup } = require('./backup.cjs');
+
+// Geliştirme ve paketlenmiş sürüm AYNI veri klasörünü kullansın diye ad
+// burada sabitlenir (electron-builder `productName` ile birebir aynı).
+app.setName('Oto Servis Yonetimi');
 
 const SERVER_PORT = parseInt(process.env.OTO_SERVER_PORT || '3001', 10);
 /** Veda ekranının ZORUNLU ekranda kalma süresi (ms). */
 const SHUTDOWN_MIN_MS = 10_000;
 /** Gömülü sunucunun kapanmasını bekleme sınırı (ms). */
 const SERVER_STOP_TIMEOUT_MS = 5_000;
+
+/**
+ * Yerel duman testi (smoke test) — YALNIZCA geliştirme/doğrulama içindir:
+ * pencere görünmeden açılır, bir süre sonra X tuşuna basılmış gibi kapatılır ve
+ * kapanış akışının gerçekten çalıştığı (veda ekranı + yedek) konsola yazılır.
+ * Üretimde bu bayrak verilmez; davranış hiç değişmez.
+ */
+const SMOKE_TEST = process.env.OTO_SMOKE_TEST === '1';
+const SMOKE_CLOSE_MS = parseInt(process.env.OTO_SMOKE_CLOSE_MS || '6000', 10);
 
 let mainWindow = null;
 let serverProcess = null;
@@ -33,20 +46,49 @@ function getDataDir() {
 
 function startEmbeddedServer() {
   const serverPath = path.join(__dirname, '../server/dist/index.js');
-  console.log('[ELECTRON] Gömülü sunucu başlatılıyor:', serverPath);
+  const env = {
+    ...process.env,
+    PORT: SERVER_PORT.toString(),
+    HOST: '0.0.0.0', // Allow LAN sharing
+    DATA_DIR: getDataDir(),
+    BACKUP_DIR: path.join(app.getPath('userData'), 'backups')
+  };
 
-  serverProcess = fork(serverPath, [], {
-    env: {
-      ...process.env,
-      PORT: SERVER_PORT.toString(),
-      HOST: '0.0.0.0', // Allow LAN sharing
-      DATA_DIR: getDataDir(),
-      BACKUP_DIR: path.join(app.getPath('userData'), 'backups')
+  // `fork()` Electron altında sunucuyu ELECTRON'un Node'u ile çalıştırır
+  // (ELECTRON_RUN_AS_NODE=1). Bu, better-sqlite3 gibi YEREL (native) modüllerin
+  // Electron ABI'siyle derlenmiş olmasını gerektirir — paketlenmiş uygulamada
+  // electron-builder bunu kendisi yapar.
+  //
+  // Geliştirme/deneme (OTO_USE_DIST=1) sırasında ise depodaki yerel modüller
+  // sistem Node'u ile derlidir; bu yüzden sunucu SİSTEM Node'uyla başlatılır.
+  // Böylece masaüstü denemesi ile birim/E2E testleri aynı ikiliyi kullanır.
+  const useElectronNode = app.isPackaged || process.env.OTO_SERVER_WITH_ELECTRON_NODE === '1';
+
+  if (useElectronNode) {
+    console.log('[ELECTRON] Gömülü sunucu (Electron Node) başlatılıyor:', serverPath);
+    serverProcess = fork(serverPath, [], { env });
+  } else {
+    const nodeBin = process.env.OTO_NODE_BIN || 'node';
+    console.log(`[ELECTRON] Gömülü sunucu (${nodeBin}) başlatılıyor:`, serverPath);
+    try {
+      serverProcess = spawn(nodeBin, [serverPath], {
+        env,
+        stdio: ['ignore', 'inherit', 'inherit', 'ipc']
+      });
+    } catch (err) {
+      console.error('[ELECTRON] Sistem Node başlatılamadı, Electron Node deneniyor:', err);
+      serverProcess = fork(serverPath, [], { env });
     }
-  });
+  }
 
   serverProcess.on('error', (err) => {
     console.error('[ELECTRON] Sunucu hatası:', err);
+    // Sistem Node bulunamadıysa Electron Node'una düş (paketlenmiş davranış).
+    if (!useElectronNode && err && err.code === 'ENOENT') {
+      console.warn('[ELECTRON] Sistem Node bulunamadı; Electron Node ile yeniden deneniyor.');
+      serverProcess = fork(serverPath, [], { env });
+      serverProcess.on('error', (e2) => console.error('[ELECTRON] Sunucu hatası:', e2));
+    }
   });
 }
 
@@ -125,20 +167,26 @@ async function beginGracefulShutdown() {
 }
 
 function createWindow() {
+  const webPreferences = {
+    nodeIntegration: false,
+    contextIsolation: true,
+    preload: path.join(__dirname, 'preload.cjs'),
+    // file:// altında göreli API yolları çalışmadığı için gömülü sunucunun
+    // mutlak adresi arayüze aktarılır.
+    additionalArguments: [`--oto-api-base=http://localhost:${SERVER_PORT}`]
+  };
+  // Duman testinde pencere görünmez; arka plan kısıtlaması kapatılır ki arayüz
+  // gerçek kullanıcıdaki gibi çizilsin.
+  if (SMOKE_TEST) webPreferences.backgroundThrottling = false;
+
   mainWindow = new BrowserWindow({
     width: 1300,
     height: 850,
     minWidth: 400,
     minHeight: 600,
     title: 'Oto Servis Yönetim Sistemi',
-    webPreferences: {
-      nodeIntegration: false,
-      contextIsolation: true,
-      preload: path.join(__dirname, 'preload.cjs'),
-      // file:// altında göreli API yolları çalışmadığı için gömülü sunucunun
-      // mutlak adresi arayüze aktarılır.
-      additionalArguments: [`--oto-api-base=http://localhost:${SERVER_PORT}`]
-    },
+    show: !SMOKE_TEST,
+    webPreferences,
     autoHideMenuBar: false
   });
 
@@ -165,6 +213,62 @@ function createWindow() {
 
   mainWindow.on('closed', () => {
     mainWindow = null;
+  });
+
+  if (SMOKE_TEST) runSmokeTest();
+}
+
+/**
+ * Duman testi: arayüz yüklendikten sonra X tuşu simüle edilir ve kapanış
+ * akışı gözlemlenir. Ekran görüntüsü alınamayan ortamlarda masaüstü
+ * davranışını (veda ekranı render'ı + yedek + temiz çıkış) uçtan uca doğrular.
+ */
+function runSmokeTest() {
+  console.log('[SMOKE] Pencere gizli açıldı (OTO_SMOKE_TEST=1).');
+  mainWindow.webContents.once('did-finish-load', () => {
+    console.log('[SMOKE] Arayüz yüklendi.');
+    setTimeout(async () => {
+      // 1) Gömülü sunucu ayakta mı? (yerel modüller/DB yolu doğru mu?)
+      try {
+        const res = await fetch(`http://localhost:${SERVER_PORT}/api/health`);
+        console.log(`[SMOKE] Gömülü sunucu sağlık yanıtı: HTTP ${res.status}`);
+        if (!res.ok) process.exitCode = 1;
+      } catch (err) {
+        console.log('[SMOKE] Gömülü sunucuya ulaşılamadı:', err && err.message);
+        process.exitCode = 1;
+      }
+
+      // 2) Veritabanı dosyası oluştu mu?
+      const dbFile = path.join(getDataDir(), 'oto-servis.sqlite');
+      try {
+        const st = require('fs').statSync(dbFile);
+        console.log(`[SMOKE] Veritabanı hazır: ${dbFile} (${st.size} bayt)`);
+      } catch {
+        console.log(`[SMOKE] Veritabanı dosyası YOK: ${dbFile}`);
+        process.exitCode = 1;
+      }
+
+      // 3) X tuşu simülasyonu → güvenli kapanış akışı
+      console.log('[SMOKE] X tuşu simüle ediliyor → mainWindow.close()');
+      mainWindow?.close();
+
+      // Kapanış akışı sürerken arayüzün veda ekranını çizdiğini doğrula
+      await new Promise((resolve) => setTimeout(resolve, 3000));
+      try {
+        const sawShutdown = await mainWindow?.webContents.executeJavaScript(
+          "!!document.querySelector('[data-testid=shutdown]')"
+        );
+        const text = await mainWindow?.webContents.executeJavaScript(
+          "(document.querySelector('[data-testid=shutdown-text]')||{}).textContent || ''"
+        );
+        console.log(`[SMOKE] Veda ekranı göründü: ${sawShutdown ? 'EVET' : 'HAYIR'}`);
+        console.log(`[SMOKE] Veda metni: ${text}`);
+        if (!sawShutdown) process.exitCode = 1;
+      } catch (err) {
+        console.log('[SMOKE] Arayüz denetlenemedi:', err && err.message);
+        process.exitCode = 1;
+      }
+    }, SMOKE_CLOSE_MS);
   });
 }
 

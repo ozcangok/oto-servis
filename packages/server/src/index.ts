@@ -1,9 +1,23 @@
 import { buildApp } from './app.js';
-import { initDatabase } from './db/index.js';
+import { initDatabase, closeDatabase } from './db/index.js';
 import path from 'path';
 
 const PORT = parseInt(process.env.PORT || '3001', 10);
 const HOST = process.env.HOST || '0.0.0.0';
+
+// NAZİK KAPANIŞ: masaüstü (Electron) uygulaması kapanırken sunucuyu SIGTERM ile
+// durdurur. WAL'in ana dosyaya işlenmesi için bağlantı düzgünce kapatılır;
+// böylece zorunlu yedek tek dosyayla eksiksiz alınır.
+const shutdown = () => {
+  try {
+    closeDatabase();
+  } catch (err) {
+    console.error('[SHUTDOWN ERROR]', err);
+  }
+  process.exit(0);
+};
+process.on('SIGTERM', shutdown);
+process.on('SIGINT', shutdown);
 
 async function main() {
   const dataDir = process.env.DATA_DIR || path.join(process.cwd(), 'data');
