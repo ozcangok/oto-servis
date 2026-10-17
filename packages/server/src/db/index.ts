@@ -249,19 +249,6 @@ export function bootstrapSchema(sqlite: Database.Database) {
     );
     CREATE INDEX IF NOT EXISTS idx_photos_is_emri_id ON photos(is_emri_id);
 
-    CREATE TABLE IF NOT EXISTS reminders (
-      id INTEGER PRIMARY KEY AUTOINCREMENT,
-      tur TEXT NOT NULL,
-      referans_id INTEGER NOT NULL,
-      baslik TEXT NOT NULL,
-      mesaj TEXT NOT NULL,
-      hedef_tarih TEXT,
-      gonderildi_tarihi TEXT,
-      created_at TEXT NOT NULL
-    );
-    CREATE INDEX IF NOT EXISTS idx_reminders_tur ON reminders(tur);
-    CREATE INDEX IF NOT EXISTS idx_reminders_hedef_tarih ON reminders(hedef_tarih);
-
     CREATE TABLE IF NOT EXISTS whatsapp_messages (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
       is_emri_id INTEGER NOT NULL REFERENCES work_orders(id),
@@ -336,6 +323,21 @@ export function bootstrapSchema(sqlite: Database.Database) {
     UPDATE users SET role = 'staff' WHERE role IN ('cashier', 'mechanic');
     UPDATE users SET role = 'staff' WHERE role NOT IN ('owner', 'staff');
   `);
+
+  // Artık kullanılmayan eski `reminders` tablosu: hatırlatıcılar kalıcı olarak
+  // saklanmıyor, istek anında hesaplanıyor (reminderService.getDueReminders) ve
+  // gönderim kaydı `whatsapp_messages` tablosunda tutuluyor. Eski sürümlerden
+  // kalan tablo İÇİ BOŞSA kaldırılır; beklenmedik şekilde doluysa veri kaybını
+  // önlemek için olduğu gibi bırakılır.
+  const legacyReminders = sqlite
+    .prepare("SELECT COUNT(*) AS n FROM sqlite_master WHERE type = 'table' AND name = 'reminders'")
+    .get() as { n: number };
+  if (legacyReminders.n > 0) {
+    const legacyReminderRows = sqlite.prepare('SELECT COUNT(*) AS n FROM reminders').get() as { n: number };
+    if (legacyReminderRows.n === 0) {
+      sqlite.exec('DROP TABLE reminders');
+    }
+  }
 }
 
 export * from './schema.js';

@@ -262,20 +262,6 @@ export interface Photo {
   created_at: string;
 }
 
-export interface Reminder {
-  id: number;
-  tur: 'muayene' | 'bakim' | 'teslim_hazir';
-  referans_id: number; // arac_id or is_emri_id
-  baslik: string;
-  mesaj: string;
-  hedef_tarih?: string | null;
-  gonderildi_tarihi?: string | null;
-  telefon?: string | null;
-  musteri_ad?: string | null;
-  plaka?: string | null;
-  created_at: string;
-}
-
 export interface AuditLog {
   id: number;
   kullanici_id?: number | null;

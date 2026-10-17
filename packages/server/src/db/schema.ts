@@ -199,23 +199,6 @@ export const photos = sqliteTable('photos', {
 }));
 
 /**
- * Reminders (Hatırlatıcılar)
- */
-export const reminders = sqliteTable('reminders', {
-  id: integer('id').primaryKey({ autoIncrement: true }),
-  tur: text('tur', { enum: ['muayene', 'bakim', 'teslim_hazir'] }).notNull(),
-  referans_id: integer('referans_id').notNull(),
-  baslik: text('baslik').notNull(),
-  mesaj: text('mesaj').notNull(),
-  hedef_tarih: text('hedef_tarih'),
-  gonderildi_tarihi: text('gonderildi_tarihi'),
-  created_at: text('created_at').notNull()
-}, (table) => ({
-  turIdx: index('idx_reminders_tur').on(table.tur),
-  hedefTarihIdx: index('idx_reminders_hedef_tarih').on(table.hedef_tarih)
-}));
-
-/**
  * WhatsApp durum bildirimleri (İletişim Merkezi)
  *
  * İş emrinin "Servis Durumu" her değiştiğinde bu tabloya bir kayıt düşer.
