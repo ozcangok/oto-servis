@@ -129,6 +129,30 @@ test.describe('14) Arayüz mahremiyeti, XSS ve ekran görüntüleri', () => {
     await expect(page.locator('body')).toContainText('onerror');
   });
 
+  test('hesaplara girip çık: staff cari göremez, owner görebilir', async ({ page }) => {
+    // STAFF girişi
+    await login(page, STAFF);
+    await expect(page.getByRole('tab', { name: 'Cari hesap' })).toHaveCount(0);
+    await expect(page.locator('.kpi-label', { hasText: 'Bu ay (KDV dahil)' })).toHaveCount(0);
+    await expect(page.locator('.kpi-label', { hasText: 'Toplam işçilik' })).toHaveCount(0);
+    await expect(page.locator('.kpi-label', { hasText: 'Açık cari' })).toHaveCount(0);
+
+    // STAFF çıkışı
+    await logout(page);
+    await expect(page.getByTestId('login-screen')).toBeVisible();
+
+    // OWNER girişi
+    await login(page, OWNER);
+    await expect(page.getByRole('tab', { name: 'Cari hesap' })).toBeVisible();
+    await expect(page.locator('.kpi-label', { hasText: 'Bu ay (KDV dahil)' })).toBeVisible();
+    await expect(page.locator('.kpi-label', { hasText: 'Toplam işçilik' })).toBeVisible();
+    await expect(page.locator('.kpi-label', { hasText: 'Açık cari' })).toBeVisible();
+
+    // OWNER çıkışı
+    await logout(page);
+    await expect(page.getByTestId('login-screen')).toBeVisible();
+  });
+
   test('Ayarlar modalı açıkken adres değişirse modal kapanır (geri tuşu / kenar çubuğu)', async ({ page }) => {
     await login(page, OWNER);
 
