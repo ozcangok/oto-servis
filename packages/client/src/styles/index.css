@@ -319,6 +319,15 @@ input[type=text]:focus,input[type=number]:focus,input[type=date]:focus,input[typ
 .kpi-val{font-size:28px;font-weight:600;letter-spacing:-.02em;color:var(--text);font-variant-numeric:tabular-nums;overflow-wrap:anywhere}
 .kpi-sub{font-size:13px;color:var(--text-muted);margin-top:auto}
 .kpi-sub.danger{color:var(--primary);font-weight:500}
+.kpi.clickable{font:inherit;color:inherit;text-align:left;cursor:pointer;transition:border-color .15s,background .15s}
+.kpi.clickable:hover{border-color:var(--border-input);background:var(--surface-subtle)}
+
+/* Sayfa içeriği ve pano yerleşimi */
+.screen{display:flex;flex-direction:column;gap:28px}
+.dash{display:flex;flex-direction:column;gap:16px}
+.dash-grid{display:flex;flex-wrap:wrap;gap:16px;align-items:flex-start}
+.dash-main{flex:2 1 540px;min-width:0;overflow:hidden}
+.dash-side{flex:1 1 340px;min-width:0;overflow:hidden}
 
 /* Serviste olan araçlar tablosu */
 .svc-scroll{overflow-x:auto}

@@ -63,6 +63,7 @@ export function App() {
   const [workOrderModalOpen, setWorkOrderModalOpen] = useState(false);
   const [activeWorkOrderId, setActiveWorkOrderId] = useState<number | null>(null);
   const [workOrderPlate, setWorkOrderPlate] = useState<string>('');
+  const [workOrderDate, setWorkOrderDate] = useState<string>('');
 
   // Search screen active plate
   const [selectedPlate, setSelectedPlate] = useState<string>('');
@@ -282,15 +283,17 @@ export function App() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  const handleNewWorkOrder = (plate?: string) => {
+  const handleNewWorkOrder = (plate?: string, date?: string) => {
     setActiveWorkOrderId(null);
     setWorkOrderPlate(plate || selectedPlate || '');
+    setWorkOrderDate(date || '');
     setWorkOrderModalOpen(true);
   };
 
   const handleOpenWorkOrder = (id: number) => {
     setActiveWorkOrderId(id);
     setWorkOrderPlate('');
+    setWorkOrderDate('');
     setWorkOrderModalOpen(true);
   };
 
@@ -450,6 +453,7 @@ export function App() {
           <VehicleSearchScreen
             initialPlate={selectedPlate}
             onNewWorkOrder={(p) => handleNewWorkOrder(p)}
+            onNewWorkOrderForDate={(date) => handleNewWorkOrder(undefined, date)}
             onOpenWorkOrder={(id) => handleOpenWorkOrder(id)}
             onNavigateToParts={() => setActiveTab('parca')}
           />
@@ -486,10 +490,12 @@ export function App() {
         <WorkOrderScreen
           workOrderId={activeWorkOrderId}
           initialPlate={workOrderPlate}
+          initialDate={workOrderDate}
           onClose={() => {
             setWorkOrderModalOpen(false);
             setActiveWorkOrderId(null);
             setWorkOrderPlate('');
+            setWorkOrderDate('');
           }}
           onSaved={(savedPlate) => {
             setSelectedPlate(savedPlate);

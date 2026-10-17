@@ -20,6 +20,8 @@ interface WorkOrderScreenProps {
   initialVehicle?: any;
   workOrderId?: number | null;
   initialPlate?: string;
+  /** Takvimden "bu güne araç ekle" için isteğe bağlı tarih (YYYY-MM-DD). */
+  initialDate?: string;
   onClose: () => void;
   onSaved?: (plate: string) => void;
 }
@@ -38,6 +40,7 @@ export const WorkOrderScreen: React.FC<WorkOrderScreenProps> = ({
   initialVehicle,
   workOrderId,
   initialPlate = '',
+  initialDate = '',
   onClose,
   onSaved
 }) => {
@@ -47,7 +50,7 @@ export const WorkOrderScreen: React.FC<WorkOrderScreenProps> = ({
   const [plate, setPlate] = useState(
     initialVehicle?.plaka ? formatPlateDisplay(initialVehicle.plaka) : initialPlate ? formatPlateDisplay(initialPlate) : ''
   );
-  const [date, setDate] = useState(todayISO());
+  const [date, setDate] = useState(initialDate || todayISO());
   const [km, setKm] = useState<string>('');
   const [stage, setStage] = useState('accepted');
   const [barcodeInput, setBarcodeInput] = useState('');

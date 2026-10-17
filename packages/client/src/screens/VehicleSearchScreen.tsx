@@ -1,8 +1,19 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
+import { Bell, Plus, Search, ChevronLeft, ChevronRight, CalendarDays, Wrench, TrendingUp, Coins, Wallet, Package } from 'lucide-react';
 import { apiRequest } from '../services/api.js';
 import { Spinner } from '../components/Spinner.js';
 import { PlateInput, PlateBadge } from '../components/PlateInput.js';
 import { exportStatementPDF } from '../services/pdfExport.js';
+import {
+  toDateKey,
+  buildMonthCells,
+  buildOrdersByDate,
+  getAgendaForDate,
+  formatMonthLabel,
+  formatLongDateTR,
+  formatAgendaTitle,
+  orderTimeLabel
+} from '../services/calendar.js';
 import {
   fdate,
   money,
@@ -18,13 +29,37 @@ import { normalizePlate, formatPlateDisplay } from '@oto-servis/shared';
 
 interface VehicleSearchScreenProps {
   onNewWorkOrder: (plateOrVehicle?: any) => void;
+  /** Takvimde seçili güne iş emri açmak için (YYYY-MM-DD). */
+  onNewWorkOrderForDate?: (dateKey: string) => void;
   onOpenWorkOrder: (orderId: number) => void;
   onNavigateToParts?: () => void;
   initialPlate?: string;
 }
 
+/** İş emri durumunu rozet tonuna çevirir (başarılı / uyarı / tehlike / nötr). */
+function stageBadgeClass(stage: string): string {
+  const s = String(stage || '').toLocaleLowerCase('tr-TR');
+  if (s === 'teslime_hazir' || s === 'tamamlandı' || s === 'tamamlandi' || s === 'teslim_edildi') return 'ok';
+  if (s === 'iptal' || s === 'cancel' || s === 'cancelled') return 'bad';
+  if (s === 'kabul' || s === 'onarimda' || s === 'onarımda') return 'warn';
+  return 'neu';
+}
+
+/** İş emri durumunu mevcut STAGE_TXT anahtarına eşler. */
+function stageNormKey(stage: string): string {
+  const s = String(stage || '');
+  if (s === 'kabul') return 'accepted';
+  if (s === 'onarımda' || s === 'onarimda') return 'repairing';
+  if (s === 'tamamlandı' || s === 'teslime_hazir') return 'ready';
+  if (s === 'teslim_edildi') return 'delivered';
+  return 'accepted';
+}
+
+const RECENT_KEY = 'sonSorgular';
+
 export const VehicleSearchScreen: React.FC<VehicleSearchScreenProps> = ({
   onNewWorkOrder,
+  onNewWorkOrderForDate,
   onOpenWorkOrder,
   onNavigateToParts,
   initialPlate = ''
@@ -38,15 +73,34 @@ export const VehicleSearchScreen: React.FC<VehicleSearchScreenProps> = ({
   // Dashboard Data
   const [dashboardStats, setDashboardStats] = useState({
     inShopCount: 0,
+    readyCount: 0,
     monthTotalKurus: 0,
     monthLaborKurus: 0,
     openCariKurus: 0,
-    lowPartsCount: 0
+    openCustomersCount: 0,
+    lowPartsCount: 0,
+    criticalPartsCount: 0
   });
   const [inShopOrders, setInShopOrders] = useState<any[]>([]);
-  const [recentOrders, setRecentOrders] = useState<any[]>([]);
-  const [lowStockParts, setLowStockParts] = useState<any[]>([]);
+  const [allOrders, setAllOrders] = useState<any[]>([]);
   const [settings, setSettings] = useState<any>({});
+  const [remindersDue, setRemindersDue] = useState(0);
+
+  // Takvim durumu
+  const now = new Date();
+  const [calCursor, setCalCursor] = useState({ year: now.getFullYear(), month: now.getMonth() });
+  const [selectedDate, setSelectedDate] = useState(() => toDateKey(new Date()));
+
+  // Son sorgular (PII tutmayan; yalnızca plaka) — localStorage
+  const [recentPlates, setRecentPlates] = useState<string[]>(() => {
+    try {
+      const raw = localStorage.getItem(RECENT_KEY);
+      const arr = raw ? JSON.parse(raw) : [];
+      return Array.isArray(arr) ? arr.filter((x) => typeof x === 'string').slice(0, 5) : [];
+    } catch {
+      return [];
+    }
+  });
 
   // Payment Modal State
   const [payModal, setPayModal] = useState<{
@@ -128,43 +182,87 @@ export const VehicleSearchScreen: React.FC<VehicleSearchScreenProps> = ({
     try {
       // 1. Fetch work orders
       const ordersRes = await apiRequest('/work-orders?limit=100');
-      const allOrders = ordersRes.success ? ordersRes.items || [] : [];
+      const allOrdersData: any[] = ordersRes.success ? ordersRes.items || [] : [];
+      setAllOrders(allOrdersData);
 
       // 2. Fetch parts for low stock count
       const partsRes = await apiRequest('/parts?limit=500');
-      const allParts = partsRes.success ? partsRes.items || [] : [];
+      const allParts: any[] = partsRes.success ? partsRes.items || [] : [];
       const lowParts = allParts.filter((p: any) => (p.stok_miktari || 0) <= (p.kritik_stok || 0));
-      setLowStockParts(lowParts);
+
+      // 3. Yaklaşan/gecikmiş hatırlatıcı sayısı (zil noktası)
+      try {
+        const remRes = await apiRequest('/reminders/due');
+        if (remRes.success) setRemindersDue(remRes.count || 0);
+      } catch {}
 
       // Calculations for stats
-      const inShop = allOrders.filter((o: any) => o.durum !== 'teslim_edildi');
+      const inShop = allOrdersData
+        .filter((o: any) => o.durum !== 'teslim_edildi')
+        .sort((a: any, b: any) =>
+          String(b.updated_at || b.giris_tarihi || '').localeCompare(
+            String(a.updated_at || a.giris_tarihi || '')
+          )
+        );
       setInShopOrders(inShop);
-      setRecentOrders(allOrders.slice(0, 8));
 
-      const thisMonth = new Date().toISOString().slice(0, 7);
+      const nowD = new Date();
+      const thisMonth = `${nowD.getFullYear()}-${String(nowD.getMonth() + 1).padStart(2, '0')}`;
       let monthGross = 0;
       let monthLabor = 0;
       let totalOpen = 0;
+      const openCustomers = new Set<string>();
+      let readyCount = 0;
 
-      allOrders.forEach((o: any) => {
+      allOrdersData.forEach((o: any) => {
         const orderDate = String(o.giris_tarihi || o.created_at || '');
         if (orderDate.startsWith(thisMonth)) {
           monthGross += o.brut_tutar_kurus || 0;
           monthLabor += o.iscilik_toplam_kurus || 0;
         }
-        totalOpen += Math.max(0, o.kalan_tutar_kurus || 0);
+        const remaining = Math.max(0, o.kalan_tutar_kurus || 0);
+        if (remaining > 0) {
+          totalOpen += remaining;
+          openCustomers.add(String(o.musteri_ad || o.plaka || '').trim() || '—');
+        }
+        if (o.durum === 'teslime_hazir' || o.durum === 'tamamlandı') readyCount += 1;
       });
+
+      const criticalParts = lowParts.filter(
+        (p: any) => (p.kritik_stok || 0) > 0 && (p.stok_miktari || 0) / (p.kritik_stok || 1) < 0.5
+      );
 
       setDashboardStats({
         inShopCount: inShop.length,
+        readyCount,
         monthTotalKurus: monthGross,
         monthLaborKurus: monthLabor,
         openCariKurus: totalOpen,
-        lowPartsCount: lowParts.length
+        openCustomersCount: openCustomers.size,
+        lowPartsCount: lowParts.length,
+        criticalPartsCount: criticalParts.length
       });
     } catch (e) {
       console.error(e);
     }
+  };
+
+  /** Başarılı bir sorgudan sonra plakayı "son sorgular" listesine ekler (en fazla 5). */
+  const pushRecentPlate = (plateRaw: string) => {
+    const norm = normalizePlate(plateRaw);
+    if (norm.length < 4) return;
+    setRecentPlates((prev) => {
+      const next = [norm, ...prev.filter((p) => p !== norm)].slice(0, 5);
+      try {
+        localStorage.setItem(RECENT_KEY, JSON.stringify(next));
+      } catch {}
+      return next;
+    });
+  };
+
+  const handleRecentClick = (plateNorm: string) => {
+    setSearchTerm(formatPlateDisplay(plateNorm));
+    handleSearch(plateNorm);
   };
 
   const handleSearch = async (query: string) => {
@@ -186,6 +284,7 @@ export const VehicleSearchScreen: React.FC<VehicleSearchScreenProps> = ({
       if (norm.length >= 4) {
         const res = await apiRequest(`/vehicles/by-plate/${norm}`);
         if (res.success && res.vehicle) {
+          pushRecentPlate(norm);
           setVehicleData(res);
           setSearchResults([]);
           setLoading(false);
@@ -200,6 +299,7 @@ export const VehicleSearchScreen: React.FC<VehicleSearchScreenProps> = ({
       if (searchRes.success && searchRes.items?.length > 0) {
         if (searchRes.items.length === 1 && normalizePlate(searchRes.items[0].plaka_norm) === norm) {
           const exactRes = await apiRequest(`/vehicles/by-plate/${searchRes.items[0].plaka_norm}`);
+          pushRecentPlate(searchRes.items[0].plaka_norm);
           setVehicleData(exactRes);
           setSearchResults([]);
         } else {
@@ -226,6 +326,7 @@ export const VehicleSearchScreen: React.FC<VehicleSearchScreenProps> = ({
     try {
       const res = await apiRequest(`/vehicles/by-plate/${plakaNorm}`);
       if (res.success && res.vehicle) {
+        pushRecentPlate(plakaNorm);
         setVehicleData(res);
         setSearchResults([]);
         window.scrollTo({ top: 0, behavior: 'smooth' });
@@ -413,39 +514,117 @@ export const VehicleSearchScreen: React.FC<VehicleSearchScreenProps> = ({
 
   const lastKm = orders.reduce((max: number, o: any) => Math.max(max, o.km || o.kilometre || 0), 0);
 
-  return (
-    <div>
-      {/* Critical Stock Alert banner if low parts exist */}
-      {lowStockParts.length > 0 && !searchTerm && (
-        <div className="alert" role="alert">
-          <b>Kritik stok:</b>
-          <span>
-            {lowStockParts.slice(0, 4).map((p: any) => p.ad).join(', ')}
-            {lowStockParts.length > 4 ? ` ve ${lowStockParts.length - 4} parça daha` : ''}
-          </span>
-          {onNavigateToParts && (
-            <button className="btn btn-sm" type="button" onClick={onNavigateToParts}>
-              Azalanları göster
-            </button>
-          )}
-        </div>
-      )}
+  // ---- Takvim (Faz E) ----
+  const ordersByDate = useMemo(() => buildOrdersByDate(allOrders), [allOrders]);
+  const monthCells = useMemo(
+    () => buildMonthCells(calCursor.year, calCursor.month),
+    [calCursor]
+  );
+  const daysWithJobs = useMemo(() => new Set(ordersByDate.keys()), [ordersByDate]);
+  const todayKey = toDateKey(new Date());
+  const tomorrowKey = useMemo(() => {
+    const t = new Date();
+    t.setDate(t.getDate() + 1);
+    return toDateKey(t);
+  }, []);
+  const agendaOrders = getAgendaForDate(ordersByDate, selectedDate);
+  const selectedDateObj = useMemo(() => {
+    const [yy, mm, dd] = selectedDate.split('-').map(Number);
+    return new Date(yy, (mm || 1) - 1, dd || 1);
+  }, [selectedDate]);
+  const monthLabel = formatMonthLabel(new Date(calCursor.year, calCursor.month, 1));
+  const monthNameOnly = useMemo(() => new Intl.DateTimeFormat('tr-TR', { month: 'long' }), []);
+  const agendaRelative =
+    selectedDate === todayKey
+      ? 'Bugün'
+      : selectedDate === tomorrowKey
+        ? 'Yarın'
+        : selectedDate < todayKey
+          ? 'Geçmiş'
+          : 'Yaklaşan';
 
-      {/* Plate Search Row */}
-      <div className="searchrow">
-        <PlateInput
-          value={searchTerm}
-          onChange={(val) => {
-            setSearchTerm(val);
-            handleSearch(val);
-          }}
-          onSearch={handleSearch}
-          placeholder="34 ABC 123"
-        />
-        <span className="hint">
-          Plakayı yazın; araç, müşteri ve tüm işlem geçmişi gelir. Müşteri adıyla da arayabilirsiniz.
-        </span>
+  const changeMonth = (delta: number) => {
+    const d = new Date(calCursor.year, calCursor.month + delta, 1);
+    const ny = d.getFullYear();
+    const nm = d.getMonth();
+    setCalCursor({ year: ny, month: nm });
+    // Yeni ayda bugün varsa bugünü, yoksa ayın 1'ini seç.
+    const [ty, tm] = todayKey.split('-').map(Number);
+    setSelectedDate(ny === ty && nm === tm - 1 ? todayKey : `${ny}-${String(nm + 1).padStart(2, '0')}-01`);
+  };
+
+  const goToday = () => {
+    const n = new Date();
+    setCalCursor({ year: n.getFullYear(), month: n.getMonth() });
+    setSelectedDate(todayKey);
+  };
+
+  return (
+    <div className="screen">
+      {/* Üst başlık */}
+      <div className="hero">
+        <div>
+          <div className="hero-date">{formatLongDateTR(new Date())}</div>
+          <h1>Araç sorgu</h1>
+        </div>
+        <div className="hero-actions">
+          <a
+            className="icon-btn bare"
+            href="#/hatirlaticilar"
+            aria-label="Hatırlatıcılar"
+            title="Hatırlatıcılar"
+          >
+            <Bell size={18} strokeWidth={1.75} aria-hidden="true" />
+            {remindersDue > 0 && <span className="dot-badge" aria-hidden="true" />}
+          </a>
+          <button className="btn btn-primary" type="button" onClick={() => onNewWorkOrder()}>
+            <Plus size={18} strokeWidth={1.75} aria-hidden="true" />
+            Yeni iş emri
+          </button>
+        </div>
       </div>
+
+      {/* Plaka sorgu kartı */}
+      <section className="card search-card">
+        <div>
+          <div className="search-label">
+            <label htmlFor="q">Plaka ile sorgula</label>
+          </div>
+          <div className="search-help">
+            Plakayı yazın; araç, müşteri ve tüm işlem geçmişi gelir. Müşteri adıyla da arayabilirsiniz.
+          </div>
+        </div>
+        <div className="plate-row">
+          <PlateInput
+            value={searchTerm}
+            onChange={(val) => {
+              setSearchTerm(val);
+              handleSearch(val);
+            }}
+            onSearch={handleSearch}
+            placeholder="34 ABC 123"
+          />
+          <button className="btn btn-primary" type="button" onClick={() => handleSearch(searchTerm)}>
+            <Search size={18} strokeWidth={1.75} aria-hidden="true" />
+            Sorgula
+          </button>
+        </div>
+        <div className="recent-row">
+          <span className="recent-label">Son sorgular</span>
+          {recentPlates.length > 0 ? (
+            recentPlates.map((p) => (
+              <button key={p} className="chip" type="button" onClick={() => handleRecentClick(p)}>
+                {formatPlateDisplay(p)}
+              </button>
+            ))
+          ) : (
+            <span className="muted">Henüz sorgu yok</span>
+          )}
+          <span className="kbd-hint">
+            Kısayol: <span className="kbd">/</span>
+          </span>
+        </div>
+      </section>
 
       {loading && (
         <div className="panel" style={{ padding: '24px', textAlign: 'center', color: 'var(--muted)' }}>
@@ -456,113 +635,236 @@ export const VehicleSearchScreen: React.FC<VehicleSearchScreenProps> = ({
 
       {/* DASHBOARD VIEW (when query is empty) */}
       {!searchTerm && !loading && (
-        <div>
-          <div className="stats">
-            <div className="stat">
-              <span>Serviste</span>
-              <b>{dashboardStats.inShopCount} araç</b>
+        <div className="dash">
+          <div className="kpis">
+            <div className="kpi">
+              <div className="kpi-top">
+                <span className="kpi-label">Serviste</span>
+                <span className="kpi-ic"><Wrench size={18} strokeWidth={1.75} aria-hidden="true" /></span>
+              </div>
+              <div className="kpi-val">{dashboardStats.inShopCount} araç</div>
+              <div className="kpi-sub">{dashboardStats.readyCount} teslime hazır</div>
             </div>
-            <div className="stat">
-              <span>Bu ay (KDV dahil)</span>
-              <b>{money(dashboardStats.monthTotalKurus)}</b>
+
+            <div className="kpi">
+              <div className="kpi-top">
+                <span className="kpi-label">Bu ay (KDV dahil)</span>
+                <span className="kpi-ic"><TrendingUp size={18} strokeWidth={1.75} aria-hidden="true" /></span>
+              </div>
+              <div className="kpi-val">{money(dashboardStats.monthTotalKurus)}</div>
+              <div className="kpi-sub">{monthLabel}</div>
             </div>
-            <div className="stat">
-              <span>Bu ay toplam işçilik bedeli</span>
-              <b>{money(dashboardStats.monthLaborKurus)}</b>
+
+            <div className="kpi">
+              <div className="kpi-top">
+                <span className="kpi-label">Toplam işçilik</span>
+                <span className="kpi-ic"><Coins size={18} strokeWidth={1.75} aria-hidden="true" /></span>
+              </div>
+              <div className="kpi-val">{money(dashboardStats.monthLaborKurus)}</div>
+              <div className="kpi-sub">Bu ay</div>
             </div>
-            <div className="stat">
-              <span>Açık cari</span>
-              <b>{money(dashboardStats.openCariKurus)}</b>
+
+            <div className="kpi">
+              <div className="kpi-top">
+                <span className="kpi-label">Açık cari</span>
+                <span className="kpi-ic"><Wallet size={18} strokeWidth={1.75} aria-hidden="true" /></span>
+              </div>
+              <div className="kpi-val">{money(dashboardStats.openCariKurus)}</div>
+              <div className="kpi-sub">{dashboardStats.openCustomersCount} müşteri</div>
             </div>
-            <div className="stat">
-              <span>Azalan parça</span>
-              <b>{dashboardStats.lowPartsCount} kalem</b>
-            </div>
+
+            <button
+              className="kpi clickable"
+              type="button"
+              onClick={() => onNavigateToParts && onNavigateToParts()}
+            >
+              <div className="kpi-top">
+                <span className="kpi-label">Azalan parça</span>
+                <span className="kpi-ic"><Package size={18} strokeWidth={1.75} aria-hidden="true" /></span>
+              </div>
+              <div className="kpi-val">{dashboardStats.lowPartsCount} kalem</div>
+              <div className={`kpi-sub${dashboardStats.criticalPartsCount > 0 ? ' danger' : ''}`}>
+                {dashboardStats.criticalPartsCount > 0
+                  ? `${dashboardStats.criticalPartsCount} kritik seviyede`
+                  : 'Stok yeterli'}
+              </div>
+            </button>
           </div>
 
-          {inShopOrders.length > 0 && (
-            <div className="panel" style={{ marginBottom: '16px' }}>
-              <div className="panel-h">
-                <h3>Serviste olan araçlar</h3>
-                <span className="muted">Durumu kartından değiştirebilirsiniz</span>
+          <div className="dash-grid">
+            {/* Serviste olan araçlar */}
+            <section className="card dash-main">
+              <div className="card-head">
+                <h2>Serviste olan araçlar</h2>
+                {inShopOrders.length > 0 && (
+                  <a className="svc-head-link" href="#/araclar">Tümünü gör</a>
+                )}
               </div>
-              <div className="list">
-                {inShopOrders.map((o: any) => {
-                  const stage = o.durum || 'kabul';
-                  const stageNorm = stage === 'kabul' ? 'accepted' : (stage === 'onarımda' || stage === 'onarimda') ? 'repairing' : (stage === 'tamamlandı' || stage === 'teslime_hazir') ? 'ready' : 'delivered';
-                  return (
+
+              {inShopOrders.length > 0 ? (
+                <div className="svc-scroll">
+                  <div className="svc">
+                    <div className="svc-head">
+                      <span>Plaka</span>
+                      <span>Müşteri</span>
+                      <span>İşlem</span>
+                      <span>Durum</span>
+                      <span className="svc-amount">Tutar</span>
+                    </div>
+                    {inShopOrders.slice(0, 8).map((o: any) => {
+                      const nk = stageNormKey(o.durum);
+                      return (
+                        <button
+                          key={o.id}
+                          type="button"
+                          className="svc-row"
+                          onClick={() => handleSelectVehicle(o.plaka)}
+                        >
+                          <PlateBadge plate={o.plaka} />
+                          <span className="svc-cust">{o.musteri_ad || 'Müşteri belirtilmemiş'}</span>
+                          <span className="svc-job">{o.sikayet || 'İşlem notu yok'}</span>
+                          <span className={`badge ${stageBadgeClass(o.durum)}`}>
+                            <span className="dot" aria-hidden="true" />
+                            {STAGE_TXT[nk] || o.durum}
+                          </span>
+                          <span className="svc-amount">{money(o.brut_tutar_kurus || 0)}</span>
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+              ) : (
+                <div className="svc-empty">
+                  <b>Serviste araç yok</b>
+                  <span>Yeni bir iş emri açarak başlayın.</span>
+                  <button className="btn btn-ghost" type="button" onClick={() => onNewWorkOrder()}>
+                    <Plus size={18} strokeWidth={1.75} aria-hidden="true" />
+                    Yeni iş emri
+                  </button>
+                </div>
+              )}
+            </section>
+
+            {/* Takvim */}
+            <section className="card cal dash-side">
+              <div className="cal-head">
+                <h2>Takvim</h2>
+                <div className="cal-nav">
+                  <button
+                    className="icon-btn"
+                    type="button"
+                    aria-label="Önceki ay"
+                    title="Önceki ay"
+                    onClick={() => changeMonth(-1)}
+                  >
+                    <ChevronLeft size={18} strokeWidth={1.75} aria-hidden="true" />
+                  </button>
+                  <span className="cal-month" aria-live="polite">{monthLabel}</span>
+                  <button
+                    className="icon-btn"
+                    type="button"
+                    aria-label="Sonraki ay"
+                    title="Sonraki ay"
+                    onClick={() => changeMonth(1)}
+                  >
+                    <ChevronRight size={18} strokeWidth={1.75} aria-hidden="true" />
+                  </button>
+                </div>
+              </div>
+
+              <div className="cal-body">
+                <div className="cal-dow" aria-hidden="true">
+                  <span>Pzt</span>
+                  <span>Sal</span>
+                  <span>Çar</span>
+                  <span>Per</span>
+                  <span>Cum</span>
+                  <span>Cmt</span>
+                  <span>Paz</span>
+                </div>
+                <div className="cal-grid" role="grid" aria-label={monthLabel}>
+                  {monthCells.map((day, idx) => {
+                    if (day === null) return <span key={`e${idx}`} aria-hidden="true" />;
+                    const key = toDateKey(new Date(calCursor.year, calCursor.month, day));
+                    const isSel = key === selectedDate;
+                    const isToday = key === todayKey;
+                    const isPast = key < todayKey;
+                    const hasJobs = daysWithJobs.has(key);
+                    const dayCls = ['day', isPast ? 'past' : '', isToday ? 'today' : '', isSel ? 'sel' : '']
+                      .filter(Boolean)
+                      .join(' ');
+                    return (
+                      <button
+                        key={key}
+                        type="button"
+                        className={dayCls}
+                        aria-label={`${day} ${monthNameOnly.format(new Date(calCursor.year, calCursor.month, day))}`}
+                        aria-pressed={isSel}
+                        onClick={() => setSelectedDate(key)}
+                      >
+                        {day}
+                        <span className={`dot${hasJobs ? '' : ' hidden'}${isPast ? ' muted' : ''}`} aria-hidden="true" />
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+
+              <div className="agenda">
+                <div className="agenda-head">
+                  <div>
+                    <div className="eyebrow">{agendaRelative}</div>
+                    <div className="agenda-title">{formatAgendaTitle(selectedDateObj)}</div>
+                  </div>
+                  <div className="agenda-count">
+                    {agendaOrders.length > 0 ? `${agendaOrders.length} araç` : 'Kayıt yok'}
+                  </div>
+                </div>
+
+                {agendaOrders.length > 0 ? (
+                  agendaOrders.map((o: any) => (
                     <button
                       key={o.id}
                       type="button"
-                      className="li"
+                      className="agenda-item"
                       onClick={() => handleSelectVehicle(o.plaka)}
                     >
-                      <PlateBadge plate={o.plaka} />
-                      <span className="what">
-                        <b>{[o.arac_marka, o.arac_model].filter(Boolean).join(' ') || fdate(o.giris_tarihi)}</b>
-                        <span>{o.musteri_ad || 'Müşteri belirtilmemiş'} · {o.sikayet || 'İşlem notu yok'}</span>
-                      </span>
-                      <span className="muted li-extra">{fdate(o.giris_tarihi)}</span>
-                      <span className={`pill st-${stageNorm}`}>{STAGE_TXT[stageNorm] || o.durum}</span>
-                    </button>
-                  );
-                })}
-              </div>
-            </div>
-          )}
-
-          <div className="two">
-            <div className="panel">
-              <div className="panel-h">
-                <h3>Son iş emirleri</h3>
-              </div>
-              <div className="list">
-                {recentOrders.length > 0 ? (
-                  recentOrders.map((o: any) => {
-                    const status = o.kalan_tutar_kurus <= 0 ? 'paid' : (o.odenen_tutar_kurus > 0 ? 'partial' : 'open');
-                    return (
-                      <button
-                        key={o.id}
-                        type="button"
-                        className="li"
-                        onClick={() => handleSelectVehicle(o.plaka)}
-                      >
-                        <PlateBadge plate={o.plaka} />
-                        <span className="what">
-                          <b>{[o.arac_marka, o.arac_model].filter(Boolean).join(' ') || fdate(o.giris_tarihi)}</b>
-                          <span>{fdate(o.giris_tarihi)} · {o.sikayet || 'Kalem yok'}</span>
+                      <span className="agenda-time">{orderTimeLabel(o.giris_tarihi)}</span>
+                      <span className="agenda-main">
+                        <span className="agenda-plate">
+                          {formatPlateDisplay(normalizePlate(String(o.plaka || '')))}
                         </span>
-                        <span className="num li-extra">{money(o.brut_tutar_kurus || 0)}</span>
-                        <span className={`pill ${status}`}>{STATUS_TXT[status]}</span>
-                      </button>
-                    );
-                  })
-                ) : (
-                  <div className="empty">İş emri yok.</div>
-                )}
-              </div>
-            </div>
-
-            <div className="panel">
-              <div className="panel-h">
-                <h3>Azalan parçalar</h3>
-              </div>
-              <div className="list">
-                {lowStockParts.length > 0 ? (
-                  lowStockParts.slice(0, 8).map((p: any) => (
-                    <div key={p.id} className="li" style={{ gridTemplateColumns: 'minmax(0,1fr) auto' }}>
-                      <span className="what">
-                        <b>{p.ad}</b>
-                        <span>{p.kod || ''}</span>
+                        <span className="agenda-cust"> · {o.musteri_ad || 'Müşteri belirtilmemiş'}</span>
+                        <div className="agenda-sub">
+                          {[o.arac_marka, o.arac_model].filter(Boolean).join(' ') || o.sikayet || 'Kayıt yok'}
+                        </div>
                       </span>
-                      <span className="pill low">{numfmt(p.stok_miktari)} {p.birim || 'adet'}</span>
-                    </div>
+                    </button>
                   ))
                 ) : (
-                  <div className="empty">Stoğu azalan parça yok.</div>
+                  <div className="agenda-empty">
+                    <CalendarDays size={22} strokeWidth={1.75} aria-hidden="true" />
+                    <b>Bu gün için kayıtlı iş yok</b>
+                    <span>Aşağıdan bu güne araç ekleyebilirsiniz.</span>
+                  </div>
                 )}
+
+                <button
+                  className="btn btn-ghost agenda-add"
+                  type="button"
+                  onClick={() =>
+                    onNewWorkOrderForDate ? onNewWorkOrderForDate(selectedDate) : onNewWorkOrder()
+                  }
+                >
+                  <Plus size={18} strokeWidth={1.75} aria-hidden="true" />
+                  Bu güne araç ekle
+                </button>
+
+                <button className="btn btn-ghost agenda-add" type="button" onClick={goToday}>
+                  Bugüne dön
+                </button>
               </div>
-            </div>
+            </section>
           </div>
         </div>
       )}

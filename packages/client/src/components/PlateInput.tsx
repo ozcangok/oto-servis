@@ -32,7 +32,13 @@ export const PlateInput: React.FC<PlateInputProps> = ({
     if (!enableShortcut) return;
 
     const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.key === '/' && document.activeElement?.tagName !== 'INPUT' && document.activeElement?.tagName !== 'TEXTAREA') {
+      const el = document.activeElement as HTMLElement | null;
+      const tag = el?.tagName;
+      // Bir metin alanında yazarken kısayol tetiklenmesin (input, textarea,
+      // select, açılır liste veya içerik düzenlenebilir alanlar).
+      const typing =
+        tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT' || Boolean(el?.isContentEditable);
+      if (e.key === '/' && !typing) {
         e.preventDefault();
         inputRef.current?.focus();
         inputRef.current?.select();
