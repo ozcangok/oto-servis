@@ -882,6 +882,131 @@ describe('Phase 2: Vehicles, Customers, Parts, Work Orders, Stock & Plate Search
     expect(resCashOwner.statusCode).toBe(200);
   });
 
+  it('personel yönetimi: sahip hesap açar/siler/parola sıfırlar, personel erişemez', async () => {
+    // Personel kullanıcı listesini göremez / hesap açamaz / silemez / parola sıfırlayamaz
+    const staffList = await app.inject({
+      method: 'GET',
+      url: '/api/auth/users',
+      headers: { authorization: `Bearer ${staffToken}` }
+    });
+    expect(staffList.statusCode).toBe(403);
+
+    const staffCreate = await app.inject({
+      method: 'POST',
+      url: '/api/auth/users',
+      headers: { authorization: `Bearer ${staffToken}` },
+      payload: { username: 'olmaz1', password: 'Parola12345', full_name: 'Olmaz', role: 'staff' }
+    });
+    expect(staffCreate.statusCode).toBe(403);
+
+    const staffDelete = await app.inject({
+      method: 'DELETE',
+      url: '/api/auth/users/1',
+      headers: { authorization: `Bearer ${staffToken}` }
+    });
+    expect(staffDelete.statusCode).toBe(403);
+
+    const staffReset = await app.inject({
+      method: 'POST',
+      url: '/api/auth/users/1/reset-password',
+      headers: { authorization: `Bearer ${staffToken}` },
+      payload: { new_password: 'Parola12345' }
+    });
+    expect(staffReset.statusCode).toBe(403);
+
+    // Sahip listeyi görür
+    const ownerList = await app.inject({
+      method: 'GET',
+      url: '/api/auth/users',
+      headers: { authorization: `Bearer ${adminToken}` }
+    });
+    expect(ownerList.statusCode).toBe(200);
+    const ownerUsers = JSON.parse(ownerList.body).users;
+    expect(Array.isArray(ownerUsers)).toBe(true);
+    expect(ownerUsers.some((u: any) => u.username === 'admin')).toBe(true);
+    // Parola özeti istemciye asla sızmaz
+    expect(ownerUsers.every((u: any) => u.password_hash === undefined)).toBe(true);
+
+    // Sahip yeni personel (staff) oluşturur
+    const ownerCreate = await app.inject({
+      method: 'POST',
+      url: '/api/auth/users',
+      headers: { authorization: `Bearer ${adminToken}` },
+      payload: { username: 'yenieleman', password: 'Parola12345', full_name: 'Yeni Eleman', role: 'staff' }
+    });
+    expect(ownerCreate.statusCode).toBe(200);
+    const createdStaff = JSON.parse(ownerCreate.body).user;
+    expect(createdStaff.role).toBe('staff');
+
+    // Sahip 'owner' rolü de atayabilir
+    const ownerCreate2 = await app.inject({
+      method: 'POST',
+      url: '/api/auth/users',
+      headers: { authorization: `Bearer ${adminToken}` },
+      payload: { username: 'ikincisahip', password: 'Parola12345', full_name: 'İkinci Sahip', role: 'owner' }
+    });
+    expect(ownerCreate2.statusCode).toBe(200);
+    expect(JSON.parse(ownerCreate2.body).user.role).toBe('owner');
+
+    // Geçersiz rol reddedilir
+    const badRole = await app.inject({
+      method: 'POST',
+      url: '/api/auth/users',
+      headers: { authorization: `Bearer ${adminToken}` },
+      payload: { username: 'hatali', password: 'Parola12345', full_name: 'Hatalı', role: 'admin' }
+    });
+    expect(badRole.statusCode).toBe(400);
+
+    // Aynı kullanıcı adı tekrar açılamaz
+    const dupe = await app.inject({
+      method: 'POST',
+      url: '/api/auth/users',
+      headers: { authorization: `Bearer ${adminToken}` },
+      payload: { username: 'yenieleman', password: 'Parola12345', full_name: 'Kopya', role: 'staff' }
+    });
+    expect(dupe.statusCode).toBe(400);
+
+    // Yeni personel verilen parolayla giriş yapabilir
+    const newStaffLogin = await loginUser('yenieleman', 'Parola12345');
+    expect(newStaffLogin.token).toBeTruthy();
+
+    // Sahip parolayı sıfırlar; eski parola artık geçersiz, yenisi geçerli
+    const reset = await app.inject({
+      method: 'POST',
+      url: `/api/auth/users/${createdStaff.id}/reset-password`,
+      headers: { authorization: `Bearer ${adminToken}` },
+      payload: { new_password: 'YeniParola12345' }
+    });
+    expect(reset.statusCode).toBe(200);
+    await expect(loginUser('yenieleman', 'Parola12345')).rejects.toThrow();
+    const afterReset = await loginUser('yenieleman', 'YeniParola12345');
+    expect(afterReset.token).toBeTruthy();
+
+    // Sahip kendi hesabını silemez
+    const owner = ownerUsers.find((u: any) => u.username === 'admin');
+    const selfDelete = await app.inject({
+      method: 'DELETE',
+      url: `/api/auth/users/${owner.id}`,
+      headers: { authorization: `Bearer ${adminToken}` }
+    });
+    expect(selfDelete.statusCode).toBe(400);
+
+    // Sahip personeli siler; listeden kaybolur ve giriş yapamaz
+    const del = await app.inject({
+      method: 'DELETE',
+      url: `/api/auth/users/${createdStaff.id}`,
+      headers: { authorization: `Bearer ${adminToken}` }
+    });
+    expect(del.statusCode).toBe(200);
+    const listAfterDelete = await app.inject({
+      method: 'GET',
+      url: '/api/auth/users',
+      headers: { authorization: `Bearer ${adminToken}` }
+    });
+    expect(JSON.parse(listAfterDelete.body).users.some((u: any) => u.username === 'yenieleman')).toBe(false);
+    await expect(loginUser('yenieleman', 'YeniParola12345')).rejects.toThrow();
+  });
+
   it('silinen aracin tahsilati kasa raporundan duser', async () => {
     const nowLocal = new Date();
     const localDate = `${nowLocal.getFullYear()}-${String(nowLocal.getMonth() + 1).padStart(2, '0')}-${String(nowLocal.getDate()).padStart(2, '0')}`;
