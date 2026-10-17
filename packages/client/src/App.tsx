@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { apiRequest, setAuthToken } from './services/api.js';
-import { AuthModal } from './components/AuthModal.js';
+import { LoginScreen } from './components/LoginScreen.js';
+import { clearOfflineQueue } from './services/offlineQueue.js';
 import { VehicleSearchScreen } from './screens/VehicleSearchScreen.js';
 import { CustomersScreen } from './screens/CustomersScreen.js';
 import { VehiclesScreen } from './screens/VehiclesScreen.js';
@@ -36,6 +37,10 @@ export function App() {
   const [theme, setTheme] = useState<'light' | 'dark'>(() => {
     return (localStorage.getItem('oto_theme') as 'light' | 'dark') || 'light';
   });
+
+  // Oturum kimliği: her giriş/çıkışta uygulama kabuğunu sıfırdan mount eder
+  // (önceki kullanıcının ekran state'i asla yeni oturuma taşınmaz).
+  const [sessionNonce, setSessionNonce] = useState(0);
 
   useEffect(() => {
     document.documentElement.setAttribute('data-theme', theme);
@@ -101,11 +106,44 @@ export function App() {
     } catch {}
   };
 
+  const handleAuthSuccess = (user: any) => {
+    setCurrentUser(user);
+    loadRemindersBadge();
+    loadSettings();
+  };
+
+  /**
+   * Çıkışta tarayıcı hafızasındaki TÜM hassas durumu sıfırlar.
+   * Kasa/Gider/Müşteri verileri ekran bileşenlerinin state'inde tutulur; oturum
+   * kapandığında uygulama kabuğu hiç render edilmediği için bu veriler DOM'dan
+   * ve bellekten tamamen silinir. Ayrıca token, offline kuyruk ve hatırlatıcı
+   * işaretleri burada açıkça temizlenir.
+   */
+  const resetSensitiveState = () => {
+    setActiveTab('sorgu');
+    setWorkOrderModalOpen(false);
+    setActiveWorkOrderId(null);
+    setWorkOrderPlate('');
+    setSelectedPlate('');
+    setShowSettings(false);
+    setRemindersCount(0);
+    setSessionNonce((n) => n + 1); // uygulama kabuğunu sıfırdan mount et
+  };
+
   const handleLogout = async () => {
     try {
       await apiRequest('/auth/logout', { method: 'POST' });
     } catch {}
+    // 1) Kimlik bilgileri
     setAuthToken(null);
+    // 2) Yerel hassas veriler (offline kuyruk + hatırlatıcı işaretleri)
+    clearOfflineQueue();
+    try {
+      localStorage.removeItem('oto_sent_reminders');
+    } catch {}
+    // 3) Tüm ekran state'i (Kasa, Gider, Müşteri, arama, modallar...)
+    resetSensitiveState();
+    // 4) En son: oturumu kapat → yalnızca izole giriş ekranı render edilir
     setCurrentUser(null);
   };
 
@@ -139,10 +177,17 @@ export function App() {
     );
   }
 
+  // GÜVENLİK: Oturum yoksa YALNIZCA izole, opak giriş ekranı render edilir.
+  // Uygulama kabuğu (Kasa/Gider/Müşteri vb.) hiç oluşturulmaz; böylece arka
+  // planda hiçbir hassas veri veya rakam kalmaz.
+  if (!currentUser) {
+    return <LoginScreen onSuccess={handleAuthSuccess} />;
+  }
+
   const shopNameUpper = (shopName || 'GÜVEN OTO').toUpperCase();
 
   return (
-    <>
+    <React.Fragment key={sessionNonce}>
       {/* Background Watermark */}
       <div className="wm" aria-hidden="true">
         <div className="wm-in">
@@ -155,17 +200,6 @@ export function App() {
           ))}
         </div>
       </div>
-
-      {/* Auth Modal if unauthenticated */}
-      {!currentUser && (
-        <AuthModal
-          onSuccess={(user) => {
-            setCurrentUser(user);
-            loadRemindersBadge();
-            loadSettings();
-          }}
-        />
-      )}
 
       {/* Sticky Top Bar */}
       <header className="topbar">
@@ -349,6 +383,6 @@ export function App() {
 
       {/* Toast Element */}
       <div id="toast" role="status" aria-live="polite"></div>
-    </>
+    </React.Fragment>
   );
 }

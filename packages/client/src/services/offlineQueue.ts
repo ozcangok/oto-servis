@@ -25,6 +25,17 @@ function saveOfflineQueue(queue: QueueItem[]) {
   window.dispatchEvent(new CustomEvent('offline_queue_changed', { detail: { count: queue.length } }));
 }
 
+/**
+ * Çıkış (logout) sırasında çağrılır: bekleyen tüm yerel verileri (müşteri/iş emri
+ * taslakları) tarayıcı hafızasından siler. Hassas veri arkada kalmasın.
+ */
+export function clearOfflineQueue() {
+  try {
+    localStorage.removeItem(STORAGE_KEY);
+  } catch {}
+  window.dispatchEvent(new CustomEvent('offline_queue_changed', { detail: { count: 0 } }));
+}
+
 export function addToOfflineQueue(type: QueueItem['type'], endpoint: string, payload: any) {
   const queue = getOfflineQueue();
   const item: QueueItem = {

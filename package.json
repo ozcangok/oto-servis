@@ -8,8 +8,13 @@
   "scripts": {
     "build": "npm run build --workspace=@oto-servis/shared && npm run build --workspace=@oto-servis/server && npm run build --workspace=@oto-servis/client",
     "test": "npm run test --workspaces --if-present",
+    "test:e2e": "playwright test",
+    "test:e2e:headed": "playwright test --headed",
     "dev:server": "npm run dev --workspace=@oto-servis/server",
     "dev:client": "npm run dev --workspace=@oto-servis/client",
     "start": "npm run start --workspace=@oto-servis/server"
+  },
+  "devDependencies": {
+    "@playwright/test": "^1.64.1"
   }
 }

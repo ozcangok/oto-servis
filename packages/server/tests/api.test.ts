@@ -1186,8 +1186,8 @@ describe('Phase 2: Vehicles, Customers, Parts, Work Orders, Stock & Plate Search
     expect(ownerDel.statusCode).toBe(200);
   });
 
-  it('giderler: staff yalnizca whitelist kategorilerini gorur (hassas + owner-disi gizli)', async () => {
-    // owner: hassas ve staff-dışı kategorileri ekler
+  it('giderler: staff whitelist gorur; yalnizca Fatura & Kira ve Personel gizli kalir', async () => {
+    // owner: hassas + gündelik kategorileri ekler
     await app.inject({
       method: 'POST',
       url: '/api/expenses',
@@ -1213,16 +1213,33 @@ describe('Phase 2: Vehicles, Customers, Parts, Work Orders, Stock & Plate Search
       payload: { tarih: '2026-01-05', kategori: 'Sarf Malzeme', aciklama: 'Eldiven', tutar_kurus: 7000 }
     });
 
-    // Personel, owner'a özel 'Ekipman Bakım' kategorisini ekleyemez
+    // Personel hassas kategorileri ekleyemez
+    const staffPersonel = await app.inject({
+      method: 'POST',
+      url: '/api/expenses',
+      headers: { authorization: `Bearer ${staffToken}` },
+      payload: { tarih: '2026-01-05', kategori: 'Personel', aciklama: 'Sızma', tutar_kurus: 100 }
+    });
+    expect(staffPersonel.statusCode).toBe(403);
+
+    const staffKira = await app.inject({
+      method: 'POST',
+      url: '/api/expenses',
+      headers: { authorization: `Bearer ${staffToken}` },
+      payload: { tarih: '2026-01-05', kategori: 'Fatura & Kira', aciklama: 'Sızma', tutar_kurus: 100 }
+    });
+    expect(staffKira.statusCode).toBe(403);
+
+    // Personel gündelik 'Ekipman Bakım' kategorisini ekleyebilir
     const staffEkipman = await app.inject({
       method: 'POST',
       url: '/api/expenses',
       headers: { authorization: `Bearer ${staffToken}` },
-      payload: { tarih: '2026-01-05', kategori: 'Ekipman Bakım', aciklama: 'Sızma', tutar_kurus: 100 }
+      payload: { tarih: '2026-01-05', kategori: 'Ekipman Bakım', aciklama: 'Yağ değişimi', tutar_kurus: 2000 }
     });
-    expect(staffEkipman.statusCode).toBe(403);
+    expect(staffEkipman.statusCode).toBe(200);
 
-    // Personel: yalnızca gündelik (whitelist) kategori görünür
+    // Personel: yalnızca whitelist kategorileri görünür (hassas kategoriler YOK)
     const staffList = JSON.parse(
       (
         await app.inject({
@@ -1232,9 +1249,13 @@ describe('Phase 2: Vehicles, Customers, Parts, Work Orders, Stock & Plate Search
         })
       ).body
     );
-    expect(staffList.items.map((i: any) => i.kategori)).toEqual(['Sarf Malzeme']);
-    expect(staffList.summary.expenseCount).toBe(1);
-    expect(staffList.summary.expenseTotalKurus).toBe(7000);
+    const staffCats = staffList.items.map((i: any) => i.kategori);
+    expect(staffCats).not.toContain('Personel');
+    expect(staffCats).not.toContain('Fatura & Kira');
+    expect(staffCats).toContain('Sarf Malzeme');
+    expect(staffCats.filter((c: string) => c === 'Ekipman Bakım').length).toBe(2);
+    expect(staffList.summary.expenseCount).toBe(3);
+    expect(staffList.summary.expenseTotalKurus).toBe(39000);
     expect(staffList.summary.laborIncomeKurus).toBeUndefined();
     expect(staffList.summary.netProfitKurus).toBeUndefined();
 
@@ -1248,8 +1269,8 @@ describe('Phase 2: Vehicles, Customers, Parts, Work Orders, Stock & Plate Search
         })
       ).body
     );
-    expect(ownerList.summary.expenseCount).toBe(4);
-    expect(ownerList.summary.expenseTotalKurus).toBe(187000);
+    expect(ownerList.summary.expenseCount).toBe(5);
+    expect(ownerList.summary.expenseTotalKurus).toBe(189000);
     expect(typeof ownerList.summary.netProfitKurus).toBe('number');
   });
 

@@ -182,25 +182,18 @@ export type ExpenseCategory = (typeof EXPENSE_CATEGORIES)[number];
 /**
  * Yalnızca dükkan sahibinin (owner) ekleyip görebileceği kategoriler.
  * Personel (staff) bu kategorileri ne ekleyebilir ne de listeleyebilir.
- * 'Personel' (maaş/avans) ve 'Fatura & Kira' ticari mahremiyet; 'Ekipman Bakım'
- * ise ilk şartnamede personel kapsamı dışında bırakılmıştır.
+ * 'Personel' (maaş/avans) ve 'Fatura & Kira' ticari mahremiyet kapsamındadır.
  */
-export const OWNER_ONLY_EXPENSE_CATEGORIES: ExpenseCategory[] = [
-  'Fatura & Kira',
-  'Personel',
-  'Ekipman Bakım'
-];
-
-/** @deprecated Yeni kod OWNER_ONLY_EXPENSE_CATEGORIES kullanmalı. */
-export const SENSITIVE_EXPENSE_CATEGORIES: ExpenseCategory[] = ['Fatura & Kira', 'Personel'];
+export const OWNER_ONLY_EXPENSE_CATEGORIES: ExpenseCategory[] = ['Fatura & Kira', 'Personel'];
 
 /**
- * Personelin (staff) ekleyip görebileceği gündelik gider kategorileri (whitelist).
+ * Personelin (staff) ekleyip görebileceği kategoriler (whitelist).
  * Açıkça tanımlıdır; yeni bir kategori eklenirse personel varsayılan olarak görmez.
  */
 export const STAFF_EXPENSE_CATEGORIES: ExpenseCategory[] = [
   'Sarf Malzeme',
   'Mutfak & Temizlik',
+  'Ekipman Bakım',
   'Ofis & Kırtasiye',
   'Diğer'
 ];
