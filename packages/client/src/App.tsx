@@ -306,6 +306,10 @@ export function App() {
         }
         return;
       }
+      // Ayarlar modalı açıkken başka bir adrese geçilirse (ör. Geri tuşu veya
+      // kenar çubuğu) modal kapanmalı; aksi hâlde adres ile ekran tutarsız kalır.
+      setShowSettings(false);
+
       if (name === 'kasa' && !isOwner) {
         window.history.replaceState(null, '', '#/sorgu');
         setActiveTab('sorgu');
@@ -316,7 +320,13 @@ export function App() {
         return;
       }
       const tab = HASH_TO_TAB[name];
-      if (tab) setActiveTab(tab);
+      if (tab) {
+        setActiveTab(tab);
+        return;
+      }
+      // Tanımsız adres (ör. kaldırılmış bir ekranın eski bağlantısı): içerik
+      // gösterme, adres çubuğunu geçerli sekmenin adresine döndür.
+      window.history.replaceState(null, '', '#/' + TAB_TO_HASH[activeTab]);
     };
 
     applyRoute();

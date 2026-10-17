@@ -406,72 +406,78 @@ export const workOrderRoutes: FastifyPluginAsync = async (fastify) => {
     const now = new Date().toISOString();
     let warnings: string[] = [];
 
-    const updated = sqlite.transaction(() => {
-      // 1. Update work order main record
-      const upd = db.update(workOrders).set({
-        km: parse.data.kilometre ?? parse.data.km,
-        ...(parse.data.giris_tarihi ? { tarih: parse.data.giris_tarihi } : {}),
-        durum: parse.data.durum,
-        sikayet: parse.data.sikayet.trim(),
-        kdv_orani: parse.data.kdv_orani,
-        kdv_dahil_mi: parse.data.kdv_dahil_mi,
-        iskonto_yuzde: parse.data.iskonto_yuzde,
-        iskonto_tutar_kurus: parse.data.iskonto_tutar_kurus,
-        pesin_fiyat_elle_kurus: parse.data.pesin_fiyat_elle_kurus || null,
-        sonraki_bakim_tarihi: parse.data.sonraki_bakim_tarihi || null,
-        sonraki_bakim_km: parse.data.sonraki_bakim_km || null,
-        updated_at: now
-      }).where(eq(workOrders.id, id)).returning().get();
+    try {
+      const updated = sqlite.transaction(() => {
+        // 1. Update work order main record
+        const upd = db.update(workOrders).set({
+          km: parse.data.kilometre ?? parse.data.km,
+          ...(parse.data.giris_tarihi ? { tarih: parse.data.giris_tarihi } : {}),
+          durum: parse.data.durum,
+          sikayet: parse.data.sikayet.trim(),
+          kdv_orani: parse.data.kdv_orani,
+          kdv_dahil_mi: parse.data.kdv_dahil_mi,
+          iskonto_yuzde: parse.data.iskonto_yuzde,
+          iskonto_tutar_kurus: parse.data.iskonto_tutar_kurus,
+          pesin_fiyat_elle_kurus: parse.data.pesin_fiyat_elle_kurus || null,
+          sonraki_bakim_tarihi: parse.data.sonraki_bakim_tarihi || null,
+          sonraki_bakim_km: parse.data.sonraki_bakim_km || null,
+          updated_at: now
+        }).where(eq(workOrders.id, id)).returning().get();
 
-      // 2. Replace lines
-      db.delete(workOrderLines).where(eq(workOrderLines.is_emri_id, id)).run();
+        // 2. Replace lines
+        db.delete(workOrderLines).where(eq(workOrderLines.is_emri_id, id)).run();
 
-      const partUsages: Array<{ parca_id: number; adet: number }> = [];
-      for (const line of parse.data.kalemler) {
-        db.insert(workOrderLines).values({
-          is_emri_id: id,
-          tur: line.tur,
-          parca_id: line.parca_id || null,
-          ad: line.ad.trim(),
-          adet: line.adet,
-          birim: line.birim,
-          birim_fiyat_kurus: line.birim_fiyat_kurus,
-          created_at: now
-        }).run();
+        const partUsages: Array<{ parca_id: number; adet: number }> = [];
+        for (const line of parse.data.kalemler) {
+          db.insert(workOrderLines).values({
+            is_emri_id: id,
+            tur: line.tur,
+            parca_id: line.parca_id || null,
+            ad: line.ad.trim(),
+            adet: line.adet,
+            birim: line.birim,
+            birim_fiyat_kurus: line.birim_fiyat_kurus,
+            created_at: now
+          }).run();
 
-        if (line.tur === 'parca' && line.parca_id) {
-          partUsages.push({ parca_id: line.parca_id, adet: line.adet });
+          if (line.tur === 'parca' && line.parca_id) {
+            partUsages.push({ parca_id: line.parca_id, adet: line.adet });
+          }
         }
+
+        // 3. Apply stock delta — negatif stok yalnızca dükkan sahibine açıktır;
+        // personel istek gövdesindeki bayrakla bu korumayı aşamaz.
+        warnings = applyWorkOrderStockDelta(
+          id,
+          partUsages,
+          request.user!.id,
+          request.user!.role === 'owner'
+        );
+
+        return upd;
+      })();
+
+      // Servis durumu değiştiyse iletişim merkezine WhatsApp kaydı düş
+      if (updated.durum !== existing.durum) {
+        recordStatusNotification(id, updated.durum);
       }
 
-      // 3. Apply stock delta
-      warnings = applyWorkOrderStockDelta(
-        id,
-        partUsages,
-        request.user!.id,
-        parse.data.override_negative_stock || request.user!.role === 'owner'
-      );
+      await logAudit({
+        kullanici_id: request.user!.id,
+        kullanici_adi: request.user!.username,
+        islem: 'work_order_update',
+        hedef_tablo: 'work_orders',
+        hedef_id: id,
+        eski_deger: existing,
+        yeni_deger: updated,
+        detay: `İş emri güncellendi #${id}`
+      });
 
-      return upd;
-    })();
-
-    // Servis durumu değiştiyse iletişim merkezine WhatsApp kaydı düş
-    if (updated.durum !== existing.durum) {
-      recordStatusNotification(id, updated.durum);
+      return { success: true, workOrder: updated, warnings };
+    } catch (err: any) {
+      const msg = err?.message || 'İş emri güncellenemedi.';
+      return reply.status(/stok/i.test(msg) ? 400 : 500).send({ success: false, error: msg });
     }
-
-    await logAudit({
-      kullanici_id: request.user!.id,
-      kullanici_adi: request.user!.username,
-      islem: 'work_order_update',
-      hedef_tablo: 'work_orders',
-      hedef_id: id,
-      eski_deger: existing,
-      yeni_deger: updated,
-      detay: `İş emri güncellendi #${id}`
-    });
-
-    return { success: true, workOrder: updated, warnings };
   });
 
   // Update work order status only (used by stage dropdowns and quick actions)

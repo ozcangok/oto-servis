@@ -405,7 +405,9 @@ export const partRoutes: FastifyPluginAsync = async (fastify) => {
         request.user!.id,
         {
           notlar: parse.data.notlar || undefined,
-          overrideNegativeStock: parse.data.override_negative || request.user!.role === 'owner',
+          // Negatif stok yalnızca dükkan sahibine açıktır; personel istek
+          // gövdesindeki bayrakla bu korumayı aşamaz.
+          overrideNegativeStock: request.user!.role === 'owner',
           ipAddress: request.ip
         }
       );

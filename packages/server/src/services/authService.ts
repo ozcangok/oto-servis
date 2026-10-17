@@ -9,6 +9,12 @@ const MAX_FAILED_ATTEMPTS = 5;
 const LOCKOUT_MINUTES = 15;
 const SESSION_TTL_DAYS = 30;
 
+// Giriş hatalarında kullanıcı adı numaralandırmasını (ve yanıt zamanı sızıntısını)
+// önlemek için TÜM başarısız denemeler birebir aynı mesajı döner.
+const INVALID_CREDENTIALS_MESSAGE = 'Kullanıcı adı/e-posta veya parola hatalı.';
+// Var olmayan kullanıcıda da bcrypt maliyetini ödemek için sabit bir hash.
+const DUMMY_HASH = bcrypt.hashSync('gecersiz-kullanici-zamanlama-esitlemesi', 10);
+
 export async function isSetupNeeded(): Promise<boolean> {
   const db = getDb();
   const row = db.select({ count: sql<number>`count(*)` }).from(users).get();
@@ -73,7 +79,10 @@ export async function loginUser(
   }
 
   if (!user) {
-    throw new Error('Kullanıcı adı/e-posta veya parola hatalı.');
+    // Kullanıcı adı numaralandırmayı ve zamanlama sızıntısını önlemek için
+    // kayıt olmasa da bcrypt karşılaştırması yapıp aynı genel hatayı döneriz.
+    await bcrypt.compare(passwordInput, DUMMY_HASH);
+    throw new Error(INVALID_CREDENTIALS_MESSAGE);
   }
 
   if (!user.is_active) {
@@ -112,7 +121,9 @@ export async function loginUser(
       throw new Error(`5 hatalı giriş nedeniyle hesabınız ${LOCKOUT_MINUTES} dakika süreyle kilitlenmiştir.`);
     }
 
-    throw new Error(`Kullanıcı adı/e-posta veya parola hatalı. (Kalan hak: ${MAX_FAILED_ATTEMPTS - newFailCount})`);
+    // Kalan deneme hakkını (ve dolayısıyla kullanıcının varlığını) ele vermeyiz;
+    // hatasız kullanıcı ile birebir aynı mesaj döner.
+    throw new Error(INVALID_CREDENTIALS_MESSAGE);
   }
 
   // Reset failed attempts on success
