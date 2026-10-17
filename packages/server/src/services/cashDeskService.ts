@@ -149,6 +149,10 @@ export async function getCashDeskSummary(startDate?: string, endDate?: string): 
     grandTotalLaborKurus += (r.adet || 1) * (r.birim_fiyat_kurus || 0);
   }
 
+  // İşçilik bedellerini genel toplama ve ödeme yöntemine dahil et
+  totalCollectedKurus += totalLaborKurus;
+  byMethod.nakit += totalLaborKurus;
+
   return {
     startDate: start,
     endDate: end,

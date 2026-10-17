@@ -632,20 +632,8 @@ export const workOrderRoutes: FastifyPluginAsync = async (fastify) => {
     const method: PaymentMethod = ((request.body as any)?.yontem as PaymentMethod) || 'nakit';
 
     sqlite.transaction(() => {
-      // If there is remaining cash balance, record payment
-      if (calc.pesin_kalan_kurus > 0) {
-        db.insert(payments).values({
-          is_emri_id: id,
-          tarih: now,
-          tutar_kurus: calc.pesin_kalan_kurus,
-          yontem: method,
-          kullanici_id: request.user!.id,
-          notlar: 'Peşin kapatma tahsilatı',
-          created_at: now
-        }).run();
-      }
-
-      // Close work order
+      // Close work order (peşin ödeme → direkt kasaya, cari hesap etkilemez)
+      // Ödemeyi kayıt yapmıyız; peşin satış borç oluşturmaz.
       db.update(workOrders).set({
         durum: 'teslim_edildi',
         kapanis_tarihi: now,

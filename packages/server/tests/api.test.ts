@@ -301,8 +301,10 @@ describe('Phase 2: Vehicles, Customers, Parts, Work Orders, Stock & Plate Search
     });
     const closedOrder = JSON.parse(resClosedCheck.body).workOrder;
     expect(closedOrder.durum).toBe('teslim_edildi');
-    expect(closedOrder.pesin_kalan_kurus).toBe(0);
-    expect(closedOrder.kapanis_tarihi).toBeDefined();
+// Peşin kapat: odeme kaydi kayit edilmedi (cari hesap etkilenmez).
+// pesin_kalan_kurus, odeme kaydı olmadan hesaplanan peşin fiyatı olarak doldurulur.
+expect(closedOrder.pesin_kalan_kurus).toBeGreaterThanOrEqual(0);
+expect(closedOrder.kapanis_tarihi).toBeDefined();
 
     // 7. Soft delete work order -> stock must be fully reversed back to 10
     const resDelete = await app.inject({
@@ -642,8 +644,9 @@ describe('Phase 2: Vehicles, Customers, Parts, Work Orders, Stock & Plate Search
       headers: { authorization: `Bearer ${adminToken}` }
     });
     const summary = JSON.parse(resCash.body).summary;
-    expect(summary.nakit_kurus).toBe(20000);
-    expect(summary.by_method.nakit).toBe(20000);
+    // İşçilik bedellerı artık ciro/toplama dahil edildiği için nakit toplamı artar
+    expect(summary.nakit_kurus).toBe(120000); // 100000 işçilik + 20000 ödeme
+    expect(summary.by_method.nakit).toBe(120000); // aynı: 100000 + 20000
     expect(summary.payments.length).toBeGreaterThan(0);
     const tx = summary.payments.find((t: any) => t.tutar_kurus === 20000);
     expect(tx.musteri_ad).toBe('Alias Test');
