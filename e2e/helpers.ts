@@ -20,7 +20,23 @@ export interface Creds {
 
 // ---------------------------------------------------------------- UI helpers
 
+/**
+ * Açılış (splash) ekranını atlar.
+ *
+ * Splash yalnızca gerçek kullanıcı açılışında gösterilir; E2E testleri doğrudan
+ * giriş ekranına ulaşmalıdır. `sessionStorage` bayrağı her gezinmede (init
+ * script ile) sayfa kodundan ÖNCE yazılır.
+ */
+export async function skipSplash(page: Page): Promise<void> {
+  await page.addInitScript(() => {
+    try {
+      window.sessionStorage.setItem('oto_splash_seen', '1');
+    } catch {}
+  });
+}
+
 export async function login(page: Page, creds: Creds): Promise<void> {
+  await skipSplash(page);
   await page.goto('/');
   const dialog = page.getByRole('dialog');
   await expect(dialog).toBeVisible();

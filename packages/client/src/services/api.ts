@@ -16,6 +16,24 @@ export class ApiError extends Error {
 
 let authToken: string | null = localStorage.getItem('auth_token');
 
+/**
+ * API kök adresi.
+ *
+ * Web'de istekler göreli (`/api/...`) gider. Masaüstünde (Electron, `file://`)
+ * göreli adresler dosya sistemine çözüleceği için gömülü sunucunun MUTLAK
+ * adresi kullanılır (preload: `window.otoDesktop.apiBase`).
+ */
+function resolveApiBase(): string {
+  try {
+    const bridge = (window as any).otoDesktop;
+    if (bridge?.apiBase) return String(bridge.apiBase);
+    if (window.location.protocol === 'file:') return 'http://localhost:3001';
+  } catch {}
+  return '';
+}
+
+const API_BASE = resolveApiBase();
+
 export function setAuthToken(token: string | null) {
   authToken = token;
   if (token) {
@@ -65,7 +83,7 @@ export async function apiRequest<T = any>(
   // aksi halde giriş anında yarış durumunda oturum yanlışlıkla kapatılır.
   const hadToken = Boolean(authToken);
 
-  const url = endpoint.startsWith('http') ? endpoint : `/api${endpoint.startsWith('/') ? endpoint : `/${endpoint}`}`;
+  const url = endpoint.startsWith('http') ? endpoint : `${API_BASE}/api${endpoint.startsWith('/') ? endpoint : `/${endpoint}`}`;
 
   try {
     const response = await fetch(url, {

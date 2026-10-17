@@ -645,3 +645,121 @@ button.li:hover{background:var(--surface-subtle)}
 :root[data-theme="dark"] .agenda-item,
 :root[data-theme="dark"] .chip,
 :root[data-theme="dark"] .sidebar{border-color:var(--border-card)}
+
+/* =======================================================================
+   PREMIUM MASAÜSTÜ KATMANI — holografik açılış / kilit / güvenli kapanış
+   Bordo · Antrasit · Gümüş tonlarının aktığı animasyonlu yazı gradyanı ve
+   arkasında "nefes alan" ışık huzmesi. Yalnızca SUNUM katmanıdır.
+   ======================================================================= */
+
+/* Metin içinde akan gradyan (5 sn'de bir başa sarar) */
+@keyframes holo-shift{from{background-position:0% 50%}to{background-position:220% 50%}}
+/* Arkadaki hologram parlaması: hafifçe büyüyüp parlar (nefes alır) */
+@keyframes holo-breathe{
+  0%{opacity:.30;transform:scale(1)}
+  100%{opacity:.62;transform:scale(1.07)}
+}
+
+/* --- Holografik yazı bloğu: <div class="holo"><span class="holo-glow"/><h1 class="holo-text"/></div> --- */
+.holo{
+  --holo-size:clamp(22px,2.6vw,34px);
+  position:relative;display:inline-grid;place-items:center;max-width:100%;
+}
+.holo>*{
+  grid-area:1/1;margin:0;text-align:center;
+  font-family:var(--f-cond);font-weight:600;letter-spacing:-.01em;line-height:1.24;
+  font-size:var(--holo-size);
+}
+.holo.holo-md{--holo-size:clamp(18px,2.3vw,30px)}
+.holo.holo-lg{--holo-size:clamp(22px,3.1vw,40px)}
+.holo.holo-xl{--holo-size:clamp(26px,3.4vw,46px)}
+
+/* Animasyonlu gradyan yalnızca yazının İÇİNE hapsedilir */
+.holo-text{
+  background-image:linear-gradient(100deg,
+    #7f1d1d 0%, #f87171 11%, #f4f4f5 23%, #a1a1aa 33%,
+    #52525b 42%, #ef4444 56%, #fafafa 68%, #94a3b8 79%,
+    #b91c1c 90%, #7f1d1d 100%);
+  background-size:220% 100%;
+  -webkit-background-clip:text;background-clip:text;
+  -webkit-text-fill-color:transparent;color:transparent;
+  animation:holo-shift 5s linear infinite;
+}
+
+/* Yazının tam arkasındaki ışık huzmesi (aynı gradyan, blur ile) */
+.holo-glow{
+  background-image:linear-gradient(100deg,
+    #7f1d1d 0%, #f87171 11%, #f4f4f5 23%, #a1a1aa 33%,
+    #52525b 42%, #ef4444 56%, #fafafa 68%, #94a3b8 79%,
+    #b91c1c 90%, #7f1d1d 100%);
+  background-size:220% 100%;
+  -webkit-background-clip:text;background-clip:text;
+  -webkit-text-fill-color:transparent;color:transparent;
+  filter:blur(24px);
+  animation:holo-shift 5s linear infinite, holo-breathe 3.6s ease-in-out infinite alternate;
+  pointer-events:none;user-select:none;
+}
+
+/* --------------------------- Açılış (splash) --------------------------- */
+.splash{
+  position:fixed;inset:0;z-index:300;display:grid;place-items:center;padding:32px;overflow:hidden;
+  background:radial-gradient(1200px 620px at 50% 18%,#1b2432 0%,#0b1220 55%,#060a11 100%);
+  transition:opacity .6s ease;
+}
+/* İlk 7 saniye: kesinlikle tıklanamaz / geçilemez */
+.splash.locked{pointer-events:none}
+.splash.leaving{opacity:0}
+.splash-inner{display:flex;flex-direction:column;align-items:center;gap:22px;text-align:center;max-width:940px}
+.splash-brand{
+  font-family:var(--f-cond);text-transform:uppercase;letter-spacing:.34em;font-size:12px;font-weight:600;
+  color:#94a3b8;
+}
+.splash-hint{
+  opacity:0;transition:opacity .8s ease;color:#94a3b8;font-size:14px;letter-spacing:.02em;
+}
+.splash.ready .splash-hint{opacity:1}
+
+/* ----------------------- Hareketsizlik güvenlik kilidi ----------------------- */
+.idle-lock{
+  position:fixed;inset:0;z-index:400;display:grid;place-items:center;
+  background:rgba(0,0,0,.6);
+  -webkit-backdrop-filter:blur(44px) saturate(140%);
+  backdrop-filter:blur(44px) saturate(140%);
+}
+.idle-lock-inner{display:flex;flex-direction:column;align-items:center;gap:14px;text-align:center;padding:32px;max-width:900px}
+.idle-sub{color:#cbd5e1;font-size:16px}
+.idle-hint{color:#94a3b8;font-size:13px}
+
+/* --------------------------- Güvenli kapanış --------------------------- */
+.shutdown{
+  position:fixed;inset:0;z-index:500;display:grid;place-items:center;padding:32px;
+  background:radial-gradient(1200px 620px at 50% 25%,#141c29 0%,#080d15 60%,#04070c 100%);
+}
+.shutdown-inner{display:flex;flex-direction:column;align-items:center;gap:20px;text-align:center;max-width:860px}
+.shut-bar{
+  width:min(460px,72vw);height:8px;border-radius:999px;overflow:hidden;
+  background:rgba(148,163,184,.18);
+}
+.shut-bar>i{
+  display:block;height:100%;width:0;border-radius:999px;
+  background:linear-gradient(90deg,#7f1d1d,#ef4444,#e4e4e7);
+  animation:shut-fill 10s linear forwards;
+}
+@keyframes shut-fill{from{width:0}to{width:100%}}
+.shut-status{display:flex;align-items:center;gap:10px;color:#94a3b8;font-size:13px}
+.shut-status .spin{
+  width:16px;height:16px;border-radius:50%;
+  border:2px solid rgba(148,163,184,.35);border-top-color:#ef4444;
+}
+
+/* --------------------- Giriş ekranı güvenlik bildirimi --------------------- */
+.login-notice{
+  position:fixed;top:calc(18px + env(safe-area-inset-top,0px));right:18px;z-index:260;
+  max-width:min(380px,86vw);padding:12px 16px;
+  background:var(--surface);color:var(--text);
+  border:1px solid var(--border-card);border-left:4px solid var(--primary);
+  border-radius:var(--radius-control);box-shadow:0 10px 30px rgba(15,23,42,.18);
+  font-size:14px;font-weight:500;
+  animation:notice-in .28s ease;
+}
+@keyframes notice-in{from{opacity:0;transform:translateY(-8px)}to{opacity:1;transform:none}}

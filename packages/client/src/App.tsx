@@ -4,6 +4,9 @@ import {
 } from 'lucide-react';
 import { apiRequest, setAuthToken, setUnauthorizedHandler } from './services/api.js';
 import { LoginScreen } from './components/LoginScreen.js';
+import { SplashScreen } from './components/SplashScreen.js';
+import { IdleLock } from './components/IdleLock.js';
+import { ShutdownScreen } from './components/ShutdownScreen.js';
 import { clearOfflineQueue } from './services/offlineQueue.js';
 import { VehicleSearchScreen } from './screens/VehicleSearchScreen.js';
 import { CustomersScreen } from './screens/CustomersScreen.js';
@@ -83,6 +86,22 @@ export function App() {
   // Oturum kimliği: her giriş/çıkışta uygulama kabuğunu sıfırdan mount eder
   // (önceki kullanıcının ekran state'i asla yeni oturuma taşınmaz).
   const [sessionNonce, setSessionNonce] = useState(0);
+
+  // Açılış (splash) ekranı: yalnızca uygulama ilk açılışında gösterilir.
+  // Aynı sekmede yeniden yüklemede (sessionStorage) atlanır.
+  const [splashDone, setSplashDone] = useState<boolean>(() => {
+    try {
+      return window.sessionStorage.getItem('oto_splash_seen') === '1';
+    } catch {
+      return true;
+    }
+  });
+
+  // Güvenli kapanış (Electron): veda + zorunlu yedekleme ekranı.
+  const [shuttingDown, setShuttingDown] = useState(false);
+
+  // Güvenlik bildirimi (hareketsizlik nedeniyle otomatik kapatılan oturum).
+  const [securityNotice, setSecurityNotice] = useState<string | null>(null);
 
   useEffect(() => {
     document.documentElement.setAttribute('data-theme', theme);
@@ -207,6 +226,19 @@ export function App() {
     return () => setUnauthorizedHandler(null);
   }, []);
 
+  // Güvenli kapanış: masaüstü (Electron) ana süreci pencereyi kapatmadan önce
+  // 'app:shutdown-start' gönderir; preload bunu 'oto:shutdown' DOM olayına
+  // çevirir. Böylece veda + yedekleme ekranı her ortamda aynı koddan çalışır.
+  useEffect(() => {
+    const onShutdown = () => setShuttingDown(true);
+    window.addEventListener('oto:shutdown', onShutdown);
+    const off = window.otoDesktop?.onShutdown?.(onShutdown);
+    return () => {
+      window.removeEventListener('oto:shutdown', onShutdown);
+      if (typeof off === 'function') off();
+    };
+  }, []);
+
   const handleLogout = async () => {
     try {
       await apiRequest('/auth/logout', { method: 'POST' });
@@ -218,6 +250,27 @@ export function App() {
     try {
       window.history.pushState(null, '', '#/login');
     } catch {}
+  };
+
+  /** Açılış ekranı bitti: aynı sekmede bir daha gösterilmez. */
+  const handleSplashDone = () => {
+    try {
+      window.sessionStorage.setItem('oto_splash_seen', '1');
+    } catch {}
+    setSplashDone(true);
+  };
+
+  /**
+   * Hareketsizlik kilidi açıldı: oturum hem SUNUCUDA hem YERELDE kapatılır
+   * (clear token/session), kullanıcı giriş ekranına düşürülür ve sağ üst
+   * köşede 4 saniyelik güvenlik bildirimi gösterilir.
+   */
+  const handleIdleUnlock = () => {
+    setSecurityNotice('Güvenliğiniz için oturumunuz otomatik kapatıldı');
+    try {
+      apiRequest('/auth/logout', { method: 'POST' }).catch(() => {});
+    } catch {}
+    clearSession();
   };
 
   // Rota → sekme eşlemesi + ROL KORUMASI. Personel (staff) `/kasa` veya
@@ -297,6 +350,16 @@ export function App() {
     setWorkOrderModalOpen(true);
   };
 
+  // GÜVENLİK KAPANIŞI: veda + zorunlu yedekleme ekranı her şeyin üzerindedir.
+  if (shuttingDown) {
+    return <ShutdownScreen />;
+  }
+
+  // AÇILIŞ: doğrudan ana ekran gelmez; önce saat/gün duyarlı splash ekranı.
+  if (!splashDone) {
+    return <SplashScreen onDone={handleSplashDone} />;
+  }
+
   if (!authChecked) {
     return (
       <div style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
@@ -309,7 +372,7 @@ export function App() {
   // Uygulama kabuğu (Kasa/Gider/Müşteri vb.) hiç oluşturulmaz; böylece arka
   // planda hiçbir hassas veri veya rakam kalmaz.
   if (!currentUser) {
-    return <LoginScreen onSuccess={handleAuthSuccess} />;
+    return <LoginScreen onSuccess={handleAuthSuccess} notice={securityNotice} />;
   }
 
   return (
@@ -516,6 +579,9 @@ export function App() {
           }}
         />
       )}
+
+      {/* Hareketsizlik (idle) güvenlik kilidi: 3 dk hareketsizlikte buzlu cam */}
+      <IdleLock onUnlock={handleIdleUnlock} />
 
       {/* Toast Element */}
       <div id="toast" role="status" aria-live="polite"></div>

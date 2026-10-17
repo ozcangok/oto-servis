@@ -7,6 +7,9 @@ const API_TARGET = process.env.API_PROXY_TARGET || 'http://127.0.0.1:3001';
 const CLIENT_PORT = parseInt(process.env.CLIENT_PORT || '5173', 10);
 
 export default defineConfig({
+  // Masaüstü (Electron) paketi `file://` üzerinden yüklendiği için varlık
+  // yolları GÖRELİ olmalıdır. Web/geliştirme kurulumu etkilenmez.
+  base: process.env.ELECTRON_BUILD ? './' : '/',
   plugins: [react()],
   server: {
     port: CLIENT_PORT,
