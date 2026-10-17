@@ -30,16 +30,19 @@ export function toDateKey(d: Date): string {
 }
 
 /**
- * Pazartesi ile başlayan bir ay ızgarası üretir.
- * Baştaki boş günler `null` ile temsil edilir.
+ * Pazartesi başlangıçlı ay ızgarası. `null` = ay dışı boş hücre.
+ * month: 0-11. Ekim 2026 için ilk gün Perşembe → offset 3.
+ * Izgara tam haftalara tamamlanır (başta ve sonda boşluklar `null`).
  */
 export function buildMonthCells(year: number, month: number): (number | null)[] {
   const first = new Date(year, month, 1);
-  const offset = (first.getDay() + 6) % 7; // 0 = Pazartesi
+  const offset = (first.getDay() + 6) % 7; // Pzt=0 ... Paz=6
   const days = new Date(year, month + 1, 0).getDate();
-  const cells: (number | null)[] = Array(offset).fill(null);
-  for (let i = 1; i <= days; i++) cells.push(i);
-  return cells;
+  const total = Math.ceil((offset + days) / 7) * 7;
+  return Array.from({ length: total }, (_, i) => {
+    const d = i - offset + 1;
+    return d >= 1 && d <= days ? d : null;
+  });
 }
 
 /**
@@ -90,10 +93,12 @@ export function formatLongDateTR(d: Date): string {
   return `${weekday}, ${rest}`;
 }
 
-/** Takvim ajandası başlığı: "Bugün 17 Ekim Cumartesi" biçiminde. */
+const trWeekday = new Intl.DateTimeFormat('tr-TR', { weekday: 'long' });
+const trMonth = new Intl.DateTimeFormat('tr-TR', { month: 'long' });
+
+/** Takvim ajandası başlığı: "Pazar, 18 Ekim" biçiminde. */
 export function formatAgendaTitle(d: Date): string {
-  const s = new Intl.DateTimeFormat('tr-TR', { day: 'numeric', month: 'long', weekday: 'long' }).format(d);
-  return s.charAt(0).toLocaleUpperCase('tr-TR') + s.slice(1);
+  return `${trWeekday.format(d)}, ${d.getDate()} ${trMonth.format(d)}`;
 }
 
 /** İş emrinin saat bilgisi (varsa yerel "HH:MM", yoksa "-"). */

@@ -817,7 +817,7 @@ export const VehicleSearchScreen: React.FC<VehicleSearchScreenProps> = ({
                     <div className="agenda-title">{formatAgendaTitle(selectedDateObj)}</div>
                   </div>
                   <div className="agenda-count">
-                    {agendaOrders.length > 0 ? `${agendaOrders.length} araç` : 'Kayıt yok'}
+                    {agendaOrders.length > 0 ? `${agendaOrders.length} araç` : 'Boş'}
                   </div>
                 </div>
 

@@ -578,6 +578,9 @@ button.li:hover{background:var(--surface-subtle)}
   .totals{margin-left:0;width:100%}
   .plate-input input{font-size:32px}
   .search-card{padding:20px}
+  /* Takvim hücreleri dar ekranda da en az 44px dokunma hedefi kalsın */
+  .cal-body{padding:12px 8px 4px}
+  .cal-dow,.cal-grid{gap:2px}
 }
 @media (max-width:760px){
   .gsum{grid-template-columns:minmax(0,1fr)}

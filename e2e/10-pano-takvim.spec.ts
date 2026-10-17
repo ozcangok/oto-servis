@@ -111,7 +111,10 @@ test.describe('10) Araç sorgu panosu & takvim', () => {
 
     // İlgili gün hücresine tıkla → ajanda o günü gösterir
     const monthName = TR_MONTHS_LONG[m0];
-    await page.getByRole('button', { name: `${targetDay} ${monthName}` }).click();
+    const dayCell = page.getByRole('button', { name: `${targetDay} ${monthName}` });
+    // Dolu gün: gün hücresinde nokta görünür
+    await expect(dayCell.locator('.dot')).toBeVisible();
+    await dayCell.click();
     await expect(page.locator('.agenda')).toContainText(plate);
 
     // "Bu güne araç ekle" → yeni iş emri formu seçili tarihle açılır
@@ -119,5 +122,22 @@ test.describe('10) Araç sorgu panosu & takvim', () => {
     const dialog = page.getByRole('dialog');
     await expect(dialog).toBeVisible();
     await expect(page.locator('#of-date')).toHaveValue(dateStr);
+  });
+
+  test('kısayol: "/" plaka kutusuna odaklar; input içinde yazarken tetiklenmez', async ({ page }) => {
+    await login(page, OWNER);
+
+    const q = page.locator('#q');
+    await expect(q).not.toBeFocused();
+
+    // Gövdedeyken "/" → plaka kutusuna odaklanır
+    await page.keyboard.press('/');
+    await expect(q).toBeFocused();
+
+    // Input içinde "/" normal bir karakterdir; odak çalınmaz, değer korunur
+    await q.fill('');
+    await q.pressSequentially('34/');
+    await expect(q).toHaveValue('34/');
+    await expect(q).toBeFocused();
   });
 });
