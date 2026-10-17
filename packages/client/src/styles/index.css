@@ -527,7 +527,7 @@ button.li:hover{background:var(--surface-subtle)}
 /* Giriş ekranının arkasındaki holografik karşılama (splash ile aynı) */
 .login-holo{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:flex-start;gap:22px;text-align:center;padding:14vh 32px 32px;pointer-events:none;user-select:none;background:radial-gradient(1200px 620px at 50% 18%,#1b2432 0%,#0b1220 55%,#060a11 100%)}
 .login-holo-brand{font-family:var(--f-cond);text-transform:uppercase;letter-spacing:.34em;font-size:12px;font-weight:600;color:#94a3b8}
-.login-iso-inner{width:100%;max-width:460px;display:flex;flex-direction:column;align-items:stretch}
+.login-iso-inner{position:relative;z-index:1;width:100%;max-width:460px;display:flex;flex-direction:column;align-items:stretch}
 .login-iso .overlay{position:static;inset:auto;z-index:auto;background:transparent;padding:0;overflow:visible;align-items:center;width:100%}
 .sheet{background:var(--surface);color:var(--text-body);border:1px solid var(--border-card);border-radius:var(--radius-card);width:100%;max-width:560px;margin:auto 0;display:flex;flex-direction:column;min-width:0;box-shadow:0 12px 36px rgba(0,0,0,0.25)}
 .sheet.wide{max-width:900px}
