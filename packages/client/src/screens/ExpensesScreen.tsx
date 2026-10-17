@@ -49,12 +49,13 @@ export const ExpensesScreen: React.FC<ExpensesScreenProps> = ({ currentUser }) =
   });
   const [items, setItems] = useState<any[]>([]);
 
-  // Yeni gider formu
+  // Gider formu (ekleme veya düzenleme)
   const [tarih, setTarih] = useState(todayISO());
   const [kategori, setKategori] = useState<string>(categories[0]);
   const [aciklama, setAciklama] = useState('');
   const [tutar, setTutar] = useState('');
   const [saving, setSaving] = useState(false);
+  const [editingId, setEditingId] = useState<number | null>(null);
 
   useEffect(() => {
     loadExpenses();
@@ -82,7 +83,26 @@ export const ExpensesScreen: React.FC<ExpensesScreenProps> = ({ currentUser }) =
     }
   };
 
-  const handleAdd = async (e: React.FormEvent) => {
+  // Sıfırla / yeni ekleme moduna dön
+  const resetForm = () => {
+    setEditingId(null);
+    setTarih(todayISO());
+    setKategori(categories[0]);
+    setAciklama('');
+    setTutar('');
+  };
+
+  // Düzenleme moduna geç: seçili kaydı forma yükle
+  const handleEdit = (item: any) => {
+    setEditingId(item.id);
+    setTarih(String(item.tarih || '').slice(0, 10));
+    setKategori(item.kategori);
+    setAciklama(item.aciklama || '');
+    setTutar(String((item.tutar_kurus / 100).toFixed(2)).replace('.', ','));
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  };
+
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     const lira = parseFloat(String(tutar).replace(',', '.'));
 
@@ -101,23 +121,24 @@ export const ExpensesScreen: React.FC<ExpensesScreenProps> = ({ currentUser }) =
 
     setSaving(true);
     try {
-      const res = await apiRequest('/expenses', {
-        method: 'POST',
-        body: JSON.stringify({
-          tarih,
-          kategori,
-          aciklama: aciklama.trim(),
-          tutar_kurus: Math.round(lira * 100)
-        })
+      const body = JSON.stringify({
+        tarih,
+        kategori,
+        aciklama: aciklama.trim(),
+        tutar_kurus: Math.round(lira * 100)
       });
+
+      const res = editingId
+        ? await apiRequest(`/expenses/${editingId}`, { method: 'PUT', body })
+        : await apiRequest('/expenses', { method: 'POST', body });
+
       if (res.success) {
-        toast('Gider eklendi.');
-        setAciklama('');
-        setTutar('');
+        toast(editingId ? 'Gider güncellendi.' : 'Gider eklendi.');
+        resetForm();
         loadExpenses();
       }
     } catch (err: any) {
-      toast(err.message || 'Gider eklenemedi.');
+      toast(err.message || 'Gider kaydedilemedi.');
     } finally {
       setSaving(false);
     }
@@ -129,6 +150,7 @@ export const ExpensesScreen: React.FC<ExpensesScreenProps> = ({ currentUser }) =
       const res = await apiRequest(`/expenses/${item.id}`, { method: 'DELETE' });
       if (res.success) {
         toast('Gider silindi.');
+        if (editingId === item.id) resetForm();
         loadExpenses();
       }
     } catch (err: any) {
@@ -136,7 +158,15 @@ export const ExpensesScreen: React.FC<ExpensesScreenProps> = ({ currentUser }) =
     }
   };
 
-  const colCount = isOwner ? 5 : 4;
+  // owner her kaydı; staff yalnızca kendi eklediği gündelik kayıtları yönetebilir.
+  const canManage = (item: any): boolean => {
+    if (isOwner) return true;
+    return (
+      item.kullanici_id === currentUser?.id &&
+      (STAFF_EXPENSE_CATEGORIES as readonly string[]).includes(item.kategori)
+    );
+  };
+
   const net = summary.netProfitKurus ?? 0;
   const netColor = net >= 0 ? 'var(--good)' : 'var(--bad)';
 
@@ -187,13 +217,13 @@ export const ExpensesScreen: React.FC<ExpensesScreenProps> = ({ currentUser }) =
         </>
       )}
 
-      {/* Yeni gider formu (owner ve staff ekleyebilir) */}
+      {/* Gider formu (owner tüm kategoriler, staff gündelik kategoriler) */}
       <div className="panel" style={{ marginBottom: '16px' }}>
         <div className="panel-h">
-          <h3>Yeni Gider Ekle</h3>
+          <h3>{editingId ? 'Gideri Düzenle' : 'Yeni Gider Ekle'}</h3>
         </div>
         <form
-          onSubmit={handleAdd}
+          onSubmit={handleSubmit}
           style={{ padding: '14px 16px', display: 'flex', flexDirection: 'column', gap: '12px' }}
         >
           <div className="grid g2">
@@ -247,9 +277,14 @@ export const ExpensesScreen: React.FC<ExpensesScreenProps> = ({ currentUser }) =
             </div>
           </div>
 
-          <div className="row" style={{ justifyContent: 'flex-end' }}>
+          <div className="row" style={{ justifyContent: 'flex-end', gap: '8px' }}>
+            {editingId && (
+              <button className="btn" type="button" onClick={resetForm} disabled={saving}>
+                Vazgeç
+              </button>
+            )}
             <button className="btn btn-primary" type="submit" disabled={saving}>
-              {saving ? 'Ekleniyor...' : 'Gider Ekle'}
+              {saving ? 'Kaydediliyor...' : editingId ? 'Güncelle' : 'Gider Ekle'}
             </button>
           </div>
         </form>
@@ -271,19 +306,19 @@ export const ExpensesScreen: React.FC<ExpensesScreenProps> = ({ currentUser }) =
                 <th>Kategori</th>
                 <th>Açıklama</th>
                 <th className="num">Tutar</th>
-                {isOwner && <th></th>}
+                <th></th>
               </tr>
             </thead>
             <tbody>
               {loading ? (
                 <tr>
-                  <td colSpan={colCount} className="muted" style={{ padding: '24px 16px', textAlign: 'center' }}>
+                  <td colSpan={5} className="muted" style={{ padding: '24px 16px', textAlign: 'center' }}>
                     Yükleniyor...
                   </td>
                 </tr>
               ) : items.length > 0 ? (
                 items.map((it) => (
-                  <tr key={it.id}>
+                  <tr key={it.id} style={editingId === it.id ? { background: 'var(--bg-2, #f5f5f5)' } : undefined}>
                     <td>{fdateLocal(it.tarih)}</td>
                     <td>{it.kategori}</td>
                     <td>
@@ -293,22 +328,31 @@ export const ExpensesScreen: React.FC<ExpensesScreenProps> = ({ currentUser }) =
                       ) : null}
                     </td>
                     <td className="num">{money(it.tutar_kurus)}</td>
-                    {isOwner && (
-                      <td style={{ textAlign: 'right', whiteSpace: 'nowrap' }}>
-                        <button
-                          className="btn btn-ghost btn-sm"
-                          type="button"
-                          onClick={() => handleDelete(it)}
-                        >
-                          Sil
-                        </button>
-                      </td>
-                    )}
+                    <td style={{ textAlign: 'right', whiteSpace: 'nowrap' }}>
+                      {canManage(it) && (
+                        <>
+                          <button
+                            className="btn btn-ghost btn-sm"
+                            type="button"
+                            onClick={() => handleEdit(it)}
+                          >
+                            Düzenle
+                          </button>
+                          <button
+                            className="btn btn-ghost btn-sm"
+                            type="button"
+                            onClick={() => handleDelete(it)}
+                          >
+                            Sil
+                          </button>
+                        </>
+                      )}
+                    </td>
                   </tr>
                 ))
               ) : (
                 <tr>
-                  <td colSpan={colCount} className="muted" style={{ padding: '24px 16px', textAlign: 'center' }}>
+                  <td colSpan={5} className="muted" style={{ padding: '24px 16px', textAlign: 'center' }}>
                     Bu dönemde gider kaydı yok.
                   </td>
                 </tr>
@@ -323,7 +367,7 @@ export const ExpensesScreen: React.FC<ExpensesScreenProps> = ({ currentUser }) =
                   <td className="num" style={{ fontWeight: 600, padding: '10px 16px' }}>
                     {money(summary.expenseTotalKurus)}
                   </td>
-                  {isOwner && <td></td>}
+                  <td></td>
                 </tr>
               </tfoot>
             )}

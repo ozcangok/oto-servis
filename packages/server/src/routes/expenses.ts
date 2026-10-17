@@ -4,7 +4,7 @@ import { eq } from 'drizzle-orm';
 import { getDb, expenses } from '../db/index.js';
 import { getExpenseOverview, EXPENSE_PERIODS, type ExpensePeriod } from '../services/expenseService.js';
 import { logAudit } from '../services/auditService.js';
-import { EXPENSE_CATEGORIES, SENSITIVE_EXPENSE_CATEGORIES } from '@oto-servis/shared';
+import { EXPENSE_CATEGORIES, SENSITIVE_EXPENSE_CATEGORIES, STAFF_EXPENSE_CATEGORIES, type User } from '@oto-servis/shared';
 
 const expenseInputSchema = z.object({
   tarih: z
@@ -19,6 +19,19 @@ const expenseInputSchema = z.object({
     .int('Tutar kuruş cinsinden tam sayı olmalıdır.')
     .positive('Tutar sıfırdan büyük olmalıdır.')
 });
+
+/**
+ * Bir gider kaydını güncelleme/silme yetkisi:
+ * - owner: her kayıt
+ * - staff: yalnızca kendi eklediği ve yetkili (hassas olmayan) kategorideki kayıtlar
+ */
+function canManageExpense(user: User, exp: { kategori: string; kullanici_id: number | null }): boolean {
+  if (user.role === 'owner') return true;
+  return (
+    exp.kullanici_id === user.id &&
+    (STAFF_EXPENSE_CATEGORIES as readonly string[]).includes(exp.kategori)
+  );
+}
 
 export const expenseRoutes: FastifyPluginAsync = async (fastify) => {
   // Giderler modülü tüm personelin erişimine açıktır; ancak gelir/kâr özeti ve
@@ -105,17 +118,13 @@ export const expenseRoutes: FastifyPluginAsync = async (fastify) => {
     return { success: true, expense: newExpense };
   });
 
-  // Gider güncelle (yalnızca dükkan sahibi)
+  // Gider güncelle (owner her kaydı; staff yalnızca kendi eklediği gündelik kayıtları)
   fastify.put('/:id', {
     schema: {
       tags: ['Giderler'],
-      summary: 'Gider kaydını güncelle (Yalnızca dükkan sahibi)'
+      summary: 'Gider kaydını güncelle (owner: her kayıt, staff: kendi gündelik kaydı)'
     }
   }, async (request, reply) => {
-    if (request.user!.role !== 'owner') {
-      return reply.status(403).send({ success: false, error: 'Gider kaydını yalnızca dükkan sahibi güncelleyebilir.' });
-    }
-
     const id = Number((request.params as any).id);
     if (!Number.isInteger(id)) {
       return reply.status(400).send({ success: false, error: 'Geçersiz gider kimliği.' });
@@ -133,6 +142,24 @@ export const expenseRoutes: FastifyPluginAsync = async (fastify) => {
     const existing = db.select().from(expenses).where(eq(expenses.id, id)).get();
     if (!existing) {
       return reply.status(404).send({ success: false, error: 'Gider kaydı bulunamadı.' });
+    }
+
+    if (!canManageExpense(request.user!, existing)) {
+      return reply.status(403).send({
+        success: false,
+        error: 'Yalnızca kendi eklediğiniz gündelik giderleri güncelleyebilirsiniz.'
+      });
+    }
+
+    // Personel bir kaydı hassas kategoriye taşıyamaz.
+    if (
+      request.user!.role !== 'owner' &&
+      (SENSITIVE_EXPENSE_CATEGORIES as readonly string[]).includes(parse.data.kategori)
+    ) {
+      return reply.status(403).send({
+        success: false,
+        error: 'Bu kategoriyi yalnızca dükkan sahibi ekleyebilir.'
+      });
     }
 
     const now = new Date().toISOString();
@@ -159,17 +186,13 @@ export const expenseRoutes: FastifyPluginAsync = async (fastify) => {
     return { success: true, expense: updated };
   });
 
-  // Gider sil
+  // Gider sil (owner her kaydı; staff yalnızca kendi eklediği gündelik kayıtları)
   fastify.delete('/:id', {
     schema: {
       tags: ['Giderler'],
-      summary: 'Gider kaydını sil (Yalnızca dükkan sahibi)'
+      summary: 'Gider kaydını sil (owner: her kayıt, staff: kendi gündelik kaydı)'
     }
   }, async (request, reply) => {
-    if (request.user!.role !== 'owner') {
-      return reply.status(403).send({ success: false, error: 'Gider kaydını yalnızca dükkan sahibi silebilir.' });
-    }
-
     const id = Number((request.params as any).id);
     if (!Number.isInteger(id)) {
       return reply.status(400).send({ success: false, error: 'Geçersiz gider kimliği.' });
@@ -179,6 +202,13 @@ export const expenseRoutes: FastifyPluginAsync = async (fastify) => {
     const existing = db.select().from(expenses).where(eq(expenses.id, id)).get();
     if (!existing) {
       return reply.status(404).send({ success: false, error: 'Gider kaydı bulunamadı.' });
+    }
+
+    if (!canManageExpense(request.user!, existing)) {
+      return reply.status(403).send({
+        success: false,
+        error: 'Yalnızca kendi eklediğiniz gündelik giderleri silebilirsiniz.'
+      });
     }
 
     db.delete(expenses).where(eq(expenses.id, id)).run();
