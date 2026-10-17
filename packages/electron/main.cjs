@@ -17,7 +17,7 @@ const path = require('path');
 const { fork } = require('child_process');
 const { createDatabaseBackup } = require('./backup.cjs');
 
-const SERVER_PORT = 3001;
+const SERVER_PORT = parseInt(process.env.OTO_SERVER_PORT || '3001', 10);
 /** Veda ekranının ZORUNLU ekranda kalma süresi (ms). */
 const SHUTDOWN_MIN_MS = 10_000;
 /** Gömülü sunucunun kapanmasını bekleme sınırı (ms). */
@@ -145,7 +145,10 @@ function createWindow() {
   const clientDist = path.join(__dirname, '../client/dist/index.html');
 
   // Load client
-  if (app.isPackaged) {
+  // - Paketlenmiş uygulama: derlenmiş arayüz (file://)
+  // - `OTO_USE_DIST=1`: paketleme yapmadan üretim çıktısıyla masaüstü denemesi
+  // - Aksi halde: Vite dev sunucusu (hot reload)
+  if (app.isPackaged || process.env.OTO_USE_DIST === '1') {
     mainWindow.loadFile(clientDist);
   } else {
     // Geliştirme: arayüz Vite dev sunucusunda çalışır (varsayılan 5173).
