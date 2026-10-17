@@ -1,4 +1,4 @@
-import { and, eq, gte, lte, isNull, desc, notInArray } from 'drizzle-orm';
+import { and, eq, gte, lte, isNull, desc, inArray } from 'drizzle-orm';
 import {
   getDb,
   expenses,
@@ -8,7 +8,7 @@ import {
   vehicles,
   customers
 } from '../db/index.js';
-import { SENSITIVE_EXPENSE_CATEGORIES, type UserRole } from '@oto-servis/shared';
+import { STAFF_EXPENSE_CATEGORIES, type UserRole } from '@oto-servis/shared';
 
 export type ExpensePeriod = 'today' | 'month' | 'year' | 'all';
 
@@ -135,9 +135,11 @@ export function getExpenseOverview(period: ExpensePeriod, role: UserRole): Expen
   const conditions = [];
   if (bounds.startDateOnly) conditions.push(gte(expenses.tarih, bounds.startDateOnly));
   if (bounds.endDateOnly) conditions.push(lte(expenses.tarih, bounds.endDateOnly));
-  // Personel hassas kategorileri (Fatura & Kira, Personel) göremez.
+  // GÜVENLİK: Personel (staff) yalnızca gündelik kategorileri görebilir.
+  // Beyaz liste (whitelist) kullanılır: 'Personel' ve 'Fatura & Kira' (ve diğer
+  // yetkisiz kategoriler) SQL sorgusunda hiç seçilmez → veri istemciye hiç gitmez.
   if (role !== 'owner') {
-    conditions.push(notInArray(expenses.kategori, SENSITIVE_EXPENSE_CATEGORIES));
+    conditions.push(inArray(expenses.kategori, STAFF_EXPENSE_CATEGORIES));
   }
 
   const baseQuery = db

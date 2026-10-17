@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { apiRequest } from '../services/api.js';
 import { money, toast, todayISO } from '../services/ui.js';
-import { EXPENSE_CATEGORIES, STAFF_EXPENSE_CATEGORIES } from '@oto-servis/shared';
+import { EXPENSE_CATEGORIES, STAFF_EXPENSE_CATEGORIES, OWNER_ONLY_EXPENSE_CATEGORIES } from '@oto-servis/shared';
 
 type Period = 'today' | 'month' | 'year' | 'all';
 
@@ -167,6 +167,18 @@ export const ExpensesScreen: React.FC<ExpensesScreenProps> = ({ currentUser }) =
     );
   };
 
+  // SAVUNMA KATMANI (çift koruma): Sunucu zaten filtreler; istemci de personel
+  // (staff) için yetkisiz/hassas kategorileri asla render etmez.
+  const visibleItems = isOwner
+    ? items
+    : items.filter((it) =>
+        (STAFF_EXPENSE_CATEGORIES as readonly string[]).includes(it.kategori)
+      );
+  const visibleCount = visibleItems.length;
+  const visibleTotalKurus = isOwner
+    ? summary.expenseTotalKurus
+    : visibleItems.reduce((sum, it) => sum + (it.tutar_kurus || 0), 0);
+
   const net = summary.netProfitKurus ?? 0;
   const netColor = net >= 0 ? 'var(--good)' : 'var(--bad)';
 
@@ -243,11 +255,30 @@ export const ExpensesScreen: React.FC<ExpensesScreenProps> = ({ currentUser }) =
                 value={kategori}
                 onChange={(e) => setKategori(e.target.value)}
               >
-                {categories.map((c) => (
-                  <option key={c} value={c}>
-                    {c}
-                  </option>
-                ))}
+                {isOwner ? (
+                  <>
+                    <optgroup label="Günlük Giderler">
+                      {STAFF_EXPENSE_CATEGORIES.map((c) => (
+                        <option key={c} value={c}>
+                          {c}
+                        </option>
+                      ))}
+                    </optgroup>
+                    <optgroup label="Yöneticiye Özel">
+                      {OWNER_ONLY_EXPENSE_CATEGORIES.map((c) => (
+                        <option key={c} value={c}>
+                          {c}
+                        </option>
+                      ))}
+                    </optgroup>
+                  </>
+                ) : (
+                  STAFF_EXPENSE_CATEGORIES.map((c) => (
+                    <option key={c} value={c}>
+                      {c}
+                    </option>
+                  ))
+                )}
               </select>
             </div>
           </div>
@@ -295,7 +326,7 @@ export const ExpensesScreen: React.FC<ExpensesScreenProps> = ({ currentUser }) =
         <div className="panel-h">
           <h3>Gider Listesi</h3>
           <span className="muted">
-            {PERIOD_LABEL[period]} · {summary.expenseCount} kayıt
+            {PERIOD_LABEL[period]} · {visibleCount} kayıt
           </span>
         </div>
         <div className="tablewrap">
@@ -316,8 +347,8 @@ export const ExpensesScreen: React.FC<ExpensesScreenProps> = ({ currentUser }) =
                     Yükleniyor...
                   </td>
                 </tr>
-              ) : items.length > 0 ? (
-                items.map((it) => (
+              ) : visibleItems.length > 0 ? (
+                visibleItems.map((it) => (
                   <tr key={it.id} style={editingId === it.id ? { background: 'var(--bg-2, #f5f5f5)' } : undefined}>
                     <td>{fdateLocal(it.tarih)}</td>
                     <td>{it.kategori}</td>
@@ -358,14 +389,14 @@ export const ExpensesScreen: React.FC<ExpensesScreenProps> = ({ currentUser }) =
                 </tr>
               )}
             </tbody>
-            {items.length > 0 && (
+            {visibleItems.length > 0 && (
               <tfoot>
                 <tr>
                   <td colSpan={3} style={{ textAlign: 'right', fontWeight: 600, padding: '10px 16px' }}>
                     Toplam
                   </td>
                   <td className="num" style={{ fontWeight: 600, padding: '10px 16px' }}>
-                    {money(summary.expenseTotalKurus)}
+                    {money(visibleTotalKurus)}
                   </td>
                   <td></td>
                 </tr>

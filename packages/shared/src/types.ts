@@ -180,18 +180,30 @@ export const EXPENSE_CATEGORIES = [
 export type ExpenseCategory = (typeof EXPENSE_CATEGORIES)[number];
 
 /**
- * Yalnızca dükkan sahibinin (owner) ekleyip görebileceği hassas gider kategorileri.
+ * Yalnızca dükkan sahibinin (owner) ekleyip görebileceği kategoriler.
  * Personel (staff) bu kategorileri ne ekleyebilir ne de listeleyebilir.
+ * 'Personel' (maaş/avans) ve 'Fatura & Kira' ticari mahremiyet; 'Ekipman Bakım'
+ * ise ilk şartnamede personel kapsamı dışında bırakılmıştır.
  */
+export const OWNER_ONLY_EXPENSE_CATEGORIES: ExpenseCategory[] = [
+  'Fatura & Kira',
+  'Personel',
+  'Ekipman Bakım'
+];
+
+/** @deprecated Yeni kod OWNER_ONLY_EXPENSE_CATEGORIES kullanmalı. */
 export const SENSITIVE_EXPENSE_CATEGORIES: ExpenseCategory[] = ['Fatura & Kira', 'Personel'];
 
 /**
- * Personelin (staff) ekleyip görebileceği gündelik gider kategorileri.
- * Hassas kategoriler hariç tüm kategoriler.
+ * Personelin (staff) ekleyip görebileceği gündelik gider kategorileri (whitelist).
+ * Açıkça tanımlıdır; yeni bir kategori eklenirse personel varsayılan olarak görmez.
  */
-export const STAFF_EXPENSE_CATEGORIES: ExpenseCategory[] = EXPENSE_CATEGORIES.filter(
-  (c) => !(SENSITIVE_EXPENSE_CATEGORIES as readonly string[]).includes(c)
-);
+export const STAFF_EXPENSE_CATEGORIES: ExpenseCategory[] = [
+  'Sarf Malzeme',
+  'Mutfak & Temizlik',
+  'Ofis & Kırtasiye',
+  'Diğer'
+];
 
 export interface Expense {
   id: number;

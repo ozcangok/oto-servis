@@ -4,7 +4,7 @@ import { eq } from 'drizzle-orm';
 import { getDb, expenses } from '../db/index.js';
 import { getExpenseOverview, EXPENSE_PERIODS, type ExpensePeriod } from '../services/expenseService.js';
 import { logAudit } from '../services/auditService.js';
-import { EXPENSE_CATEGORIES, SENSITIVE_EXPENSE_CATEGORIES, STAFF_EXPENSE_CATEGORIES, type User } from '@oto-servis/shared';
+import { EXPENSE_CATEGORIES, STAFF_EXPENSE_CATEGORIES, type User } from '@oto-servis/shared';
 
 const expenseInputSchema = z.object({
   tarih: z
@@ -80,10 +80,10 @@ export const expenseRoutes: FastifyPluginAsync = async (fastify) => {
       });
     }
 
-    // Personel hassas kategorileri ekleyemez.
+    // Personel yalnızca gündelik (whitelist) kategorileri ekleyebilir.
     if (
       request.user!.role !== 'owner' &&
-      (SENSITIVE_EXPENSE_CATEGORIES as readonly string[]).includes(parse.data.kategori)
+      !(STAFF_EXPENSE_CATEGORIES as readonly string[]).includes(parse.data.kategori)
     ) {
       return reply.status(403).send({
         success: false,
@@ -151,10 +151,10 @@ export const expenseRoutes: FastifyPluginAsync = async (fastify) => {
       });
     }
 
-    // Personel bir kaydı hassas kategoriye taşıyamaz.
+    // Personel bir kaydı yalnızca gündelik (whitelist) kategoriye taşıyabilir.
     if (
       request.user!.role !== 'owner' &&
-      (SENSITIVE_EXPENSE_CATEGORIES as readonly string[]).includes(parse.data.kategori)
+      !(STAFF_EXPENSE_CATEGORIES as readonly string[]).includes(parse.data.kategori)
     ) {
       return reply.status(403).send({
         success: false,

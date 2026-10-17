@@ -1186,6 +1186,73 @@ describe('Phase 2: Vehicles, Customers, Parts, Work Orders, Stock & Plate Search
     expect(ownerDel.statusCode).toBe(200);
   });
 
+  it('giderler: staff yalnizca whitelist kategorilerini gorur (hassas + owner-disi gizli)', async () => {
+    // owner: hassas ve staff-dışı kategorileri ekler
+    await app.inject({
+      method: 'POST',
+      url: '/api/expenses',
+      headers: { authorization: `Bearer ${adminToken}` },
+      payload: { tarih: '2026-01-05', kategori: 'Personel', aciklama: 'Maaş', tutar_kurus: 100000 }
+    });
+    await app.inject({
+      method: 'POST',
+      url: '/api/expenses',
+      headers: { authorization: `Bearer ${adminToken}` },
+      payload: { tarih: '2026-01-05', kategori: 'Fatura & Kira', aciklama: 'Kira', tutar_kurus: 50000 }
+    });
+    await app.inject({
+      method: 'POST',
+      url: '/api/expenses',
+      headers: { authorization: `Bearer ${adminToken}` },
+      payload: { tarih: '2026-01-05', kategori: 'Ekipman Bakım', aciklama: 'Kompresör bakımı', tutar_kurus: 30000 }
+    });
+    await app.inject({
+      method: 'POST',
+      url: '/api/expenses',
+      headers: { authorization: `Bearer ${adminToken}` },
+      payload: { tarih: '2026-01-05', kategori: 'Sarf Malzeme', aciklama: 'Eldiven', tutar_kurus: 7000 }
+    });
+
+    // Personel, owner'a özel 'Ekipman Bakım' kategorisini ekleyemez
+    const staffEkipman = await app.inject({
+      method: 'POST',
+      url: '/api/expenses',
+      headers: { authorization: `Bearer ${staffToken}` },
+      payload: { tarih: '2026-01-05', kategori: 'Ekipman Bakım', aciklama: 'Sızma', tutar_kurus: 100 }
+    });
+    expect(staffEkipman.statusCode).toBe(403);
+
+    // Personel: yalnızca gündelik (whitelist) kategori görünür
+    const staffList = JSON.parse(
+      (
+        await app.inject({
+          method: 'GET',
+          url: '/api/expenses?period=all',
+          headers: { authorization: `Bearer ${staffToken}` }
+        })
+      ).body
+    );
+    expect(staffList.items.map((i: any) => i.kategori)).toEqual(['Sarf Malzeme']);
+    expect(staffList.summary.expenseCount).toBe(1);
+    expect(staffList.summary.expenseTotalKurus).toBe(7000);
+    expect(staffList.summary.laborIncomeKurus).toBeUndefined();
+    expect(staffList.summary.netProfitKurus).toBeUndefined();
+
+    // Sahip: her şeyi eksiksiz görür
+    const ownerList = JSON.parse(
+      (
+        await app.inject({
+          method: 'GET',
+          url: '/api/expenses?period=all',
+          headers: { authorization: `Bearer ${adminToken}` }
+        })
+      ).body
+    );
+    expect(ownerList.summary.expenseCount).toBe(4);
+    expect(ownerList.summary.expenseTotalKurus).toBe(187000);
+    expect(typeof ownerList.summary.netProfitKurus).toBe('number');
+  });
+
   it('gider ozeti iscilik gelirini kullanir ve kasa toplamlarini degistirmez', async () => {
     // İşçilikli iş emri (500,00 TL işçilik)
     const resCust = await app.inject({
