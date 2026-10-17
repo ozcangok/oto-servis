@@ -8,6 +8,7 @@
     "build": "tsc",
     "start": "node dist/index.js",
     "db:seed": "tsx src/db/seed.ts",
+    "e2e:server": "tsx src/index.ts",
     "test": "vitest run --pool=forks"
   },
   "dependencies": {

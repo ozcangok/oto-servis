@@ -293,7 +293,9 @@ export const workOrderRoutes: FastifyPluginAsync = async (fastify) => {
     const now = new Date().toISOString();
     let warnings: string[] = [];
 
-    const result = sqlite.transaction(() => {
+    let result: any;
+    try {
+      result = sqlite.transaction(() => {
       // 1. Insert work order
       const newOrder = db.insert(workOrders).values({
         arac_id: parse.data.arac_id,
@@ -334,16 +336,22 @@ export const workOrderRoutes: FastifyPluginAsync = async (fastify) => {
         }
       }
 
-      // 3. Apply stock delta
+      // 3. Apply stock delta — YALNIZCA dükkan sahibi negatif stok'a izin
+      // verebilir; personel (staff) asla eksiye düşüremez.
       warnings = applyWorkOrderStockDelta(
         newOrder.id,
         partUsages,
         request.user!.id,
-        parse.data.override_negative_stock || request.user!.role === 'owner'
+        request.user!.role === 'owner'
       );
 
       return newOrder;
-    })();
+      })();
+    } catch (err: any) {
+      const msg = err?.message || 'İş emri oluşturulamadı.';
+      // Yetersiz stok gibi iş kuralı ihlalleri 400 olarak döner
+      return reply.status(/stok/i.test(msg) ? 400 : 500).send({ success: false, error: msg });
+    }
 
     await logAudit({
       kullanici_id: request.user!.id,

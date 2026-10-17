@@ -1,14 +1,21 @@
 import { defineConfig, devices } from '@playwright/test';
 
 /**
- * Uçtan uca (E2E) test yapılandırması.
+ * Uçtan uca (E2E) test yapılandırması — İZOLE TEST YIĞINI.
  *
- * - Sistemde kurulu Google Chrome kullanılır (ayrıca tarayıcı indirmeye gerek yok).
- * - Zaten çalışan geliştirme sunucuları (API 3001 + istemci 5173) yeniden kullanılır;
- *   çalışmıyorlarsa otomatik başlatılır.
+ * Testler, canlı geliştirme veritabanını ASLA kirletmez: Playwright kendi
+ * API sunucusunu (ayrı port + kendi geçici veritabanı) ve kendi arayüz
+ * örneğini başlatır. Her çalıştırmada temiz bir veritabanı oluşturulur, bu
+ * sayede varsayılan tohum (seed) verisiyle birebir aynı, deterministik bir
+ * başlangıç noktası elde edilir.
+ *
+ * Tarayıcı olarak sistemde kurulu Google Chrome kullanılır (indirme gerekmez).
  */
-const CLIENT_URL = process.env.E2E_BASE_URL || 'http://127.0.0.1:5173';
-const API_URL = process.env.E2E_API_URL || 'http://127.0.0.1:3001';
+const CLIENT_PORT = Number(process.env.E2E_CLIENT_PORT || 5174);
+const API_PORT = Number(process.env.E2E_API_PORT || 3101);
+const CLIENT_URL = `http://127.0.0.1:${CLIENT_PORT}`;
+const API_URL = `http://127.0.0.1:${API_PORT}`;
+const E2E_DATA_DIR = 'packages/server/.e2e-data';
 
 export default defineConfig({
   testDir: './e2e',
@@ -18,6 +25,7 @@ export default defineConfig({
   workers: 1,
   retries: 0,
   reporter: [['list']],
+  outputDir: 'test-results',
   use: {
     ...devices['Desktop Chrome'],
     channel: 'chrome',
@@ -28,16 +36,28 @@ export default defineConfig({
   },
   webServer: [
     {
-      command: 'npm run dev --workspace=@oto-servis/server',
+      // Temiz, izole test veritabanıyla API sunucusu
+      command: `rm -rf ${E2E_DATA_DIR} && npm run --workspace=@oto-servis/server e2e:server`,
       url: `${API_URL}/api/health`,
-      reuseExistingServer: true,
-      timeout: 120_000
+      reuseExistingServer: false,
+      timeout: 120_000,
+      env: {
+        PORT: String(API_PORT),
+        HOST: '127.0.0.1',
+        DATA_DIR: '.e2e-data',
+        NODE_ENV: 'test'
+      }
     },
     {
-      command: 'npm run dev --workspace=@oto-servis/client',
+      // İzole API'ye proxy'leyen arayüz (Vite) örneği
+      command: 'npm run --workspace=@oto-servis/client dev',
       url: CLIENT_URL,
-      reuseExistingServer: true,
-      timeout: 120_000
+      reuseExistingServer: false,
+      timeout: 120_000,
+      env: {
+        CLIENT_PORT: String(CLIENT_PORT),
+        API_PROXY_TARGET: API_URL
+      }
     }
   ]
 });

@@ -19,7 +19,8 @@ async function main() {
     console.error('[SEED ERROR]', err);
   }
 
-  const app = await buildApp();
+  // Test ortamında (E2E) hız sınırı kapatılır; canlı/geliştirme ortamında açık kalır.
+  const app = await buildApp({ enableRateLimit: process.env.NODE_ENV !== 'test' });
 
   try {
     await app.listen({ port: PORT, host: HOST });

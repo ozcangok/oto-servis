@@ -29,6 +29,19 @@ export function getAuthToken(): string | null {
   return authToken;
 }
 
+type UnauthorizedHandler = () => void;
+let unauthorizedHandler: UnauthorizedHandler | null = null;
+
+/**
+ * Sunucudan 401 (oturum geçersiz veya süresi dolmuş) yanıtı geldiğinde
+ * çağrılacak "güvenli çıkış" işleyicisini kaydeder. Böylece oturum süresi
+ * bittiğinde kullanıcı anında dışarı atılır ve bellekteki hassas veriler
+ * (Kasa/Gider/Müşteri) temizlenir.
+ */
+export function setUnauthorizedHandler(fn: UnauthorizedHandler | null) {
+  unauthorizedHandler = fn;
+}
+
 export async function apiRequest<T = any>(
   endpoint: string,
   options: RequestInit = {}
@@ -47,6 +60,11 @@ export async function apiRequest<T = any>(
     headers.set('Authorization', `Bearer ${authToken}`);
   }
 
+  // İsteğin gerçekten bir oturum belirteciyle gönderilip gönderilmediği.
+  // Giriş öncesi (belirteç yokken) gelen 401'ler "oturum süresi doldu" SAYILMAZ;
+  // aksi halde giriş anında yarış durumunda oturum yanlışlıkla kapatılır.
+  const hadToken = Boolean(authToken);
+
   const url = endpoint.startsWith('http') ? endpoint : `/api${endpoint.startsWith('/') ? endpoint : `/${endpoint}`}`;
 
   try {
@@ -57,6 +75,14 @@ export async function apiRequest<T = any>(
     });
 
     const data = await response.json().catch(() => null);
+
+    // Oturum geçersiz/süresi dolmuş (401): istemciyi anında ve güvenli şekilde
+    // dışarı at. Yalnızca istek bir belirteçle gönderildiyse ve /auth/* değilse.
+    if (response.status === 401 && hadToken && !endpoint.startsWith('/auth/')) {
+      try {
+        unauthorizedHandler?.();
+      } catch {}
+    }
 
     if (!response.ok) {
       const errorMsg = data?.error || `İşlem başarısız oldu (${response.status})`;

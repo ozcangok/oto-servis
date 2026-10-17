@@ -1,0 +1,27 @@
+#!/bin/sh
+#
+# Oto Servis — Commit Öncesi Doğrulama Kancası
+# ------------------------------------------------
+# Amaç: Hiçbir yeni özellik/değişiklik, tüm testler (derleme + birim +
+# uçtan uca/E2E) YEŞİL olmadan sisteme dahil edilmesin.
+#
+# Çalıştırılanlar:
+#   1) Tüm paketlerin derlenmesi (shared + server + client)
+#   2) Sunucu & paylaşılan birim testleri
+#   3) 6 kategorili uçtan uca (E2E) test paketi (izole test yığını)
+#
+# Testler geçmezse commit ENGELLENİR.
+# Acil/istisnai durumda bilinçli olarak atlamak için:
+#   git commit --no-verify
+#
+set -e
+
+echo "[pre-commit] Doğrulama başlıyor: build + testler + E2E (bu ~1 dakika sürebilir)..."
+if npm run verify; then
+  echo "[pre-commit] Tüm testler YEŞİL. Commit'e izin verildi."
+else
+  echo ""
+  echo "[pre-commit] ✗ HATA: Testler geçmedi. Commit ENGELLENDİ."
+  echo "[pre-commit] Lütfen hataları düzeltin. (Atlamak için: git commit --no-verify)"
+  exit 1
+fi

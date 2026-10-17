@@ -10,11 +10,13 @@ export async function seedDatabase() {
 
   console.log('[SEED] Başlangıç ve örnek veriler yükleniyor...');
 
-  // 1. Users
-  const existingAdmin = db.select().from(users).where(eq(users.username, 'admin')).get();
-  let adminId = existingAdmin?.id;
+  // 1. Users — yalnızca sistemde HİÇ kullanıcı yokken (gerçek ilk kurulum)
+  // varsayılan hesaplar oluşturulur. Böylece silinen hesaplar (admin, kasiyer,
+  // usta...) sunucu her yeniden başlatıldığında geri gelmez.
+  const anyUser = db.select({ id: users.id }).from(users).limit(1).get();
+  let adminId = anyUser?.id || 1;
 
-  if (!existingAdmin) {
+  if (!anyUser) {
     const salt = await bcrypt.genSalt(10);
     const passHash = await bcrypt.hash('admin123', salt);
     const newAdmin = db.insert(users).values({

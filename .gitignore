@@ -30,6 +30,9 @@ playwright-report/
 blob-report/
 .playwright/
 
+# İzole E2E test veritabanı
+packages/server/.e2e-data/
+
 # Environment files
 .env
 .env.local

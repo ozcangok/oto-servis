@@ -1,5 +1,5 @@
-import React, { useState, useEffect } from 'react';
-import { apiRequest, setAuthToken } from './services/api.js';
+import React, { useState, useEffect, useRef } from 'react';
+import { apiRequest, setAuthToken, setUnauthorizedHandler } from './services/api.js';
 import { LoginScreen } from './components/LoginScreen.js';
 import { clearOfflineQueue } from './services/offlineQueue.js';
 import { VehicleSearchScreen } from './screens/VehicleSearchScreen.js';
@@ -13,10 +13,48 @@ import { ExpensesScreen } from './screens/ExpensesScreen.js';
 import { RemindersScreen } from './screens/RemindersScreen.js';
 import { SettingsScreen } from './screens/SettingsScreen.js';
 
+type TabKey = 'sorgu' | 'arac' | 'musteri' | 'parca' | 'cari' | 'kasa' | 'gider' | 'hatir';
+
+// Sekme <-> adres (hash) eşlemesi. Rol koruması bu rotalarda uygulanır.
+const TAB_TO_HASH: Record<TabKey, string> = {
+  sorgu: 'sorgu',
+  arac: 'araclar',
+  musteri: 'musteriler',
+  parca: 'parcalar',
+  cari: 'cari',
+  kasa: 'kasa',
+  gider: 'giderler',
+  hatir: 'hatirlaticilar'
+};
+
+const HASH_TO_TAB: Record<string, TabKey> = {
+  sorgu: 'sorgu',
+  araclar: 'arac',
+  musteriler: 'musteri',
+  parcalar: 'parca',
+  cari: 'cari',
+  kasa: 'kasa',
+  giderler: 'gider',
+  hatirlaticilar: 'hatir'
+};
+
+/** Adres çubuğundaki rotayı okur (yalnızca hash: #/kasa vb.). */
+function readRoute(): string {
+  return window.location.hash.replace(/^#\/?/, '').toLowerCase();
+}
+
+/** `/kasa` gibi yol tabanlı adresleri `#/kasa` biçimine normalleştirir. */
+function normalizePathRoute() {
+  const p = window.location.pathname.replace(/^\/+|\/+$/g, '').toLowerCase();
+  if (p && p !== 'index.html' && (p === 'ayarlar' || p === 'login' || p in HASH_TO_TAB)) {
+    window.history.replaceState(null, '', `/#/${p}`);
+  }
+}
+
 export function App() {
   const [currentUser, setCurrentUser] = useState<any | null>(null);
   const [authChecked, setAuthChecked] = useState(false);
-  const [activeTab, setActiveTab] = useState<'sorgu' | 'arac' | 'musteri' | 'parca' | 'cari' | 'kasa' | 'gider' | 'hatir'>('sorgu');
+  const [activeTab, setActiveTab] = useState<TabKey>('sorgu');
 
   // Work order sheet modal state
   const [workOrderModalOpen, setWorkOrderModalOpen] = useState(false);
@@ -130,32 +168,125 @@ export function App() {
     setSessionNonce((n) => n + 1); // uygulama kabuğunu sıfırdan mount et
   };
 
-  const handleLogout = async () => {
-    try {
-      await apiRequest('/auth/logout', { method: 'POST' });
-    } catch {}
-    // 1) Kimlik bilgileri
-    setAuthToken(null);
-    // 2) Yerel hassas veriler (offline kuyruk + hatırlatıcı işaretleri)
-    clearOfflineQueue();
-    try {
-      localStorage.removeItem('oto_sent_reminders');
-    } catch {}
-    // 3) Tüm ekran state'i (Kasa, Gider, Müşteri, arama, modallar...)
-    resetSensitiveState();
-    // 4) En son: oturumu kapat → yalnızca izole giriş ekranı render edilir
-    setCurrentUser(null);
-  };
-
   // Kasa yalnızca dükkan sahibine (owner) açıktır. Personel (staff) için sekme
   // gizlenir; aktif sekme kasa ise başka bölüme alınır. (Giderler herkese açıktır.)
   const isOwner = currentUser?.role === 'owner';
 
+  /**
+   * Oturumu YEREL olarak kapatır. Hassas tüm veri/state silinir.
+   * Hem kullanıcı "çıkış" butonunda hem de sunucu 401 döndüğünde (oturum süresi
+   * dolduğunda) çağrılır.
+   */
+  const clearSession = () => {
+    setAuthToken(null); // 1) Kimlik bilgileri
+    clearOfflineQueue(); // 2) Yerel hassas veriler (offline kuyruk)
+    try {
+      localStorage.removeItem('oto_sent_reminders');
+    } catch {}
+    resetSensitiveState(); // 3) Tüm ekran state'i (Kasa/Gider/Müşteri...)
+    setCurrentUser(null); // 4) Oturumu kapat → yalnızca izole giriş ekranı
+  };
+
+  const clearSessionRef = useRef(clearSession);
+  const currentUserRef = useRef<any | null>(currentUser);
   useEffect(() => {
-    if (currentUser && !isOwner && activeTab === 'kasa') {
-      setActiveTab('sorgu');
+    clearSessionRef.current = clearSession;
+    currentUserRef.current = currentUser;
+  });
+
+  // Oturum süresi dolduğunda (sunucu 401) anında ve güvenli şekilde dışarı at.
+  // Yalnızca gerçekten oturum açıkken uygulanır.
+  useEffect(() => {
+    setUnauthorizedHandler(() => {
+      if (currentUserRef.current) clearSessionRef.current();
+    });
+    return () => setUnauthorizedHandler(null);
+  }, []);
+
+  const handleLogout = async () => {
+    try {
+      await apiRequest('/auth/logout', { method: 'POST' });
+    } catch {}
+    clearSession();
+    // Tarayıcının "Geri" tuşuyla korumalı sayfaya dönüşünü engelle: geçmişe
+    // izole bir 'login' kaydı ekle. Geri basılırsa oturum kapalı olduğundan
+    // yalnızca opak giriş ekranı görünür.
+    try {
+      window.history.pushState(null, '', '#/login');
+    } catch {}
+  };
+
+  /** Sekme değiştirir ve adres çubuğunu günceller (geri tuşu uyumlu). */
+  const navigate = (tab: TabKey) => {
+    setActiveTab(tab);
+    const h = '#/' + TAB_TO_HASH[tab];
+    if (window.location.hash !== h) {
+      window.history.pushState(null, '', h);
     }
-  }, [currentUser, isOwner, activeTab]);
+  };
+
+  // Rota → sekme eşlemesi + ROL KORUMASI. Personel (staff) `/kasa` veya
+  // `/ayarlar` adreslerine doğrudan girse bile sayfa render edilmez; ana sayfaya
+  // yönlendirilir. Sekme değişikliğinde bu etki tetiklenmez (yalnızca oturum/rol
+  // ve tarayıcı geri-ileri olaylarında çalışır).
+  useEffect(() => {
+    if (!authChecked) return;
+
+    const applyRoute = () => {
+      if (!currentUser) return; // Oturum yok: her rotada izole giriş ekranı geçerli.
+      normalizePathRoute();
+      const name = readRoute();
+
+      if (name === 'ayarlar') {
+        if (isOwner) {
+          setShowSettings(true);
+        } else {
+          window.history.replaceState(null, '', '#/sorgu');
+          setActiveTab('sorgu');
+        }
+        return;
+      }
+      if (name === 'kasa' && !isOwner) {
+        window.history.replaceState(null, '', '#/sorgu');
+        setActiveTab('sorgu');
+        return;
+      }
+      if (name === 'login') {
+        window.history.replaceState(null, '', '#/' + TAB_TO_HASH[activeTab]);
+        return;
+      }
+      const tab = HASH_TO_TAB[name];
+      if (tab) setActiveTab(tab);
+    };
+
+    applyRoute();
+    window.addEventListener('popstate', applyRoute);
+    window.addEventListener('hashchange', applyRoute);
+    return () => {
+      window.removeEventListener('popstate', applyRoute);
+      window.removeEventListener('hashchange', applyRoute);
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [authChecked, currentUser, isOwner]);
+
+  // Sekme → rota senkronu (programatik geçişlerde adres çubuğu güncellenir).
+  useEffect(() => {
+    if (!currentUser || showSettings) return;
+    if (readRoute() !== TAB_TO_HASH[activeTab]) {
+      window.history.replaceState(null, '', '#/' + TAB_TO_HASH[activeTab]);
+    }
+  }, [activeTab, currentUser, showSettings]);
+
+  // bfcache / geri-ileri: sayfa yeniden gösterildiğinde oturumu yeniden doğrula
+  // ki tarayıcı belleğinden eski (hassas) içerik geri gelmesin.
+  useEffect(() => {
+    const onPageShow = () => {
+      checkCurrentUser();
+    };
+    window.addEventListener('pageshow', onPageShow);
+    return () => window.removeEventListener('pageshow', onPageShow);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const handleNewWorkOrder = (plate?: string) => {
     setActiveWorkOrderId(null);
@@ -248,7 +379,7 @@ export function App() {
               className="tab"
               role="tab"
               aria-selected={activeTab === 'sorgu'}
-              onClick={() => setActiveTab('sorgu')}
+              onClick={() => navigate('sorgu')}
             >
               Araç sorgu
             </button>
@@ -256,7 +387,7 @@ export function App() {
               className="tab"
               role="tab"
               aria-selected={activeTab === 'arac'}
-              onClick={() => setActiveTab('arac')}
+              onClick={() => navigate('arac')}
             >
               Araçlar
             </button>
@@ -264,7 +395,7 @@ export function App() {
               className="tab"
               role="tab"
               aria-selected={activeTab === 'musteri'}
-              onClick={() => setActiveTab('musteri')}
+              onClick={() => navigate('musteri')}
             >
               Müşteriler
             </button>
@@ -272,7 +403,7 @@ export function App() {
               className="tab"
               role="tab"
               aria-selected={activeTab === 'parca'}
-              onClick={() => setActiveTab('parca')}
+              onClick={() => navigate('parca')}
             >
               Parça arşivi
             </button>
@@ -280,7 +411,7 @@ export function App() {
               className="tab"
               role="tab"
               aria-selected={activeTab === 'cari'}
-              onClick={() => setActiveTab('cari')}
+              onClick={() => navigate('cari')}
             >
               Cari hesap
             </button>
@@ -289,7 +420,7 @@ export function App() {
                 className="tab"
                 role="tab"
                 aria-selected={activeTab === 'kasa'}
-                onClick={() => setActiveTab('kasa')}
+                onClick={() => navigate('kasa')}
               >
                 Kasa
               </button>
@@ -298,7 +429,7 @@ export function App() {
               className="tab"
               role="tab"
               aria-selected={activeTab === 'gider'}
-              onClick={() => setActiveTab('gider')}
+              onClick={() => navigate('gider')}
             >
               Giderler
             </button>
@@ -306,7 +437,7 @@ export function App() {
               className="tab"
               role="tab"
               aria-selected={activeTab === 'hatir'}
-              onClick={() => setActiveTab('hatir')}
+              onClick={() => navigate('hatir')}
             >
               Hatırlatıcılar
               {remindersCount > 0 && <span className="cnt">{remindersCount}</span>}

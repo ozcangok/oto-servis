@@ -1,19 +1,24 @@
 import { defineConfig } from 'vite';
 import react from '@vitejs/plugin-react';
 
+// E2E testleri izole bir yığın üzerinde çalışabilmesi için port ve API hedefi
+// ortam değişkenleriyle geçersiz kılınabilir. Varsayılanlar geliştirme ortamıdır.
+const API_TARGET = process.env.API_PROXY_TARGET || 'http://127.0.0.1:3001';
+const CLIENT_PORT = parseInt(process.env.CLIENT_PORT || '5173', 10);
+
 export default defineConfig({
   plugins: [react()],
   server: {
-    port: 5173,
+    port: CLIENT_PORT,
     host: '0.0.0.0',
     allowedHosts: ['.trycloudflare.com'],
     proxy: {
       '/api': {
-        target: 'http://127.0.0.1:3001',
+        target: API_TARGET,
         changeOrigin: true
       },
       '/uploads': {
-        target: 'http://127.0.0.1:3001',
+        target: API_TARGET,
         changeOrigin: true
       }
     }
