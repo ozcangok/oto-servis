@@ -559,8 +559,11 @@ export const VehicleSearchScreen: React.FC<VehicleSearchScreenProps> = ({
     setSelectedDate(todayKey);
   };
 
+  // Pano kokpiti: sorgu yokken tek ekrana sığdırılan düzen
+  const showDash = !searchTerm && !loading;
+
   return (
-    <div className="screen">
+    <div className={`screen${showDash ? ' cockpit' : ''}`}>
       {/* Üst başlık */}
       <div className="hero">
         <div>

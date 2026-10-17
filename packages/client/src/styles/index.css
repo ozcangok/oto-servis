@@ -97,13 +97,15 @@
 
 /* ------------------------------- Temel ------------------------------- */
 *{box-sizing:border-box}
+html,body,#root{height:100%}
 html,body{margin:0;padding:0}
 body{
   background:var(--bg); color:var(--text-body);
   font-family:var(--f-body); font-size:15px; line-height:1.45;
   font-variant-numeric:tabular-nums;
   -webkit-font-smoothing:antialiased; -moz-osx-font-smoothing:grayscale;
-  overflow-x:hidden;
+  /* Pencere (sayfa) asla kaymaz; kaydırma yalnızca iç panellerde olur */
+  overflow:hidden;
 }
 h1,h2,h3,p{margin:0}
 h1{font-size:30px;font-weight:600;letter-spacing:-.02em;color:var(--text)}
@@ -121,11 +123,14 @@ output,.tnum{font-variant-numeric:tabular-nums}
 a:focus-visible,button:focus-visible{outline:2px solid var(--primary);outline-offset:2px}
 
 /* --------------------- Uygulama kabuğu (sol menü) --------------------- */
-.app-shell{display:flex;flex-wrap:wrap;min-height:100vh;background:var(--bg)}
+/* Tek satır: kenar çubuğu + esneyen içerik; pencere yüksekliği kesin olduğu için
+   içerik alanı kısıtlanabilir ve yalnızca kendi içi kayar. */
+.app-shell{display:flex;flex-wrap:nowrap;height:100dvh;min-height:0;overflow:hidden;background:var(--bg)}
 
 .sidebar{
   flex:0 0 264px;max-width:100%;background:var(--surface);border-right:1px solid #eef2f6;
   padding:28px 16px 20px;display:flex;flex-direction:column;gap:32px;
+  min-height:0;overflow-y:auto;overscroll-behavior:contain;
 }
 .sidebar-brand{display:flex;align-items:center;gap:12px;min-width:0}
 .brand-logo{
@@ -161,8 +166,8 @@ a:focus-visible,button:focus-visible{outline:2px solid var(--primary);outline-of
 }
 .menu-foot{margin-top:auto;border-top:1px solid #eef2f6;padding-top:16px;display:flex;flex-direction:column;gap:2px}
 
-/* İçerik alanı */
-.wrap{flex:999 1 560px;min-width:0;display:flex;flex-direction:column;gap:28px;padding:36px 44px 44px}
+/* İçerik alanı — pencere yerine yalnızca bu sütun kayar */
+.wrap{flex:1 1 0;min-width:0;min-height:0;overflow-y:auto;overscroll-behavior:contain;display:flex;flex-direction:column;gap:20px;padding:24px 32px 28px}
 .view[hidden]{display:none}
 
 /* ------------------------------ Butonlar ------------------------------ */
@@ -554,6 +559,8 @@ button.li:hover{background:var(--surface-subtle)}
 
 /* ------------------------------- Responsive ------------------------------- */
 @media (max-width:900px){
+  /* Dar ekranda kenar çubuğu üst şeride döner → satır kaydırma (wrap) gerekir */
+  .app-shell{flex-wrap:wrap}
   .sidebar{flex:1 1 100%;border-right:0;border-bottom:1px solid #eef2f6;padding:16px;gap:16px}
   .menu{flex-direction:row;flex-wrap:nowrap;gap:6px;overflow-x:auto;padding-bottom:4px}
   .menu-group{flex-direction:row;gap:6px}
@@ -597,6 +604,39 @@ button.li:hover{background:var(--surface-subtle)}
   .gsum{grid-template-columns:minmax(0,1fr)}
   .gsum .stat{border-left:0;border-top:1px solid var(--divider)}
   .gsum .stat:first-child{border-top:0}
+}
+
+/* --------------------- Tek ekran "kokpit" (Araç sorgu panosu) --------------------- */
+/* Pano tek ekrana sabitlenir; pencere kaymaz, yalnızca liste/takvim kendi içinde kayar. */
+@media (min-width:901px){
+  .wrap>.screen.cockpit{flex:1 1 auto;min-height:0;overflow:hidden;gap:16px;display:flex;flex-direction:column}
+  .screen.cockpit .dash{flex:1 1 auto;min-height:0;gap:12px}
+  .screen.cockpit .dash-grid{
+    flex:1 1 auto;min-height:0;display:grid;grid-template-columns:minmax(0,1fr) minmax(296px,352px);
+    gap:16px;align-items:stretch;overflow:hidden;
+  }
+  /* Servis listesi kartı: kart içinde kalır, sadece gövdesi kayar */
+  .screen.cockpit .dash-main{display:flex;flex-direction:column;min-height:0;overflow:hidden}
+  /* Takvim kartı: sığmazsa kartın kendi içi kayar */
+  .screen.cockpit .dash-side{display:flex;flex-direction:column;min-height:0;overflow-y:auto;overscroll-behavior:contain}
+  .screen.cockpit .svc-scroll{flex:1 1 auto;min-height:0;overflow:auto}
+  /* Tablo, kart genişliğine sığar; gerekirse yatay kaydırılır */
+  .screen.cockpit .svc{min-width:0}
+  .screen.cockpit .svc-head,.screen.cockpit .svc-row{grid-template-columns:152px minmax(0,1fr) minmax(0,1fr) 112px 92px;gap:12px}
+  /* Boşlukları daralt: hero + arama + 5 özet + tablo + takvim tek ekrana sığar */
+  .screen.cockpit .hero{padding-bottom:0}
+  .screen.cockpit .hero h1{font-size:26px}
+  .screen.cockpit .search-card{padding:12px 18px;gap:8px}
+  .screen.cockpit .plate-row .plate-input input{font-size:34px;padding:8px 18px}
+  .screen.cockpit .kpis{gap:10px}
+  .screen.cockpit .kpi{flex:1 1 150px;padding:12px 14px;min-height:0;gap:8px}
+  .screen.cockpit .kpi-val{font-size:22px}
+  .screen.cockpit .kpi-ic{width:28px;height:28px}
+  .screen.cockpit .kpi-ic svg{width:16px;height:16px}
+  .screen.cockpit .cal-head{padding:10px 14px 10px 18px}
+  .screen.cockpit .cal-body{padding:10px 12px 2px}
+  .screen.cockpit .day{height:40px}
+  .screen.cockpit .agenda{padding:12px 18px 16px;gap:8px}
 }
 
 /* Koyu moda özel düzeltmeler */

@@ -149,9 +149,9 @@ test.describe('10) Araç sorgu panosu & takvim', () => {
     const height = (sel) =>
       page.locator(sel).first().evaluate((el) => Math.round(el.getBoundingClientRect().height));
 
-    // Pano arama kutusu BÜYÜK kalmalı (Bölüm 6.3)
+    // Pano arama kutusu BÜYÜK kalmalı (Bölüm 6.3) — kokpit düzeninde biraz daraltılır
     const searchBoxH = await height('.plate-row .plate-input');
-    expect(searchBoxH).toBeGreaterThan(70);
+    expect(searchBoxH).toBeGreaterThan(58);
 
     // Yeni iş emri formu açılır
     await page.getByRole('button', { name: 'Yeni iş emri' }).first().click();
@@ -163,5 +163,7 @@ test.describe('10) Araç sorgu panosu & takvim', () => {
     expect(formPlateH).toBeLessThan(80);
     expect(formPlateH).toBeGreaterThanOrEqual(40);
     expect(Math.abs(formPlateH - dateH)).toBeLessThanOrEqual(14);
+    // Arama kutusu form kutusundan belirgin şekilde büyük kalmalı
+    expect(searchBoxH).toBeGreaterThan(formPlateH + 8);
   });
 });
