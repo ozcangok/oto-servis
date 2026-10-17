@@ -1015,14 +1015,14 @@ describe('Phase 2: Vehicles, Customers, Parts, Work Orders, Stock & Plate Search
     expect(after.grandTotalLaborKurus).toBe(0);
   });
 
-  it('giderler modulu yalnizca sahibe acik ve CRUD calisir', async () => {
-    // Personel giderleri göremez / ekleyemez
+  it('giderler: staff ekleyebilir ama hassas kategori ile gelir/kari goremez', async () => {
+    // Personel giderleri görebilir ve gündelik kategori ekleyebilir
     const staffGet = await app.inject({
       method: 'GET',
       url: '/api/expenses?period=month',
       headers: { authorization: `Bearer ${staffToken}` }
     });
-    expect(staffGet.statusCode).toBe(403);
+    expect(staffGet.statusCode).toBe(200);
 
     const staffPost = await app.inject({
       method: 'POST',
@@ -1030,20 +1030,35 @@ describe('Phase 2: Vehicles, Customers, Parts, Work Orders, Stock & Plate Search
       headers: { authorization: `Bearer ${staffToken}` },
       payload: { tarih: '2026-01-05', kategori: 'Sarf Malzeme', aciklama: 'Eldiven', tutar_kurus: 7000 }
     });
-    expect(staffPost.statusCode).toBe(403);
+    expect(staffPost.statusCode).toBe(200);
+    expect(JSON.parse(staffPost.body).expense.kategori).toBe('Sarf Malzeme');
 
-    // Sahip gider ekler
-    const ownerPost = await app.inject({
+    // Personel hassas kategorileri ekleyemez
+    const staffSensitive = await app.inject({
+      method: 'POST',
+      url: '/api/expenses',
+      headers: { authorization: `Bearer ${staffToken}` },
+      payload: { tarih: '2026-01-05', kategori: 'Personel', aciklama: 'Personel maaşı', tutar_kurus: 100000 }
+    });
+    expect(staffSensitive.statusCode).toBe(403);
+
+    const staffSensitive2 = await app.inject({
+      method: 'POST',
+      url: '/api/expenses',
+      headers: { authorization: `Bearer ${staffToken}` },
+      payload: { tarih: '2026-01-05', kategori: 'Fatura & Kira', aciklama: 'Dükkan kirası', tutar_kurus: 100000 }
+    });
+    expect(staffSensitive2.statusCode).toBe(403);
+
+    // Sahip hassas kategorileri ekleyebilir
+    const ownerSensitive = await app.inject({
       method: 'POST',
       url: '/api/expenses',
       headers: { authorization: `Bearer ${adminToken}` },
-      payload: { tarih: '2026-01-05', kategori: 'Sarf Malzeme', aciklama: 'Atölye eldiveni', tutar_kurus: 7000 }
+      payload: { tarih: '2026-01-06', kategori: 'Personel', aciklama: 'Personel maaşı', tutar_kurus: 100000 }
     });
-    expect(ownerPost.statusCode).toBe(200);
-    const created = JSON.parse(ownerPost.body).expense;
-    expect(created.id).toBeDefined();
-    expect(created.kategori).toBe('Sarf Malzeme');
-    expect(created.tutar_kurus).toBe(7000);
+    expect(ownerSensitive.statusCode).toBe(200);
+    const sensitiveId = JSON.parse(ownerSensitive.body).expense.id;
 
     // Geçersiz kategori / tutar reddedilir
     const badCat = await app.inject({
@@ -1062,37 +1077,22 @@ describe('Phase 2: Vehicles, Customers, Parts, Work Orders, Stock & Plate Search
     });
     expect(badAmount.statusCode).toBe(400);
 
-    // Liste ve toplam (tüm zamanlar)
-    const list = await app.inject({
+    // Personel listesi: yalnızca yetkili kategoriler, gelir/kâr alanları YOK
+    const staffList = await app.inject({
       method: 'GET',
       url: '/api/expenses?period=all',
-      headers: { authorization: `Bearer ${adminToken}` }
+      headers: { authorization: `Bearer ${staffToken}` }
     });
-    expect(list.statusCode).toBe(200);
-    const listBody = JSON.parse(list.body);
-    expect(listBody.summary.expenseTotalKurus).toBe(7000);
-    expect(listBody.summary.expenseCount).toBe(1);
-    expect(listBody.items[0].kullanici.full_name).toBe('Ahmet Yönetici');
+    expect(staffList.statusCode).toBe(200);
+    const staffBody = JSON.parse(staffList.body);
+    expect(staffBody.items.length).toBe(1);
+    expect(staffBody.items.every((i: any) => i.kategori === 'Sarf Malzeme')).toBe(true);
+    expect(staffBody.summary.expenseTotalKurus).toBe(7000);
+    expect(staffBody.summary.laborIncomeKurus).toBeUndefined();
+    expect(staffBody.summary.netProfitKurus).toBeUndefined();
 
-    // Güncelle
-    const put = await app.inject({
-      method: 'PUT',
-      url: `/api/expenses/${created.id}`,
-      headers: { authorization: `Bearer ${adminToken}` },
-      payload: { tarih: '2026-01-06', kategori: 'Diğer', aciklama: 'Güncellendi', tutar_kurus: 12500 }
-    });
-    expect(put.statusCode).toBe(200);
-    expect(JSON.parse(put.body).expense.tutar_kurus).toBe(12500);
-
-    // Sil
-    const del = await app.inject({
-      method: 'DELETE',
-      url: `/api/expenses/${created.id}`,
-      headers: { authorization: `Bearer ${adminToken}` }
-    });
-    expect(del.statusCode).toBe(200);
-
-    const after = JSON.parse(
+    // Sahip listesi: hassas kaydı görür, gelir/kâr alanları gelir
+    const ownerList = JSON.parse(
       (
         await app.inject({
           method: 'GET',
@@ -1101,8 +1101,43 @@ describe('Phase 2: Vehicles, Customers, Parts, Work Orders, Stock & Plate Search
         })
       ).body
     );
-    expect(after.summary.expenseTotalKurus).toBe(0);
-    expect(after.items.length).toBe(0);
+    expect(ownerList.items.some((i: any) => i.kategori === 'Personel')).toBe(true);
+    expect(ownerList.summary.expenseTotalKurus).toBe(107000);
+    expect(typeof ownerList.summary.laborIncomeKurus).toBe('number');
+    expect(typeof ownerList.summary.netProfitKurus).toBe('number');
+
+    // Personel güncelleyemez / silemez
+    const staffPut = await app.inject({
+      method: 'PUT',
+      url: `/api/expenses/${sensitiveId}`,
+      headers: { authorization: `Bearer ${staffToken}` },
+      payload: { tarih: '2026-01-07', kategori: 'Diğer', aciklama: 'Değişiklik', tutar_kurus: 1 }
+    });
+    expect(staffPut.statusCode).toBe(403);
+
+    const staffDel = await app.inject({
+      method: 'DELETE',
+      url: `/api/expenses/${sensitiveId}`,
+      headers: { authorization: `Bearer ${staffToken}` }
+    });
+    expect(staffDel.statusCode).toBe(403);
+
+    // Sahip güncelleyip silebilir
+    const ownerPut = await app.inject({
+      method: 'PUT',
+      url: `/api/expenses/${sensitiveId}`,
+      headers: { authorization: `Bearer ${adminToken}` },
+      payload: { tarih: '2026-01-06', kategori: 'Personel', aciklama: 'Güncellendi', tutar_kurus: 12500 }
+    });
+    expect(ownerPut.statusCode).toBe(200);
+    expect(JSON.parse(ownerPut.body).expense.tutar_kurus).toBe(12500);
+
+    const ownerDel = await app.inject({
+      method: 'DELETE',
+      url: `/api/expenses/${sensitiveId}`,
+      headers: { authorization: `Bearer ${adminToken}` }
+    });
+    expect(ownerDel.statusCode).toBe(200);
   });
 
   it('gider ozeti iscilik gelirini kullanir ve kasa toplamlarini degistirmez', async () => {

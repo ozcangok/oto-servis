@@ -109,12 +109,12 @@ export function App() {
     setCurrentUser(null);
   };
 
-  // Kasa ve Giderler yalnızca dükkan sahibine (owner) açıktır. Personel (staff)
-  // için bu sekmeler gizlenir; aktif sekme bunlardan biriyse başka bölüme alınır.
+  // Kasa yalnızca dükkan sahibine (owner) açıktır. Personel (staff) için sekme
+  // gizlenir; aktif sekme kasa ise başka bölüme alınır. (Giderler herkese açıktır.)
   const isOwner = currentUser?.role === 'owner';
 
   useEffect(() => {
-    if (currentUser && !isOwner && (activeTab === 'kasa' || activeTab === 'gider')) {
+    if (currentUser && !isOwner && activeTab === 'kasa') {
       setActiveTab('sorgu');
     }
   }, [currentUser, isOwner, activeTab]);
@@ -260,16 +260,14 @@ export function App() {
                 Kasa
               </button>
             )}
-            {isOwner && (
-              <button
-                className="tab"
-                role="tab"
-                aria-selected={activeTab === 'gider'}
-                onClick={() => setActiveTab('gider')}
-              >
-                Giderler
-              </button>
-            )}
+            <button
+              className="tab"
+              role="tab"
+              aria-selected={activeTab === 'gider'}
+              onClick={() => setActiveTab('gider')}
+            >
+              Giderler
+            </button>
             <button
               className="tab"
               role="tab"
@@ -314,7 +312,7 @@ export function App() {
 
         {isOwner && activeTab === 'kasa' && <CashDeskScreen />}
 
-        {isOwner && activeTab === 'gider' && <ExpensesScreen />}
+        {activeTab === 'gider' && <ExpensesScreen currentUser={currentUser} />}
 
         {activeTab === 'hatir' && <RemindersScreen />}
       </main>

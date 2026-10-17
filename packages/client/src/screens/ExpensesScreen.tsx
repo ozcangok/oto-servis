@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { apiRequest } from '../services/api.js';
 import { money, toast, todayISO } from '../services/ui.js';
-import { EXPENSE_CATEGORIES } from '@oto-servis/shared';
+import { EXPENSE_CATEGORIES, STAFF_EXPENSE_CATEGORIES } from '@oto-servis/shared';
 
 type Period = 'today' | 'month' | 'year' | 'all';
 
@@ -20,10 +20,14 @@ const PERIOD_LABEL: Record<Period, string> = {
 };
 
 interface Summary {
-  laborIncomeKurus: number;
+  laborIncomeKurus?: number;
   expenseTotalKurus: number;
-  netProfitKurus: number;
+  netProfitKurus?: number;
   expenseCount: number;
+}
+
+interface ExpensesScreenProps {
+  currentUser?: any;
 }
 
 function fdateLocal(d?: string | null): string {
@@ -32,20 +36,22 @@ function fdateLocal(d?: string | null): string {
   return p.length === 3 ? `${p[2]}.${p[1]}.${p[0]}` : String(d);
 }
 
-export const ExpensesScreen: React.FC = () => {
+export const ExpensesScreen: React.FC<ExpensesScreenProps> = ({ currentUser }) => {
+  // Gelir/kâr özeti ve hassas kategoriler yalnızca dükkan sahibine açıktır.
+  const isOwner = currentUser?.role === 'owner';
+  const categories = isOwner ? EXPENSE_CATEGORIES : STAFF_EXPENSE_CATEGORIES;
+
   const [period, setPeriod] = useState<Period>('month');
   const [loading, setLoading] = useState(false);
   const [summary, setSummary] = useState<Summary>({
-    laborIncomeKurus: 0,
     expenseTotalKurus: 0,
-    netProfitKurus: 0,
     expenseCount: 0
   });
   const [items, setItems] = useState<any[]>([]);
 
   // Yeni gider formu
   const [tarih, setTarih] = useState(todayISO());
-  const [kategori, setKategori] = useState<string>(EXPENSE_CATEGORIES[0]);
+  const [kategori, setKategori] = useState<string>(categories[0]);
   const [aciklama, setAciklama] = useState('');
   const [tutar, setTutar] = useState('');
   const [saving, setSaving] = useState(false);
@@ -54,12 +60,19 @@ export const ExpensesScreen: React.FC = () => {
     loadExpenses();
   }, [period]);
 
+  // Rol değişirse seçili kategori yetki dışında kalabilir; ilk geçerli kategoriye dön.
+  useEffect(() => {
+    if (!(categories as readonly string[]).includes(kategori)) {
+      setKategori(categories[0]);
+    }
+  }, [isOwner]);
+
   const loadExpenses = async () => {
     setLoading(true);
     try {
       const res = await apiRequest(`/expenses?period=${period}`);
       if (res.success) {
-        setSummary(res.summary || summary);
+        setSummary(res.summary || { expenseTotalKurus: 0, expenseCount: 0 });
         setItems(res.items || []);
       }
     } catch (err: any) {
@@ -123,7 +136,8 @@ export const ExpensesScreen: React.FC = () => {
     }
   };
 
-  const net = summary.netProfitKurus;
+  const colCount = isOwner ? 5 : 4;
+  const net = summary.netProfitKurus ?? 0;
   const netColor = net >= 0 ? 'var(--good)' : 'var(--bad)';
 
   return (
@@ -148,28 +162,32 @@ export const ExpensesScreen: React.FC = () => {
         </button>
       </div>
 
-      {/* 3'lü özet paneli: Servis Geliri / Dükkan Gideri / Net Kâr */}
-      <div className="gsum">
-        <div className="stat">
-          <span>Toplam Servis Geliri</span>
-          <b>{money(summary.laborIncomeKurus)}</b>
-        </div>
-        <div className="stat">
-          <span>Toplam Dükkan Gideri</span>
-          <b style={{ color: 'var(--bad)' }}>{money(summary.expenseTotalKurus)}</b>
-        </div>
-        <div className="stat">
-          <span>Net Kâr</span>
-          <b style={{ color: netColor }}>{money(net)}</b>
-        </div>
-      </div>
+      {/* 3'lü özet paneli — yalnızca dükkan sahibi (owner) görür */}
+      {isOwner && (
+        <>
+          <div className="gsum">
+            <div className="stat">
+              <span>Toplam Servis Geliri</span>
+              <b>{money(summary.laborIncomeKurus ?? 0)}</b>
+            </div>
+            <div className="stat">
+              <span>Toplam Dükkan Gideri</span>
+              <b style={{ color: 'var(--bad)' }}>{money(summary.expenseTotalKurus)}</b>
+            </div>
+            <div className="stat">
+              <span>Net Kâr</span>
+              <b style={{ color: netColor }}>{money(net)}</b>
+            </div>
+          </div>
 
-      <p className="muted" style={{ marginBottom: '16px' }}>
-        {PERIOD_LABEL[period]} · Toplam Servis Geliri, Kasa'daki işçilik bedellerinden alınır. Kasa
-        toplamları bu modülden etkilenmez.
-      </p>
+          <p className="muted" style={{ marginBottom: '16px' }}>
+            {PERIOD_LABEL[period]} · Toplam Servis Geliri, Kasa'daki işçilik bedellerinden alınır. Kasa
+            toplamları bu modülden etkilenmez.
+          </p>
+        </>
+      )}
 
-      {/* Yeni gider formu */}
+      {/* Yeni gider formu (owner ve staff ekleyebilir) */}
       <div className="panel" style={{ marginBottom: '16px' }}>
         <div className="panel-h">
           <h3>Yeni Gider Ekle</h3>
@@ -195,7 +213,7 @@ export const ExpensesScreen: React.FC = () => {
                 value={kategori}
                 onChange={(e) => setKategori(e.target.value)}
               >
-                {EXPENSE_CATEGORIES.map((c) => (
+                {categories.map((c) => (
                   <option key={c} value={c}>
                     {c}
                   </option>
@@ -241,7 +259,9 @@ export const ExpensesScreen: React.FC = () => {
       <div className="panel">
         <div className="panel-h">
           <h3>Gider Listesi</h3>
-          <span className="muted">{summary.expenseCount} kayıt</span>
+          <span className="muted">
+            {PERIOD_LABEL[period]} · {summary.expenseCount} kayıt
+          </span>
         </div>
         <div className="tablewrap">
           <table className="tbl">
@@ -251,13 +271,13 @@ export const ExpensesScreen: React.FC = () => {
                 <th>Kategori</th>
                 <th>Açıklama</th>
                 <th className="num">Tutar</th>
-                <th></th>
+                {isOwner && <th></th>}
               </tr>
             </thead>
             <tbody>
               {loading ? (
                 <tr>
-                  <td colSpan={5} className="muted" style={{ padding: '24px 16px', textAlign: 'center' }}>
+                  <td colSpan={colCount} className="muted" style={{ padding: '24px 16px', textAlign: 'center' }}>
                     Yükleniyor...
                   </td>
                 </tr>
@@ -273,20 +293,22 @@ export const ExpensesScreen: React.FC = () => {
                       ) : null}
                     </td>
                     <td className="num">{money(it.tutar_kurus)}</td>
-                    <td style={{ textAlign: 'right', whiteSpace: 'nowrap' }}>
-                      <button
-                        className="btn btn-ghost btn-sm"
-                        type="button"
-                        onClick={() => handleDelete(it)}
-                      >
-                        Sil
-                      </button>
-                    </td>
+                    {isOwner && (
+                      <td style={{ textAlign: 'right', whiteSpace: 'nowrap' }}>
+                        <button
+                          className="btn btn-ghost btn-sm"
+                          type="button"
+                          onClick={() => handleDelete(it)}
+                        >
+                          Sil
+                        </button>
+                      </td>
+                    )}
                   </tr>
                 ))
               ) : (
                 <tr>
-                  <td colSpan={5} className="muted" style={{ padding: '24px 16px', textAlign: 'center' }}>
+                  <td colSpan={colCount} className="muted" style={{ padding: '24px 16px', textAlign: 'center' }}>
                     Bu dönemde gider kaydı yok.
                   </td>
                 </tr>
@@ -301,7 +323,7 @@ export const ExpensesScreen: React.FC = () => {
                   <td className="num" style={{ fontWeight: 600, padding: '10px 16px' }}>
                     {money(summary.expenseTotalKurus)}
                   </td>
-                  <td></td>
+                  {isOwner && <td></td>}
                 </tr>
               </tfoot>
             )}

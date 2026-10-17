@@ -179,6 +179,20 @@ export const EXPENSE_CATEGORIES = [
 
 export type ExpenseCategory = (typeof EXPENSE_CATEGORIES)[number];
 
+/**
+ * Yalnızca dükkan sahibinin (owner) ekleyip görebileceği hassas gider kategorileri.
+ * Personel (staff) bu kategorileri ne ekleyebilir ne de listeleyebilir.
+ */
+export const SENSITIVE_EXPENSE_CATEGORIES: ExpenseCategory[] = ['Fatura & Kira', 'Personel'];
+
+/**
+ * Personelin (staff) ekleyip görebileceği gündelik gider kategorileri.
+ * Hassas kategoriler hariç tüm kategoriler.
+ */
+export const STAFF_EXPENSE_CATEGORIES: ExpenseCategory[] = EXPENSE_CATEGORIES.filter(
+  (c) => !(SENSITIVE_EXPENSE_CATEGORIES as readonly string[]).includes(c)
+);
+
 export interface Expense {
   id: number;
   tarih: string; // YYYY-MM-DD (yerel tarih)

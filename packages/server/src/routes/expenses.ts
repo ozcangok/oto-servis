@@ -4,7 +4,7 @@ import { eq } from 'drizzle-orm';
 import { getDb, expenses } from '../db/index.js';
 import { getExpenseOverview, EXPENSE_PERIODS, type ExpensePeriod } from '../services/expenseService.js';
 import { logAudit } from '../services/auditService.js';
-import { EXPENSE_CATEGORIES } from '@oto-servis/shared';
+import { EXPENSE_CATEGORIES, SENSITIVE_EXPENSE_CATEGORIES } from '@oto-servis/shared';
 
 const expenseInputSchema = z.object({
   tarih: z
@@ -21,21 +21,19 @@ const expenseInputSchema = z.object({
 });
 
 export const expenseRoutes: FastifyPluginAsync = async (fastify) => {
-  // Giderler modülü yalnızca dükkan sahibine (owner) açıktır.
+  // Giderler modülü tüm personelin erişimine açıktır; ancak gelir/kâr özeti ve
+  // hassas kategoriler (Fatura & Kira, Personel) yalnızca dükkan sahibine özeldir.
   fastify.addHook('preHandler', async (request, reply) => {
     if (!request.user) {
       return reply.status(401).send({ success: false, error: 'Oturum açmanız gerekmektedir.' });
     }
-    if (request.user.role !== 'owner') {
-      return reply.status(403).send({ success: false, error: 'Giderler yalnızca dükkan sahibi tarafından görüntülenebilir.' });
-    }
   });
 
-  // Gider listesi + dönemsel gelir/gider/net kâr özeti
+  // Gider listesi + dönemsel özet (gelir/kâr yalnızca owner'a gönderilir)
   fastify.get('/', {
     schema: {
       tags: ['Giderler'],
-      summary: 'Dönemsel gider listesi ve gelir/gider/net kâr özeti (Yalnızca dükkan sahibi)'
+      summary: 'Dönemsel gider listesi ve özet (gelir/kâr yalnızca dükkan sahibine)'
     }
   }, async (request) => {
     const raw = String((request.query as any)?.period || 'month');
@@ -43,7 +41,7 @@ export const expenseRoutes: FastifyPluginAsync = async (fastify) => {
       ? (raw as ExpensePeriod)
       : 'month';
 
-    const overview = getExpenseOverview(period);
+    const overview = getExpenseOverview(period, request.user!.role);
     return {
       success: true,
       period: overview.period,
@@ -54,11 +52,11 @@ export const expenseRoutes: FastifyPluginAsync = async (fastify) => {
     };
   });
 
-  // Yeni gider ekle
+  // Yeni gider ekle (owner tüm kategoriler, staff yalnızca gündelik kategoriler)
   fastify.post('/', {
     schema: {
       tags: ['Giderler'],
-      summary: 'Yeni dükkan gideri ekle (Yalnızca dükkan sahibi)'
+      summary: 'Yeni dükkan gideri ekle'
     }
   }, async (request, reply) => {
     const parse = expenseInputSchema.safeParse(request.body);
@@ -66,6 +64,17 @@ export const expenseRoutes: FastifyPluginAsync = async (fastify) => {
       return reply.status(400).send({
         success: false,
         error: parse.error.issues[0]?.message || 'Geçersiz gider verisi.'
+      });
+    }
+
+    // Personel hassas kategorileri ekleyemez.
+    if (
+      request.user!.role !== 'owner' &&
+      (SENSITIVE_EXPENSE_CATEGORIES as readonly string[]).includes(parse.data.kategori)
+    ) {
+      return reply.status(403).send({
+        success: false,
+        error: 'Bu kategoriyi yalnızca dükkan sahibi ekleyebilir.'
       });
     }
 
@@ -96,13 +105,17 @@ export const expenseRoutes: FastifyPluginAsync = async (fastify) => {
     return { success: true, expense: newExpense };
   });
 
-  // Gider güncelle
+  // Gider güncelle (yalnızca dükkan sahibi)
   fastify.put('/:id', {
     schema: {
       tags: ['Giderler'],
       summary: 'Gider kaydını güncelle (Yalnızca dükkan sahibi)'
     }
   }, async (request, reply) => {
+    if (request.user!.role !== 'owner') {
+      return reply.status(403).send({ success: false, error: 'Gider kaydını yalnızca dükkan sahibi güncelleyebilir.' });
+    }
+
     const id = Number((request.params as any).id);
     if (!Number.isInteger(id)) {
       return reply.status(400).send({ success: false, error: 'Geçersiz gider kimliği.' });
@@ -153,6 +166,10 @@ export const expenseRoutes: FastifyPluginAsync = async (fastify) => {
       summary: 'Gider kaydını sil (Yalnızca dükkan sahibi)'
     }
   }, async (request, reply) => {
+    if (request.user!.role !== 'owner') {
+      return reply.status(403).send({ success: false, error: 'Gider kaydını yalnızca dükkan sahibi silebilir.' });
+    }
+
     const id = Number((request.params as any).id);
     if (!Number.isInteger(id)) {
       return reply.status(400).send({ success: false, error: 'Geçersiz gider kimliği.' });

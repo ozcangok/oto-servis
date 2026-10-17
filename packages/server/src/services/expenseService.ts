@@ -1,4 +1,4 @@
-import { and, eq, gte, lte, isNull, desc } from 'drizzle-orm';
+import { and, eq, gte, lte, isNull, desc, notInArray } from 'drizzle-orm';
 import {
   getDb,
   expenses,
@@ -8,6 +8,7 @@ import {
   vehicles,
   customers
 } from '../db/index.js';
+import { SENSITIVE_EXPENSE_CATEGORIES, type UserRole } from '@oto-servis/shared';
 
 export type ExpensePeriod = 'today' | 'month' | 'year' | 'all';
 
@@ -112,21 +113,32 @@ export interface ExpenseOverview {
   startDate: string | null;
   endDate: string | null;
   summary: {
-    laborIncomeKurus: number;
+    /** Personel için hesaplanmaz (yalnızca owner görür). */
+    laborIncomeKurus?: number;
+    /** Personel için hesaplanmaz (yalnızca owner görür). */
+    netProfitKurus?: number;
     expenseTotalKurus: number;
-    netProfitKurus: number;
     expenseCount: number;
   };
   items: any[];
 }
 
-export function getExpenseOverview(period: ExpensePeriod): ExpenseOverview {
+/**
+ * Dönemsel gider listesi + özet.
+ * - owner: tüm kategoriler + servis geliri & net kâr
+ * - staff: yalnızca yetkili (hassas olmayan) kategoriler; gelir/kâr hesaplanmaz.
+ */
+export function getExpenseOverview(period: ExpensePeriod, role: UserRole): ExpenseOverview {
   const db = getDb();
   const bounds = getPeriodBounds(period);
 
   const conditions = [];
   if (bounds.startDateOnly) conditions.push(gte(expenses.tarih, bounds.startDateOnly));
   if (bounds.endDateOnly) conditions.push(lte(expenses.tarih, bounds.endDateOnly));
+  // Personel hassas kategorileri (Fatura & Kira, Personel) göremez.
+  if (role !== 'owner') {
+    conditions.push(notInArray(expenses.kategori, SENSITIVE_EXPENSE_CATEGORIES));
+  }
 
   const baseQuery = db
     .select({ expense: expenses, user: users })
@@ -146,18 +158,23 @@ export function getExpenseOverview(period: ExpensePeriod): ExpenseOverview {
     };
   });
 
-  const laborIncomeKurus = computeLaborIncomeKurus(bounds.startISO, bounds.endISO);
+  const summary: ExpenseOverview['summary'] = {
+    expenseTotalKurus,
+    expenseCount: items.length
+  };
+
+  // Servis geliri ve net kâr yalnızca dükkan sahibine gönderilir.
+  if (role === 'owner') {
+    const laborIncomeKurus = computeLaborIncomeKurus(bounds.startISO, bounds.endISO);
+    summary.laborIncomeKurus = laborIncomeKurus;
+    summary.netProfitKurus = laborIncomeKurus - expenseTotalKurus;
+  }
 
   return {
     period,
     startDate: bounds.startDateOnly,
     endDate: bounds.endDateOnly,
-    summary: {
-      laborIncomeKurus,
-      expenseTotalKurus,
-      netProfitKurus: laborIncomeKurus - expenseTotalKurus,
-      expenseCount: items.length
-    },
+    summary,
     items
   };
 }
