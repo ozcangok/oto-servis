@@ -303,7 +303,7 @@ export async function resetUserPassword(
   await logAudit({
     kullanici_id: adminUser.id,
     kullanici_adi: adminUser.username,
-    islem: 'settings_update',
+    islem: 'user_password_reset',
     hedef_tablo: 'users',
     hedef_id: targetUserId,
     detay: `Kullanıcı parolası sıfırlandı: ${target.username}`

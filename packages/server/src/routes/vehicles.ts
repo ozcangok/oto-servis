@@ -401,7 +401,7 @@ export const vehicleRoutes: FastifyPluginAsync = async (fastify) => {
       await logAudit({
         kullanici_id: request.user!.id,
         kullanici_adi: request.user!.username,
-        islem: 'work_order_create',
+        islem: 'vehicle_restore',
         hedef_tablo: 'vehicles',
         hedef_id: restored.id,
         yeni_deger: restored,
@@ -447,7 +447,7 @@ export const vehicleRoutes: FastifyPluginAsync = async (fastify) => {
     await logAudit({
       kullanici_id: request.user!.id,
       kullanici_adi: request.user!.username,
-      islem: 'work_order_create',
+      islem: 'vehicle_create',
       hedef_tablo: 'vehicles',
       hedef_id: newVehicle.id,
       yeni_deger: newVehicle,
@@ -562,7 +562,7 @@ export const vehicleRoutes: FastifyPluginAsync = async (fastify) => {
     await logAudit({
       kullanici_id: request.user!.id,
       kullanici_adi: request.user!.username,
-      islem: 'settings_update',
+      islem: 'vehicle_update',
       hedef_tablo: 'vehicles',
       hedef_id: id,
       eski_deger: existing,
@@ -615,7 +615,7 @@ export const vehicleRoutes: FastifyPluginAsync = async (fastify) => {
     await logAudit({
       kullanici_id: request.user!.id,
       kullanici_adi: request.user!.username,
-      islem: 'work_order_delete',
+      islem: 'vehicle_delete',
       hedef_tablo: 'vehicles',
       hedef_id: id,
       eski_deger: existing,

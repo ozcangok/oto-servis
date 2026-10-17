@@ -3,8 +3,10 @@ import { z } from 'zod';
 import { eq, and, isNull, like, or, desc, sql } from 'drizzle-orm';
 import { getDb, getSqlite, customers, vehicles, workOrders, payments, workOrderLines } from '../db/index.js';
 import { reverseWorkOrderStock } from '../services/stockService.js';
+import { getPesinRate } from '../services/responseCompat.js';
 import { logAudit } from '../services/auditService.js';
 import type { Customer } from '@oto-servis/shared';
+import { calculateWorkOrderTotals } from '@oto-servis/shared';
 
 const customerInputSchema = z.object({
   ad_soyad: z.string().min(2, 'Müşteri adı soyadı en az 2 karakter olmalıdır.'),
@@ -143,6 +145,10 @@ export const customerRoutes: FastifyPluginAsync = async (fastify) => {
     let totalPaidKurus = 0;
     const workOrderSummaries = [];
 
+    // Peşin iskonto oranı TÜM iş emirleri için aynıdır: bir kez okunur.
+    // (Önceden her iş emri için ayrı ayrı okunuyordu.)
+    const pesinIskontoYuzde = await getPesinRate();
+
     for (const v of customerVehicles) {
       const orders = db
         .select()
@@ -155,8 +161,6 @@ export const customerRoutes: FastifyPluginAsync = async (fastify) => {
         const orderPayments = db.select().from(payments).where(eq(payments.is_emri_id, o.id)).all();
         const paid = orderPayments.reduce((s, p) => s + p.tutar_kurus, 0);
 
-        const { calculateWorkOrderTotals } = await import('@oto-servis/shared');
-        const { getPesinRate } = await import('../services/responseCompat.js');
         const calc = calculateWorkOrderTotals({
           lines: lines.map((l) => ({ adet: l.adet, birim_fiyat_kuruş: l.birim_fiyat_kurus })),
           kdv_orani: o.kdv_orani,
@@ -164,7 +168,7 @@ export const customerRoutes: FastifyPluginAsync = async (fastify) => {
           iskonto_yuzde: o.iskonto_yuzde,
           iskonto_tutar_kurus: o.iskonto_tutar_kurus,
           pesin_fiyat_elle_kurus: o.pesin_fiyat_elle_kurus,
-          pesin_iskonto_yuzde: await getPesinRate(),
+          pesin_iskonto_yuzde: pesinIskontoYuzde,
           odenen_kurus: paid
         });
 
@@ -234,7 +238,7 @@ export const customerRoutes: FastifyPluginAsync = async (fastify) => {
     await logAudit({
       kullanici_id: request.user!.id,
       kullanici_adi: request.user!.username,
-      islem: 'customer_anonymize', // or general action
+      islem: 'customer_create',
       hedef_tablo: 'customers',
       hedef_id: newCustomer.id,
       yeni_deger: newCustomer,
@@ -284,7 +288,7 @@ export const customerRoutes: FastifyPluginAsync = async (fastify) => {
     await logAudit({
       kullanici_id: request.user!.id,
       kullanici_adi: request.user!.username,
-      islem: 'settings_update',
+      islem: 'customer_update',
       hedef_tablo: 'customers',
       hedef_id: id,
       eski_deger: existing,
