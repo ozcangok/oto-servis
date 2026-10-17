@@ -166,17 +166,25 @@ test.describe('12) Premium masaüstü katmanı (splash · kilit · güvenli kapa
   test('elle kilit: "Ekranı kilitle" düğmesi 3 dakika beklemeden katmanı indirir', async ({ page }) => {
     await login(page, OWNER);
 
-    // Düğme sağ üstte, "Hatırlatıcılar" zil ikonunun HEMEN YANINDADIR
+    // İKİ YERDE birden bulunur:
+    //  1) Sol panelde "Hatırlatıcılar"ın HEMEN ALTINDA, ikon + yazı ile
+    const takipGrubu = page
+      .locator('.menu-group')
+      .filter({ has: page.getByRole('tab', { name: 'Hatırlatıcılar' }) });
+    const menuBtn = page.getByTestId('lock-now-menu');
+    await expect(takipGrubu.getByTestId('lock-now-menu')).toBeVisible();
+    await expect(menuBtn).toHaveText('Ekranı kilitle');
+    await expect(menuBtn).toHaveAttribute('title', 'Ekranı kilitle (oturum güvenliğe alınır)');
+
+    //  2) Sağ üstte zilin HEMEN YANINDA, yalnızca ikon kısayol olarak
     const heroAksiyon = page.locator('.hero-actions');
     const lockBtn = page.getByTestId('lock-now');
     await expect(heroAksiyon.getByTestId('lock-now')).toBeVisible();
     await expect(heroAksiyon.getByRole('link', { name: 'Hatırlatıcılar' })).toBeVisible();
     await expect(lockBtn).toHaveAttribute('aria-label', 'Ekranı kilitle');
     await expect(lockBtn).toHaveAttribute('title', 'Ekranı kilitle');
-    // Sağ üstte İKİ ikon: hatırlatıcı (zil) + ekranı kilitle
+    // Sağ üstte İKİ ikon: hatırlatıcı (zil) + ekranı kilitle kısayolu
     await expect(heroAksiyon.locator('.icon-btn')).toHaveCount(2);
-    // Sol menüde ARTIK yok (sağ üste taşındı)
-    await expect(page.locator('.menu').getByTestId('lock-now')).toHaveCount(0);
 
     // Beklemeden kilit: oturum açıkken tıkla → buzlu cam ANINDA iner
     await lockBtn.click();
@@ -204,6 +212,22 @@ test.describe('12) Premium masaüstü katmanı (splash · kilit · güvenli kapa
       'Güvenliğiniz için oturumunuz otomatik kapatıldı'
     );
     expect(await page.evaluate(() => localStorage.getItem('auth_token'))).toBeNull();
+  });
+
+  test('elle kilit (sol panel): menüdeki "Ekranı kilitle" de 3 dakika beklemeden katmanı indirir', async ({ page }) => {
+    await login(page, OWNER);
+
+    // Sol paneldeki (Hatırlatıcılar altındaki) düğme de aynı görevi görür
+    const menuBtn = page.getByTestId('lock-now-menu');
+    await expect(menuBtn).toBeVisible();
+    await menuBtn.click();
+
+    const lock = page.getByTestId('idle-lock');
+    await expect(lock).toBeVisible();
+    await expect(page.getByTestId('idle-title')).toHaveText('İyi çalışmalar');
+    await expect(page.getByTestId('idle-sub')).toHaveText('Oturumunuz güvenliğe alındı.');
+    // Kilit indiği anda oturum hâlâ ayakta (açılınca kapanacak)
+    expect(await page.evaluate(() => localStorage.getItem('auth_token'))).not.toBeNull();
   });
 
   test('güvenli kapanış: veda ekranı, holografik metin ve 10 sn ilerleme çubuğu', async ({ page }) => {
