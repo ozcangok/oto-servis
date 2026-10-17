@@ -45,7 +45,11 @@ export default defineConfig({
         PORT: String(API_PORT),
         HOST: '127.0.0.1',
         DATA_DIR: '.e2e-data',
-        NODE_ENV: 'test'
+        NODE_ENV: 'test',
+        // E2E testleri bilinen demo hesapları (admin/kasiyer/usta) ve örnek
+        // veriyi bekler. Örnek veri artık açılışta otomatik yüklenmediği için
+        // yalnızca test yığınında açıkça etkinleştirilir.
+        OTO_SEED_SAMPLE: '1'
       }
     },
     {

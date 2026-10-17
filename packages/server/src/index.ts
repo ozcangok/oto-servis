@@ -26,11 +26,20 @@ async function main() {
   console.log(`[DATABASE] SQLite başlatılıyor: ${dbPath}`);
   initDatabase({ dbPath });
 
-  const { seedDatabase } = await import('./db/seed.js');
-  try {
-    await seedDatabase();
-  } catch (err) {
-    console.error('[SEED ERROR]', err);
+  // Örnek/demo veri artık açılışta OTOMATİK yüklenmez. Taze bir veritabanında hiç
+  // kullanıcı olmadığı için uygulama doğrudan "İlk Kurulum & Yönetici Şifresi"
+  // ekranına düşer (bkz. GET /api/auth/setup-status) ve dükkan sahibi kendi
+  // hesabını/şifresini oluşturur. Örnek veri yalnızca açıkça istenirse yüklenir:
+  //   - E2E testleri : OTO_SEED_SAMPLE=1 (playwright webServer env)
+  //   - Elle         : npm run --workspace=@oto-servis/server db:seed
+  //   - Panelden     : POST /api/admin/seed (yalnızca dükkan sahibi)
+  if (process.env.OTO_SEED_SAMPLE === '1') {
+    const { seedDatabase } = await import('./db/seed.js');
+    try {
+      await seedDatabase();
+    } catch (err) {
+      console.error('[SEED ERROR]', err);
+    }
   }
 
   // Test ortamında (E2E) hız sınırı kapatılır; canlı/geliştirme ortamında açık kalır.
