@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import {
-  Moon, Sun, LogOut, Search, Car, Users, Package, Wallet, Banknote, Receipt, Bell, Settings, Lock
+  Moon, Sun, LogOut, Search, Car, Users, Package, Wallet, Banknote, Receipt, Bell, Settings
 } from 'lucide-react';
 import { apiRequest, setAuthToken, setUnauthorizedHandler } from './services/api.js';
 import { LoginScreen } from './components/LoginScreen.js';
@@ -495,17 +495,6 @@ export function App() {
                 Hatırlatıcılar
                 {remindersCount > 0 && <span className="cnt">{remindersCount}</span>}
               </a>
-              {/* Elle güvenlik kilidi: 3 dakika beklemeden buzlu cam iner. */}
-              <button
-                className="menu-item"
-                type="button"
-                onClick={handleLockNow}
-                title="Ekranı kilitle (oturum güvenliğe alınır)"
-                data-testid="lock-now"
-              >
-                <Lock size={18} strokeWidth={1.75} aria-hidden="true" />
-                Ekranı kilitle
-              </button>
             </div>
           </nav>
 
@@ -542,6 +531,7 @@ export function App() {
             onNewWorkOrderForDate={(date) => handleNewWorkOrder(undefined, date)}
             onOpenWorkOrder={(id) => handleOpenWorkOrder(id)}
             onNavigateToParts={() => setActiveTab('parca')}
+            onLockScreen={handleLockNow}
           />
         )}
 

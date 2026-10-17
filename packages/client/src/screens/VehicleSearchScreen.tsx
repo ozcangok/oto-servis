@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import { Bell, Plus, Search, ChevronLeft, ChevronRight, CalendarDays, Wrench, TrendingUp, Coins, Wallet, Package } from 'lucide-react';
+import { Bell, Plus, Search, ChevronLeft, ChevronRight, CalendarDays, Wrench, TrendingUp, Coins, Wallet, Package, Lock } from 'lucide-react';
 import { apiRequest } from '../services/api.js';
 import { Spinner } from '../components/Spinner.js';
 import { PlateInput, PlateBadge } from '../components/PlateInput.js';
@@ -34,6 +34,8 @@ interface VehicleSearchScreenProps {
   onOpenWorkOrder: (orderId: number) => void;
   onNavigateToParts?: () => void;
   initialPlate?: string;
+  /** Sağ üstteki kilit ikonu: ekranı ANINDA güvenliğe alır (3 dk beklenmez). */
+  onLockScreen?: () => void;
 }
 
 /** İş emri durumunu rozet tonuna çevirir (başarılı / uyarı / tehlike / nötr). */
@@ -62,7 +64,8 @@ export const VehicleSearchScreen: React.FC<VehicleSearchScreenProps> = ({
   onNewWorkOrderForDate,
   onOpenWorkOrder,
   onNavigateToParts,
-  initialPlate = ''
+  initialPlate = '',
+  onLockScreen
 }) => {
   const [searchTerm, setSearchTerm] = useState(initialPlate);
   const [loading, setLoading] = useState(false);
@@ -580,6 +583,18 @@ export const VehicleSearchScreen: React.FC<VehicleSearchScreenProps> = ({
             <Bell size={18} strokeWidth={1.75} aria-hidden="true" />
             {remindersDue > 0 && <span className="dot-badge" aria-hidden="true" />}
           </a>
+          {/* Ekranı kilitle: sağ üstteki ikinci görev. 3 dakika beklenmeden
+              buzlu cam katmanını ANINDA indirir (hareketsizlik kilidiyle aynı). */}
+          <button
+            className="icon-btn bare"
+            type="button"
+            onClick={onLockScreen}
+            aria-label="Ekranı kilitle"
+            title="Ekranı kilitle"
+            data-testid="lock-now"
+          >
+            <Lock size={18} strokeWidth={1.75} aria-hidden="true" />
+          </button>
           <button className="btn btn-primary" type="button" onClick={() => onNewWorkOrder()}>
             <Plus size={18} strokeWidth={1.75} aria-hidden="true" />
             Yeni iş emri

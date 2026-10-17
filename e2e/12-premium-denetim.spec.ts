@@ -166,13 +166,17 @@ test.describe('12) Premium masaüstü katmanı (splash · kilit · güvenli kapa
   test('elle kilit: "Ekranı kilitle" düğmesi 3 dakika beklemeden katmanı indirir', async ({ page }) => {
     await login(page, OWNER);
 
-    // Düğme, menüde "Hatırlatıcılar" öğesinin bulunduğu Takip grubundadır
-    const takipGrubu = page
-      .locator('.menu-group')
-      .filter({ has: page.getByRole('tab', { name: 'Hatırlatıcılar' }) });
+    // Düğme sağ üstte, "Hatırlatıcılar" zil ikonunun HEMEN YANINDADIR
+    const heroAksiyon = page.locator('.hero-actions');
     const lockBtn = page.getByTestId('lock-now');
-    await expect(takipGrubu.getByTestId('lock-now')).toBeVisible();
-    await expect(lockBtn).toHaveText('Ekranı kilitle');
+    await expect(heroAksiyon.getByTestId('lock-now')).toBeVisible();
+    await expect(heroAksiyon.getByRole('link', { name: 'Hatırlatıcılar' })).toBeVisible();
+    await expect(lockBtn).toHaveAttribute('aria-label', 'Ekranı kilitle');
+    await expect(lockBtn).toHaveAttribute('title', 'Ekranı kilitle');
+    // Sağ üstte İKİ ikon: hatırlatıcı (zil) + ekranı kilitle
+    await expect(heroAksiyon.locator('.icon-btn')).toHaveCount(2);
+    // Sol menüde ARTIK yok (sağ üste taşındı)
+    await expect(page.locator('.menu').getByTestId('lock-now')).toHaveCount(0);
 
     // Beklemeden kilit: oturum açıkken tıkla → buzlu cam ANINDA iner
     await lockBtn.click();
