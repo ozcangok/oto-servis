@@ -1,5 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Moon, Sun, LogOut } from 'lucide-react';
+import {
+  Moon, Sun, LogOut, Search, Car, Users, Package, Wallet, Banknote, Receipt, Bell, Settings
+} from 'lucide-react';
 import { apiRequest, setAuthToken, setUnauthorizedHandler } from './services/api.js';
 import { LoginScreen } from './components/LoginScreen.js';
 import { clearOfflineQueue } from './services/offlineQueue.js';
@@ -217,15 +219,6 @@ export function App() {
     } catch {}
   };
 
-  /** Sekme değiştirir ve adres çubuğunu günceller (geri tuşu uyumlu). */
-  const navigate = (tab: TabKey) => {
-    setActiveTab(tab);
-    const h = '#/' + TAB_TO_HASH[tab];
-    if (window.location.hash !== h) {
-      window.history.pushState(null, '', h);
-    }
-  };
-
   // Rota → sekme eşlemesi + ROL KORUMASI. Personel (staff) `/kasa` veya
   // `/ayarlar` adreslerine doğrudan girse bile sayfa render edilmez; ana sayfaya
   // yönlendirilir. Sekme değişikliğinde bu etki tetiklenmez (yalnızca oturum/rol
@@ -318,121 +311,138 @@ export function App() {
 
   return (
     <React.Fragment key={sessionNonce}>
-      {/* Sticky Top Bar */}
-      <header className="topbar">
-        <div className="topbar-in">
-          <h1 className="brand" id="brand" lang="tr">
-            {shopName}
-          </h1>
+      {/* Uygulama kabuğu: sol menü + içerik.
+          Not: "topbar" sınıfı yalnızca E2E oturum-kabuğu işaretleyicisi olarak korunur. */}
+      <div className="app-shell topbar">
+        <aside className="sidebar">
+          <div className="sidebar-brand">
+            <div className="brand-logo" aria-hidden="true">Ç</div>
+            <div className="brand-text">
+              <div className="brand-name" id="brand" lang="tr">{shopName}</div>
+              <div className="brand-sub">Servis yönetimi</div>
+            </div>
+          </div>
 
-          <div className="top-actions">
-            <button
-              className="btn btn-primary"
-              type="button"
-              onClick={() => handleNewWorkOrder()}
-            >
-              Yeni iş emri
-            </button>
-            <button
-              className="btn btn-ghost"
-              type="button"
-              onClick={() => setShowSettings(true)}
-            >
+          <nav className="menu" role="tablist" aria-label="Bölümler">
+            <div className="menu-group">
+              <div className="menu-label">Operasyon</div>
+              <a
+                className="menu-item"
+                href="#/sorgu"
+                role="tab"
+                aria-selected={activeTab === 'sorgu'}
+                aria-current={activeTab === 'sorgu' ? 'page' : undefined}
+              >
+                <Search size={18} strokeWidth={1.75} aria-hidden="true" />
+                Araç sorgu
+              </a>
+              <a
+                className="menu-item"
+                href="#/araclar"
+                role="tab"
+                aria-selected={activeTab === 'arac'}
+                aria-current={activeTab === 'arac' ? 'page' : undefined}
+              >
+                <Car size={18} strokeWidth={1.75} aria-hidden="true" />
+                Araçlar
+              </a>
+              <a
+                className="menu-item"
+                href="#/musteriler"
+                role="tab"
+                aria-selected={activeTab === 'musteri'}
+                aria-current={activeTab === 'musteri' ? 'page' : undefined}
+              >
+                <Users size={18} strokeWidth={1.75} aria-hidden="true" />
+                Müşteriler
+              </a>
+              <a
+                className="menu-item"
+                href="#/parcalar"
+                role="tab"
+                aria-selected={activeTab === 'parca'}
+                aria-current={activeTab === 'parca' ? 'page' : undefined}
+              >
+                <Package size={18} strokeWidth={1.75} aria-hidden="true" />
+                Parça arşivi
+              </a>
+            </div>
+
+            <div className="menu-group">
+              <div className="menu-label">Finans</div>
+              <a
+                className="menu-item"
+                href="#/cari"
+                role="tab"
+                aria-selected={activeTab === 'cari'}
+                aria-current={activeTab === 'cari' ? 'page' : undefined}
+              >
+                <Wallet size={18} strokeWidth={1.75} aria-hidden="true" />
+                Cari hesap
+              </a>
+              {isOwner && (
+                <a
+                  className="menu-item"
+                  href="#/kasa"
+                  role="tab"
+                  aria-selected={activeTab === 'kasa'}
+                  aria-current={activeTab === 'kasa' ? 'page' : undefined}
+                >
+                  <Banknote size={18} strokeWidth={1.75} aria-hidden="true" />
+                  Kasa
+                </a>
+              )}
+              <a
+                className="menu-item"
+                href="#/giderler"
+                role="tab"
+                aria-selected={activeTab === 'gider'}
+                aria-current={activeTab === 'gider' ? 'page' : undefined}
+              >
+                <Receipt size={18} strokeWidth={1.75} aria-hidden="true" />
+                Giderler
+              </a>
+            </div>
+
+            <div className="menu-group">
+              <div className="menu-label">Takip</div>
+              <a
+                className="menu-item"
+                href="#/hatirlaticilar"
+                role="tab"
+                aria-selected={activeTab === 'hatir'}
+                aria-current={activeTab === 'hatir' ? 'page' : undefined}
+              >
+                <Bell size={18} strokeWidth={1.75} aria-hidden="true" />
+                Hatırlatıcılar
+                {remindersCount > 0 && <span className="cnt">{remindersCount}</span>}
+              </a>
+            </div>
+          </nav>
+
+          <div className="menu-foot">
+            <button className="menu-item" type="button" onClick={() => setShowSettings(true)}>
+              <Settings size={18} strokeWidth={1.75} aria-hidden="true" />
               Ayarlar
             </button>
             <button
-              className="icon-btn"
+              className="menu-item"
               type="button"
               onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')}
               title="Açık / Koyu Tema"
               aria-label="Açık / Koyu tema"
             >
-              {theme === 'dark' ? <Sun size={18} strokeWidth={1.75} /> : <Moon size={18} strokeWidth={1.75} />}
+              {theme === 'dark'
+                ? <Sun size={18} strokeWidth={1.75} aria-hidden="true" />
+                : <Moon size={18} strokeWidth={1.75} aria-hidden="true" />}
+              {theme === 'dark' ? 'Açık tema' : 'Koyu tema'}
             </button>
-            {currentUser && (
-              <button
-                className="icon-btn"
-                type="button"
-                onClick={handleLogout}
-                title="Çıkış Yap"
-                aria-label="Çıkış yap"
-              >
-                <LogOut size={18} strokeWidth={1.75} />
-              </button>
-            )}
+            <button className="menu-item" type="button" onClick={handleLogout} title="Çıkış Yap">
+              <LogOut size={18} strokeWidth={1.75} aria-hidden="true" />
+              Çıkış
+            </button>
           </div>
-
-          <nav className="tabs" role="tablist" aria-label="Bölümler">
-            <button
-              className="tab"
-              role="tab"
-              aria-selected={activeTab === 'sorgu'}
-              onClick={() => navigate('sorgu')}
-            >
-              Araç sorgu
-            </button>
-            <button
-              className="tab"
-              role="tab"
-              aria-selected={activeTab === 'arac'}
-              onClick={() => navigate('arac')}
-            >
-              Araçlar
-            </button>
-            <button
-              className="tab"
-              role="tab"
-              aria-selected={activeTab === 'musteri'}
-              onClick={() => navigate('musteri')}
-            >
-              Müşteriler
-            </button>
-            <button
-              className="tab"
-              role="tab"
-              aria-selected={activeTab === 'parca'}
-              onClick={() => navigate('parca')}
-            >
-              Parça arşivi
-            </button>
-            <button
-              className="tab"
-              role="tab"
-              aria-selected={activeTab === 'cari'}
-              onClick={() => navigate('cari')}
-            >
-              Cari hesap
-            </button>
-            {isOwner && (
-              <button
-                className="tab"
-                role="tab"
-                aria-selected={activeTab === 'kasa'}
-                onClick={() => navigate('kasa')}
-              >
-                Kasa
-              </button>
-            )}
-            <button
-              className="tab"
-              role="tab"
-              aria-selected={activeTab === 'gider'}
-              onClick={() => navigate('gider')}
-            >
-              Giderler
-            </button>
-            <button
-              className="tab"
-              role="tab"
-              aria-selected={activeTab === 'hatir'}
-              onClick={() => navigate('hatir')}
-            >
-              Hatırlatıcılar
-              {remindersCount > 0 && <span className="cnt">{remindersCount}</span>}
-            </button>
-          </nav>
-        </div>
-      </header>
+        </aside>
 
       {/* Main Wrap Container */}
       <main className="wrap">
@@ -469,6 +479,7 @@ export function App() {
 
         {activeTab === 'hatir' && <RemindersScreen />}
       </main>
+      </div>
 
       {/* Full Sheet Work Order Modal */}
       {workOrderModalOpen && (
