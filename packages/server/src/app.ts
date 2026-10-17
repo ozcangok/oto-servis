@@ -163,6 +163,9 @@ export async function buildApp(options: AppOptions = {}): Promise<FastifyInstanc
   const { cashDeskRoutes } = await import('./routes/cashDesk.js');
   await app.register(cashDeskRoutes, { prefix: '/api/cash-desk' });
 
+  const { expenseRoutes } = await import('./routes/expenses.js');
+  await app.register(expenseRoutes, { prefix: '/api/expenses' });
+
   const { reminderRoutes } = await import('./routes/reminders.js');
   await app.register(reminderRoutes, { prefix: '/api/reminders' });
 

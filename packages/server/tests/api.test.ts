@@ -1014,4 +1014,178 @@ describe('Phase 2: Vehicles, Customers, Parts, Work Orders, Stock & Plate Search
     expect(after.totalCollectedKurus).toBe(0);
     expect(after.grandTotalLaborKurus).toBe(0);
   });
+
+  it('giderler modulu yalnizca sahibe acik ve CRUD calisir', async () => {
+    // Personel giderleri göremez / ekleyemez
+    const staffGet = await app.inject({
+      method: 'GET',
+      url: '/api/expenses?period=month',
+      headers: { authorization: `Bearer ${staffToken}` }
+    });
+    expect(staffGet.statusCode).toBe(403);
+
+    const staffPost = await app.inject({
+      method: 'POST',
+      url: '/api/expenses',
+      headers: { authorization: `Bearer ${staffToken}` },
+      payload: { tarih: '2026-01-05', kategori: 'Sarf Malzeme', aciklama: 'Eldiven', tutar_kurus: 7000 }
+    });
+    expect(staffPost.statusCode).toBe(403);
+
+    // Sahip gider ekler
+    const ownerPost = await app.inject({
+      method: 'POST',
+      url: '/api/expenses',
+      headers: { authorization: `Bearer ${adminToken}` },
+      payload: { tarih: '2026-01-05', kategori: 'Sarf Malzeme', aciklama: 'Atölye eldiveni', tutar_kurus: 7000 }
+    });
+    expect(ownerPost.statusCode).toBe(200);
+    const created = JSON.parse(ownerPost.body).expense;
+    expect(created.id).toBeDefined();
+    expect(created.kategori).toBe('Sarf Malzeme');
+    expect(created.tutar_kurus).toBe(7000);
+
+    // Geçersiz kategori / tutar reddedilir
+    const badCat = await app.inject({
+      method: 'POST',
+      url: '/api/expenses',
+      headers: { authorization: `Bearer ${adminToken}` },
+      payload: { tarih: '2026-01-05', kategori: 'Uydurma Kategori', aciklama: 'X', tutar_kurus: 100 }
+    });
+    expect(badCat.statusCode).toBe(400);
+
+    const badAmount = await app.inject({
+      method: 'POST',
+      url: '/api/expenses',
+      headers: { authorization: `Bearer ${adminToken}` },
+      payload: { tarih: '2026-01-05', kategori: 'Diğer', aciklama: 'Negatif tutar', tutar_kurus: -5 }
+    });
+    expect(badAmount.statusCode).toBe(400);
+
+    // Liste ve toplam (tüm zamanlar)
+    const list = await app.inject({
+      method: 'GET',
+      url: '/api/expenses?period=all',
+      headers: { authorization: `Bearer ${adminToken}` }
+    });
+    expect(list.statusCode).toBe(200);
+    const listBody = JSON.parse(list.body);
+    expect(listBody.summary.expenseTotalKurus).toBe(7000);
+    expect(listBody.summary.expenseCount).toBe(1);
+    expect(listBody.items[0].kullanici.full_name).toBe('Ahmet Yönetici');
+
+    // Güncelle
+    const put = await app.inject({
+      method: 'PUT',
+      url: `/api/expenses/${created.id}`,
+      headers: { authorization: `Bearer ${adminToken}` },
+      payload: { tarih: '2026-01-06', kategori: 'Diğer', aciklama: 'Güncellendi', tutar_kurus: 12500 }
+    });
+    expect(put.statusCode).toBe(200);
+    expect(JSON.parse(put.body).expense.tutar_kurus).toBe(12500);
+
+    // Sil
+    const del = await app.inject({
+      method: 'DELETE',
+      url: `/api/expenses/${created.id}`,
+      headers: { authorization: `Bearer ${adminToken}` }
+    });
+    expect(del.statusCode).toBe(200);
+
+    const after = JSON.parse(
+      (
+        await app.inject({
+          method: 'GET',
+          url: '/api/expenses?period=all',
+          headers: { authorization: `Bearer ${adminToken}` }
+        })
+      ).body
+    );
+    expect(after.summary.expenseTotalKurus).toBe(0);
+    expect(after.items.length).toBe(0);
+  });
+
+  it('gider ozeti iscilik gelirini kullanir ve kasa toplamlarini degistirmez', async () => {
+    // İşçilikli iş emri (500,00 TL işçilik)
+    const resCust = await app.inject({
+      method: 'POST',
+      url: '/api/customers',
+      headers: { authorization: `Bearer ${adminToken}` },
+      payload: { ad_soyad: 'Gider Test', telefon: '05559998877' }
+    });
+    const custId = JSON.parse(resCust.body).customer.id;
+
+    const resVeh = await app.inject({
+      method: 'POST',
+      url: '/api/vehicles',
+      headers: { authorization: `Bearer ${adminToken}` },
+      payload: { musteri_id: custId, plaka: '34 GDR 01', marka: 'Fiat', model: 'Egea' }
+    });
+    const vehId = JSON.parse(resVeh.body).vehicle.id;
+
+    await app.inject({
+      method: 'POST',
+      url: '/api/work-orders',
+      headers: { authorization: `Bearer ${adminToken}` },
+      payload: {
+        arac_id: vehId,
+        km: 1000,
+        sikayet: 'İşçilik testi',
+        kdv_orani: 20,
+        kdv_dahil_mi: false,
+        kalemler: [{ tur: 'iscilik', ad: 'İşçilik', adet: 1, birim: 'Saat', birim_fiyat_kurus: 50000 }]
+      }
+    });
+
+    // Kasa (rapor) — gider eklemeden önce
+    const cashBefore = JSON.parse(
+      (
+        await app.inject({
+          method: 'GET',
+          url: '/api/cash-desk/summary',
+          headers: { authorization: `Bearer ${adminToken}` }
+        })
+      ).body
+    ).summary;
+
+    // Gider ekle
+    await app.inject({
+      method: 'POST',
+      url: '/api/expenses',
+      headers: { authorization: `Bearer ${adminToken}` },
+      payload: {
+        tarih: new Date().toISOString().slice(0, 10),
+        kategori: 'Personel',
+        aciklama: 'Personel avansı',
+        tutar_kurus: 20000
+      }
+    });
+
+    const overview = JSON.parse(
+      (
+        await app.inject({
+          method: 'GET',
+          url: '/api/expenses?period=all',
+          headers: { authorization: `Bearer ${adminToken}` }
+        })
+      ).body
+    );
+    expect(overview.summary.laborIncomeKurus).toBe(50000);
+    expect(overview.summary.expenseTotalKurus).toBe(20000);
+    expect(overview.summary.netProfitKurus).toBe(30000);
+
+    // Kasa toplamları giderden etkilenmemeli (kasa sabit kalır)
+    const cashAfter = JSON.parse(
+      (
+        await app.inject({
+          method: 'GET',
+          url: '/api/cash-desk/summary',
+          headers: { authorization: `Bearer ${adminToken}` }
+        })
+      ).body
+    ).summary;
+    expect(cashAfter.grandTotalLaborKurus).toBe(50000);
+    expect(cashAfter.grandTotalLaborKurus).toBe(cashBefore.grandTotalLaborKurus);
+    expect(cashAfter.totalCollectedKurus).toBe(cashBefore.totalCollectedKurus);
+  });
 });

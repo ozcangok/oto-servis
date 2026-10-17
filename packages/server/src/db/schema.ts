@@ -226,6 +226,24 @@ export const settings = sqliteTable('settings', {
 });
 
 /**
+ * Expenses (Dükkan Giderleri)
+ * Kasa/ciro hesaplarına dokunmaz; yalnızca gider takibi ve net kâr içindir.
+ */
+export const expenses = sqliteTable('expenses', {
+  id: integer('id').primaryKey({ autoIncrement: true }),
+  tarih: text('tarih').notNull(), // YYYY-MM-DD (yerel tarih)
+  kategori: text('kategori').notNull(),
+  aciklama: text('aciklama').notNull(),
+  tutar_kurus: integer('tutar_kurus').notNull(),
+  kullanici_id: integer('kullanici_id').references(() => users.id),
+  created_at: text('created_at').notNull(),
+  updated_at: text('updated_at').notNull()
+}, (table) => ({
+  tarihIdx: index('idx_expenses_tarih').on(table.tarih),
+  kategoriIdx: index('idx_expenses_kategori').on(table.kategori)
+}));
+
+/**
  * Audit log (Denetim İzi)
  */
 export const auditLog = sqliteTable('audit_log', {

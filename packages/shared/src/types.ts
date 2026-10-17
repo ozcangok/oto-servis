@@ -57,7 +57,10 @@ export type AuditAction =
   | 'user_login'
   | 'user_create'
   | 'user_delete'
-  | 'settings_update';
+  | 'settings_update'
+  | 'expense_create'
+  | 'expense_update'
+  | 'expense_delete';
 
 export interface User {
   id: number;
@@ -162,6 +165,31 @@ export interface Payment {
   // Joins
   kullanici?: { id: number; full_name: string };
   is_emri?: { id: number; arac?: { plaka_gorunen: string }; musteri?: { ad_soyad: string } };
+}
+
+export const EXPENSE_CATEGORIES = [
+  'Sarf Malzeme',
+  'Mutfak & Temizlik',
+  'Personel',
+  'Fatura & Kira',
+  'Ekipman Bakım',
+  'Ofis & Kırtasiye',
+  'Diğer'
+] as const;
+
+export type ExpenseCategory = (typeof EXPENSE_CATEGORIES)[number];
+
+export interface Expense {
+  id: number;
+  tarih: string; // YYYY-MM-DD (yerel tarih)
+  kategori: ExpenseCategory;
+  aciklama: string;
+  tutar_kurus: number;
+  kullanici_id?: number | null;
+  created_at: string;
+  updated_at: string;
+  // Joins
+  kullanici?: { id: number; full_name: string } | null;
 }
 
 export interface Part {

@@ -248,6 +248,19 @@ export function bootstrapSchema(sqlite: Database.Database) {
       updated_at TEXT NOT NULL
     );
 
+    CREATE TABLE IF NOT EXISTS expenses (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      tarih TEXT NOT NULL,
+      kategori TEXT NOT NULL,
+      aciklama TEXT NOT NULL,
+      tutar_kurus INTEGER NOT NULL,
+      kullanici_id INTEGER REFERENCES users(id),
+      created_at TEXT NOT NULL,
+      updated_at TEXT NOT NULL
+    );
+    CREATE INDEX IF NOT EXISTS idx_expenses_tarih ON expenses(tarih);
+    CREATE INDEX IF NOT EXISTS idx_expenses_kategori ON expenses(kategori);
+
     CREATE TABLE IF NOT EXISTS audit_log (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
       kullanici_id INTEGER,

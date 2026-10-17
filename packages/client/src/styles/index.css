@@ -217,6 +217,11 @@ button.li:hover{background:var(--surface-2)}
 .kasa-sum .stat{border-left:1px solid var(--line)}
 .kasa-sum .stat:first-child{border-left:0}
 .kasa-total b{color:var(--accent)}
+
+/* Giderler özeti (3'lü gelir / gider / net kâr) */
+.gsum{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));background:var(--card);border:1px solid var(--line);border-radius:10px;margin-bottom:16px;overflow:hidden}
+.gsum .stat{border-left:1px solid var(--line)}
+.gsum .stat:first-child{border-left:0}
 .rem{display:grid;gap:10px;padding:14px 16px;border-top:1px solid var(--line)}
 .list>.rem:first-child{border-top:0}
 .rem-top{display:flex;flex-wrap:wrap;align-items:center;gap:6px 12px}
@@ -288,4 +293,9 @@ button.li:hover{background:var(--surface-2)}
   .plate-input input{font-size:1.6rem}
   .order-foot{flex-direction:column}
   .totals{margin-left:0;width:100%}
+}
+@media (max-width:760px){
+  .gsum{grid-template-columns:minmax(0,1fr)}
+  .gsum .stat{border-left:0;border-top:1px solid var(--line)}
+  .gsum .stat:first-child{border-top:0}
 }

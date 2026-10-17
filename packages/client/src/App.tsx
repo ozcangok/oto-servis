@@ -8,13 +8,14 @@ import { WorkOrderScreen } from './screens/WorkOrderScreen.js';
 import { PartsScreen } from './screens/PartsScreen.js';
 import { CustomerAccountsScreen } from './screens/CustomerAccountsScreen.js';
 import { CashDeskScreen } from './screens/CashDeskScreen.js';
+import { ExpensesScreen } from './screens/ExpensesScreen.js';
 import { RemindersScreen } from './screens/RemindersScreen.js';
 import { SettingsScreen } from './screens/SettingsScreen.js';
 
 export function App() {
   const [currentUser, setCurrentUser] = useState<any | null>(null);
   const [authChecked, setAuthChecked] = useState(false);
-  const [activeTab, setActiveTab] = useState<'sorgu' | 'arac' | 'musteri' | 'parca' | 'cari' | 'kasa' | 'hatir'>('sorgu');
+  const [activeTab, setActiveTab] = useState<'sorgu' | 'arac' | 'musteri' | 'parca' | 'cari' | 'kasa' | 'gider' | 'hatir'>('sorgu');
 
   // Work order sheet modal state
   const [workOrderModalOpen, setWorkOrderModalOpen] = useState(false);
@@ -108,12 +109,12 @@ export function App() {
     setCurrentUser(null);
   };
 
-  // Kasa yalnızca dükkan sahibine (owner) açıktır. Personel (staff) için
-  // sekme gizlenir ve aktif sekme kasa ise başka bölüme alınır.
+  // Kasa ve Giderler yalnızca dükkan sahibine (owner) açıktır. Personel (staff)
+  // için bu sekmeler gizlenir; aktif sekme bunlardan biriyse başka bölüme alınır.
   const isOwner = currentUser?.role === 'owner';
 
   useEffect(() => {
-    if (currentUser && !isOwner && activeTab === 'kasa') {
+    if (currentUser && !isOwner && (activeTab === 'kasa' || activeTab === 'gider')) {
       setActiveTab('sorgu');
     }
   }, [currentUser, isOwner, activeTab]);
@@ -259,6 +260,16 @@ export function App() {
                 Kasa
               </button>
             )}
+            {isOwner && (
+              <button
+                className="tab"
+                role="tab"
+                aria-selected={activeTab === 'gider'}
+                onClick={() => setActiveTab('gider')}
+              >
+                Giderler
+              </button>
+            )}
             <button
               className="tab"
               role="tab"
@@ -302,6 +313,8 @@ export function App() {
         )}
 
         {isOwner && activeTab === 'kasa' && <CashDeskScreen />}
+
+        {isOwner && activeTab === 'gider' && <ExpensesScreen />}
 
         {activeTab === 'hatir' && <RemindersScreen />}
       </main>
