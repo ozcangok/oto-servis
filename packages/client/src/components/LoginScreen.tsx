@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { AuthModal } from './AuthModal.js';
+import { APP_BRAND_NAME, splashGreeting } from '@oto-servis/shared';
 
 interface LoginScreenProps {
   onSuccess: (user: any) => void;
@@ -17,12 +18,16 @@ const NOTICE_MS = 4000;
  * İzole giriş ekranı.
  *
  * GÜVENLİK NOTU:
- * - Arka planı tamamen opak (düz renk `var(--bg)`) → arkadaki hiçbir sayfa/rakam görünmez.
- * - Çıkış (logout) yapıldığında App bileşeni uygulama kabuğunu hiç render etmez,
- *   böylece Kasa/Gider/Müşteri verileri DOM'da fiziksel olarak bulunmaz.
+ * - Arka planı tamamen opak → arkadaki hiçbir sayfa/rakam görünmez.
+ *   (Holografik zemin dekoratiftir ve yalnızca sistem saatinden üretilen
+ *   karşılama metnini gösterir; App bileşeni çıkışta uygulama kabuğunu hiç
+ *   render etmez, böylece Kasa/Gider/Müşteri verisi DOM'da fiziksel olarak
+ *   bulunmaz.)
  */
 export const LoginScreen: React.FC<LoginScreenProps> = ({ onSuccess, notice }) => {
   const [visibleNotice, setVisibleNotice] = useState<string | null>(notice ?? null);
+  // Holografik karşılama metni: yalnızca sistem saatine bağlı, veri içermez.
+  const [greeting] = useState<string>(() => splashGreeting(new Date(), APP_BRAND_NAME));
 
   useEffect(() => {
     if (!notice) {
@@ -36,6 +41,16 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ onSuccess, notice }) =
 
   return (
     <div className="login-iso" data-testid="login-screen">
+      {/* Holografik zemin: açılış (splash) ekranıyla birebir aynı görünüm.
+          Yalnızca dekorasyon; giriş kartının arkasında kalır ve tıklamayı
+          engellemez (pointer-events:none). */}
+      <div className="login-holo" aria-hidden="true">
+        <div className="login-holo-brand">{APP_BRAND_NAME}</div>
+        <div className="holo holo-lg">
+          <span className="holo-glow">{greeting}</span>
+          <h1 className="holo-text">{greeting}</h1>
+        </div>
+      </div>
       <div className="login-iso-inner">
         <AuthModal onSuccess={onSuccess} />
       </div>

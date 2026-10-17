@@ -520,8 +520,13 @@ button.li:hover{background:var(--surface-subtle)}
 .overlay{position:fixed;inset:0;z-index:50;background:rgba(8,12,18,.55);display:flex;justify-content:center;align-items:flex-start;overflow-y:auto;padding:max(12px,env(safe-area-inset-top,0px)) 12px max(12px,env(safe-area-inset-bottom,0px))}
 .overlay[hidden]{display:none}
 
-/* İzole giriş ekranı (logout sonrası) — tam opak düz renk */
-.login-iso{position:fixed;inset:0;z-index:200;background:var(--bg);display:flex;align-items:center;justify-content:center;padding:max(24px,env(safe-area-inset-top,0px)) 12px max(24px,env(safe-area-inset-bottom,0px));overflow-y:auto}
+/* İzole giriş ekranı (logout sonrası) — açılış ekranıyla aynı koyu holografik zemin.
+   .login-iso'nin kendisi OPAK kalır (güvenlik testi: computed background alpha = 1);
+   holografik görsel, onun içinde absolute konumlu dekoratif bir katmandır. */
+.login-iso{position:fixed;inset:0;z-index:200;background:#060a11;display:flex;align-items:center;justify-content:center;padding:max(24px,env(safe-area-inset-top,0px)) 12px max(24px,env(safe-area-inset-bottom,0px));overflow-y:auto}
+/* Giriş ekranının arkasındaki holografik karşılama (splash ile aynı) */
+.login-holo{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:flex-start;gap:22px;text-align:center;padding:14vh 32px 32px;pointer-events:none;user-select:none;background:radial-gradient(1200px 620px at 50% 18%,#1b2432 0%,#0b1220 55%,#060a11 100%)}
+.login-holo-brand{font-family:var(--f-cond);text-transform:uppercase;letter-spacing:.34em;font-size:12px;font-weight:600;color:#94a3b8}
 .login-iso-inner{width:100%;max-width:460px;display:flex;flex-direction:column;align-items:stretch}
 .login-iso .overlay{position:static;inset:auto;z-index:auto;background:transparent;padding:0;overflow:visible;align-items:center;width:100%}
 .sheet{background:var(--surface);color:var(--text-body);border:1px solid var(--border-card);border-radius:var(--radius-card);width:100%;max-width:560px;margin:auto 0;display:flex;flex-direction:column;min-width:0;box-shadow:0 12px 36px rgba(0,0,0,0.25)}
