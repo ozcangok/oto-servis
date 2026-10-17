@@ -12,12 +12,23 @@ const partInputSchema = z.object({
   barkod: z.string().optional().nullable(),
   uyumlu_arac: z.string().optional().nullable(),
   muadil: z.string().optional().nullable(),
-  birim: z.string().default('Adet'),
-  kritik_stok: z.number().int().min(0).default(3),
-  alis_kurus: z.number().int().min(0).default(0),
-  satis_kurus: z.number().int().min(0).default(0),
+  // Fiyatlar ve diğer teknik alanlar İSTEĞE BAĞLI: yalnızca stok güncellenirken
+  // boş bırakılabilir. Gönderilmezse mevcut değer korunur (güncelleme) veya
+  // varsayılana düşülür (oluşturma).
+  birim: z.string().optional(),
+  kritik_stok: z.number().min(0).optional(),
+  alis_kurus: z.number().int().min(0).optional(),
+  satis_kurus: z.number().int().min(0).optional(),
   raf: z.string().optional().nullable(),
-  aktif: z.boolean().default(true)
+  aktif: z.boolean().optional(),
+  // "Stok adedi": stok, hareketlerden türetilir; bu alan verilirse uygun bir
+  // stok hareketi (giriş/düzeltme) otomatik oluşturulur.
+  stok_miktari: z.number().min(0).optional()
+});
+
+const stockInSchema = z.object({
+  miktar: z.number().positive("Gelen miktar 0'dan büyük olmalıdır."),
+  yeni_alis_fiyati_kurus: z.number().int().min(0).optional()
 });
 
 const stockMovementInputSchema = z.object({
@@ -250,16 +261,25 @@ export const partRoutes: FastifyPluginAsync = async (fastify) => {
       barkod: parse.data.barkod?.trim() || null,
       uyumlu_arac: parse.data.uyumlu_arac?.trim() || null,
       muadil: parse.data.muadil?.trim() || null,
-      birim: parse.data.birim,
-      kritik_stok: parse.data.kritik_stok,
-      alis_kurus: parse.data.alis_kurus,
-      satis_kurus: parse.data.satis_kurus,
+      birim: parse.data.birim || 'Adet',
+      kritik_stok: parse.data.kritik_stok ?? 3,
+      alis_kurus: parse.data.alis_kurus ?? 0,
+      satis_kurus: parse.data.satis_kurus ?? 0,
       raf: parse.data.raf?.trim() || null,
-      aktif: parse.data.aktif,
+      aktif: parse.data.aktif ?? true,
       is_sample: false,
       created_at: now,
       updated_at: now
     }).returning().get();
+
+    // Başlangıç stok adedi verilmişse, stok hareketiyle (giriş) oluştur.
+    if (parse.data.stok_miktari && parse.data.stok_miktari > 0) {
+      adjustStock(newPart.id, parse.data.stok_miktari, 'giris', request.user!.id, {
+        notlar: 'Parça oluşturulurken girilen başlangıç stoğu',
+        overrideNegativeStock: true,
+        ipAddress: request.ip
+      });
+    }
 
     await logAudit({
       kullanici_id: request.user!.id,
@@ -271,7 +291,7 @@ export const partRoutes: FastifyPluginAsync = async (fastify) => {
       detay: `Yeni parça eklendi: ${newPart.ad} (${newPart.kod})`
     });
 
-    return { success: true, part: newPart };
+    return { success: true, part: { ...newPart, stok_miktari: getPartStock(newPart.id) } };
   });
 
   // Update part
@@ -323,14 +343,29 @@ export const partRoutes: FastifyPluginAsync = async (fastify) => {
       barkod: parse.data.barkod?.trim() || null,
       uyumlu_arac: parse.data.uyumlu_arac?.trim() || null,
       muadil: parse.data.muadil?.trim() || null,
-      birim: parse.data.birim,
-      kritik_stok: parse.data.kritik_stok,
-      alis_kurus: parse.data.alis_kurus,
-      satis_kurus: parse.data.satis_kurus,
+      // Gönderilmeyen alanlar mevcut değerini KORUR (kısmi güncelleme güvenli).
+      birim: parse.data.birim || existing.birim,
+      kritik_stok: parse.data.kritik_stok ?? existing.kritik_stok,
+      alis_kurus: parse.data.alis_kurus ?? existing.alis_kurus,
+      satis_kurus: parse.data.satis_kurus ?? existing.satis_kurus,
       raf: parse.data.raf?.trim() || null,
-      aktif: parse.data.aktif,
+      aktif: parse.data.aktif ?? existing.aktif,
       updated_at: now
     }).where(eq(parts.id, id)).returning().get();
+
+    // Stok adedi verilmişse, stok hareketleriyle istenen değere getir.
+    // (Stok, stok hareketlerinden türetilir; bu yüzden "düzeltme" hareketi eklenir.)
+    if (parse.data.stok_miktari !== undefined) {
+      const currentStock = getPartStock(id);
+      const delta = parse.data.stok_miktari - currentStock;
+      if (delta !== 0) {
+        adjustStock(id, delta, 'duzeltme', request.user!.id, {
+          notlar: `Parça düzenlenirken stok düzeltmesi (${currentStock} → ${parse.data.stok_miktari})`,
+          overrideNegativeStock: request.user!.role === 'owner',
+          ipAddress: request.ip
+        });
+      }
+    }
 
     await logAudit({
       kullanici_id: request.user!.id,
@@ -343,7 +378,7 @@ export const partRoutes: FastifyPluginAsync = async (fastify) => {
       detay: `Parça güncellendi: ${updated.ad}`
     });
 
-    return { success: true, part: updated };
+    return { success: true, part: { ...updated, stok_miktari: getPartStock(id) } };
   });
 
   // Manual stock movement (giriş, sayım düzeltme, iade)
@@ -380,6 +415,53 @@ export const partRoutes: FastifyPluginAsync = async (fastify) => {
         message: 'Stok hareketi başarıyla işlendi.',
         result
       };
+    } catch (err: any) {
+      return reply.status(400).send({ success: false, error: err.message });
+    }
+  });
+
+  // Stock in (depo girişi): stoğu artırır, istenirse alış fiyatını günceller
+  fastify.post('/:id/stock-in', {
+    schema: {
+      tags: ['Yedek Parça'],
+      summary: 'Stok girişi yap (ve isteğe bağlı yeni alış fiyatı)'
+    }
+  }, async (request, reply) => {
+    const id = Number((request.params as any).id);
+    const parse = stockInSchema.safeParse(request.body);
+    if (!parse.success) {
+      return reply.status(400).send({
+        success: false,
+        error: parse.error.issues[0]?.message || 'Geçersiz stok girişi.'
+      });
+    }
+
+    const db = getDb();
+    const existing = db
+      .select()
+      .from(parts)
+      .where(and(eq(parts.id, id), isNull(parts.deleted_at)))
+      .get();
+
+    if (!existing) {
+      return reply.status(404).send({ success: false, error: 'Parça bulunamadı.' });
+    }
+
+    try {
+      const result = adjustStock(id, parse.data.miktar, 'giris', request.user!.id, {
+        notlar: 'Depo girişi',
+        overrideNegativeStock: true,
+        ipAddress: request.ip
+      });
+
+      if (parse.data.yeni_alis_fiyati_kurus !== undefined) {
+        db.update(parts)
+          .set({ alis_kurus: parse.data.yeni_alis_fiyati_kurus, updated_at: new Date().toISOString() })
+          .where(eq(parts.id, id))
+          .run();
+      }
+
+      return { success: true, message: 'Stoğa eklendi.', result, stok_miktari: getPartStock(id) };
     } catch (err: any) {
       return reply.status(400).send({ success: false, error: err.message });
     }

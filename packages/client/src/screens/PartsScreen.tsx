@@ -30,6 +30,9 @@ export const PartsScreen: React.FC<PartsScreenProps> = ({ initialFilter = 'all' 
     buy: string;
     sell: string;
     shelf: string;
+    // Düzenlemede boş bırakılan fiyat alanları, mevcut (veritabanındaki) değeri korur.
+    origBuy: number;
+    origSell: number;
   }>({
     open: false,
     id: null,
@@ -43,7 +46,9 @@ export const PartsScreen: React.FC<PartsScreenProps> = ({ initialFilter = 'all' 
     min: '',
     buy: '',
     sell: '',
-    shelf: ''
+    shelf: '',
+    origBuy: 0,
+    origSell: 0
   });
   const [partModalSaving, setPartModalSaving] = useState(false);
   const [partModalError, setPartModalError] = useState('');
@@ -100,7 +105,7 @@ export const PartsScreen: React.FC<PartsScreenProps> = ({ initialFilter = 'all' 
 
   const isLowStock = (p: any) => {
     const qty = Number(p.stok_miktari) || 0;
-    const min = Number(p.kritik_stok_seviyesi) || 0;
+    const min = Number(p.kritik_stok) || 0;
     return qty <= 0 || (min > 0 && qty <= min);
   };
 
@@ -116,12 +121,11 @@ export const PartsScreen: React.FC<PartsScreenProps> = ({ initialFilter = 'all' 
     filtered = filtered.filter((p) => {
       const allText = [
         p.ad,
-        p.oem_kodu,
-        p.parca_kodu,
+        p.kod,
         p.barkod,
-        p.muadil_kodlar,
-        p.uyumlu_araclar,
-        p.raf_yeri
+        p.muadil,
+        p.uyumlu_arac,
+        p.raf
       ]
         .filter(Boolean)
         .join(' ')
@@ -134,7 +138,7 @@ export const PartsScreen: React.FC<PartsScreenProps> = ({ initialFilter = 'all' 
   let totalStockValueKurus = 0;
   parts.forEach((p) => {
     const qty = Number(p.stok_miktari) || 0;
-    const buy = p.alis_fiyati_kurus || 0;
+    const buy = p.alis_kurus || 0;
     totalStockValueKurus += qty * buy;
   });
 
@@ -154,7 +158,9 @@ export const PartsScreen: React.FC<PartsScreenProps> = ({ initialFilter = 'all' 
       min: '2',
       buy: '',
       sell: '',
-      shelf: ''
+      shelf: '',
+      origBuy: 0,
+      origSell: 0
     });
     setPartModalError('');
   };
@@ -164,16 +170,18 @@ export const PartsScreen: React.FC<PartsScreenProps> = ({ initialFilter = 'all' 
       open: true,
       id: p.id,
       name: p.ad || '',
-      code: p.oem_kodu || p.parca_kodu || '',
+      code: p.kod || '',
       barcode: p.barkod || '',
-      compat: p.uyumlu_araclar || '',
-      alt: p.muadil_kodlar || '',
+      compat: p.uyumlu_arac || '',
+      alt: p.muadil || '',
       unit: p.birim || 'adet',
       qty: String(p.stok_miktari ?? 0),
-      min: String(p.kritik_stok_seviyesi ?? 0),
-      buy: p.alis_fiyati_kurus ? (p.alis_fiyati_kurus / 100).toFixed(2) : '',
-      sell: p.satis_fiyati_kurus ? (p.satis_fiyati_kurus / 100).toFixed(2) : '',
-      shelf: p.raf_yeri || ''
+      min: String(p.kritik_stok ?? 0),
+      buy: p.alis_kurus ? (p.alis_kurus / 100).toFixed(2) : '',
+      sell: p.satis_kurus ? (p.satis_kurus / 100).toFixed(2) : '',
+      shelf: p.raf || '',
+      origBuy: p.alis_kurus || 0,
+      origSell: p.satis_kurus || 0
     });
     setPartModalError('');
     setArmedDeleteId(null);
@@ -190,24 +198,31 @@ export const PartsScreen: React.FC<PartsScreenProps> = ({ initialFilter = 'all' 
     setPartModalError('');
 
     try {
-      const buyKurus = Math.round((parseFloat(partModal.buy.replace(',', '.')) || 0) * 100);
-      const sellKurus = Math.round((parseFloat(partModal.sell.replace(',', '.')) || 0) * 100);
+      // Fiyatlar İSTEĞE BAĞLI: boş bırakılırsa düzenlemede mevcut fiyat korunur,
+      // yeni parçada 0 kabul edilir. Böylece yalnızca stok güncellenebilir.
+      const buyEmpty = partModal.buy.trim() === '';
+      const sellEmpty = partModal.sell.trim() === '';
+      const buyKurus = buyEmpty
+        ? partModal.origBuy
+        : Math.round((parseFloat(partModal.buy.replace(',', '.')) || 0) * 100);
+      const sellKurus = sellEmpty
+        ? partModal.origSell
+        : Math.round((parseFloat(partModal.sell.replace(',', '.')) || 0) * 100);
       const qty = parseFloat(partModal.qty.replace(',', '.')) || 0;
       const min = parseFloat(partModal.min.replace(',', '.')) || 0;
 
       const body = {
         ad: name,
-        oem_kodu: partModal.code.trim(),
-        parca_kodu: partModal.code.trim(),
+        kod: partModal.code.trim(),
         barkod: partModal.barcode.trim(),
-        uyumlu_araclar: partModal.compat.trim(),
-        muadil_kodlar: partModal.alt.trim(),
+        uyumlu_arac: partModal.compat.trim(),
+        muadil: partModal.alt.trim(),
         birim: partModal.unit || 'adet',
         stok_miktari: qty,
-        kritik_stok_seviyesi: min,
-        alis_fiyati_kurus: buyKurus,
-        satis_fiyati_kurus: sellKurus,
-        raf_yeri: partModal.shelf.trim()
+        kritik_stok: min,
+        alis_kurus: buyKurus,
+        satis_kurus: sellKurus,
+        raf: partModal.shelf.trim()
       };
 
       if (partModal.id) {
@@ -258,7 +273,7 @@ export const PartsScreen: React.FC<PartsScreenProps> = ({ initialFilter = 'all' 
       currentQty: Number(p.stok_miktari) || 0,
       unit: p.birim || 'adet',
       addQty: '',
-      newBuyPrice: p.alis_fiyati_kurus ? (p.alis_fiyati_kurus / 100).toFixed(2) : ''
+      newBuyPrice: p.alis_kurus ? (p.alis_kurus / 100).toFixed(2) : ''
     });
     setStockInError('');
   };
@@ -359,8 +374,8 @@ export const PartsScreen: React.FC<PartsScreenProps> = ({ initialFilter = 'all' 
               <tbody>
                 {filtered.length > 0 ? (
                   filtered.map((p) => {
-                    const buyKurus = p.alis_fiyati_kurus || 0;
-                    const sellKurus = p.satis_fiyati_kurus || 0;
+                    const buyKurus = p.alis_kurus || 0;
+                    const sellKurus = p.satis_kurus || 0;
                     const sellVatKurus = Math.round(sellKurus * (1 + vatRate / 100));
                     const margin = buyKurus > 0 && sellKurus > 0 ? Math.round(((sellKurus - buyKurus) / buyKurus) * 100) : null;
                     const low = isLowStock(p);
@@ -368,19 +383,19 @@ export const PartsScreen: React.FC<PartsScreenProps> = ({ initialFilter = 'all' 
                     return (
                       <tr key={p.id}>
                         <td className="code">
-                          {p.oem_kodu || p.parca_kodu || '-'}
+                          {p.kod || '-'}
                           {p.barkod && <div className="subtxt">{p.barkod}</div>}
                         </td>
                         <td>
                           <b>{p.ad}</b>
-                          {(p.uyumlu_araclar || p.raf_yeri) && (
+                          {(p.uyumlu_arac || p.raf) && (
                             <div className="subtxt">
-                              {p.uyumlu_araclar || ''}
-                              {p.uyumlu_araclar && p.raf_yeri ? ' · ' : ''}
-                              {p.raf_yeri ? `Raf: ${p.raf_yeri}` : ''}
+                              {p.uyumlu_arac || ''}
+                              {p.uyumlu_arac && p.raf ? ' · ' : ''}
+                              {p.raf ? `Raf: ${p.raf}` : ''}
                             </div>
                           )}
-                          {p.muadil_kodlar && <div className="subtxt">Muadil: {p.muadil_kodlar}</div>}
+                          {p.muadil && <div className="subtxt">Muadil: {p.muadil}</div>}
                         </td>
                         <td className="num">
                           {low ? (
@@ -552,7 +567,7 @@ export const PartsScreen: React.FC<PartsScreenProps> = ({ initialFilter = 'all' 
 
               <div className="grid g3">
                 <div className="field">
-                  <label htmlFor="pf-buy">Alış fiyatı (KDV hariç ₺)</label>
+                  <label htmlFor="pf-buy">Alış fiyatı (isteğe bağlı ₺)</label>
                   <input
                     id="pf-buy"
                     type="number"
@@ -563,7 +578,7 @@ export const PartsScreen: React.FC<PartsScreenProps> = ({ initialFilter = 'all' 
                   />
                 </div>
                 <div className="field">
-                  <label htmlFor="pf-sell">Satış fiyatı (KDV hariç ₺)</label>
+                  <label htmlFor="pf-sell">Satış fiyatı (isteğe bağlı ₺)</label>
                   <input
                     id="pf-sell"
                     type="number"

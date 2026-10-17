@@ -231,14 +231,14 @@ export const WorkOrderScreen: React.FC<WorkOrderScreenProps> = ({
       // Auto-match part name from catalog
       if (field === 'name' && line.kind === 'part') {
         const found = catalogParts.find(
-          (p) => p.ad.toLowerCase() === String(val).toLowerCase() || (p.oem_kodu && p.oem_kodu.toLowerCase() === String(val).toLowerCase())
+          (p) => p.ad.toLowerCase() === String(val).toLowerCase() || (p.kod && p.kod.toLowerCase() === String(val).toLowerCase())
         );
         if (found) {
           line.partId = found.id;
           line.name = found.ad;
           line.unit = found.birim || 'adet';
           if (!line.price || parseFloat(line.price) <= 0) {
-            line.price = ((found.satis_fiyati_kurus || 0) / 100).toFixed(2);
+            line.price = ((found.satis_kurus || 0) / 100).toFixed(2);
           }
         } else {
           line.partId = null;
@@ -255,7 +255,7 @@ export const WorkOrderScreen: React.FC<WorkOrderScreenProps> = ({
     if (!trimmed) return;
 
     const p = catalogParts.find(
-      (item) => (item.barkod && String(item.barkod).trim() === trimmed) || (item.oem_kodu && item.oem_kodu.trim() === trimmed)
+      (item) => (item.barkod && String(item.barkod).trim() === trimmed) || (item.kod && item.kod.trim() === trimmed)
     );
 
     if (!p) {
@@ -277,7 +277,7 @@ export const WorkOrderScreen: React.FC<WorkOrderScreenProps> = ({
         partId: p.id,
         name: p.ad,
         qty: 1,
-        price: ((p.satis_fiyati_kurus || 0) / 100).toFixed(2),
+        price: ((p.satis_kurus || 0) / 100).toFixed(2),
         unit: p.birim || 'adet'
       };
 
@@ -637,7 +637,7 @@ export const WorkOrderScreen: React.FC<WorkOrderScreenProps> = ({
           <datalist id="partlist">
             {catalogParts.map((p) => (
               <option key={p.id} value={p.ad}>
-                Stok {p.stok_miktari} · {money(p.satis_fiyati_kurus || 0)}
+                Stok {p.stok_miktari} · {money(p.satis_kurus || 0)}
               </option>
             ))}
           </datalist>
@@ -713,7 +713,7 @@ export const WorkOrderScreen: React.FC<WorkOrderScreenProps> = ({
                 if (l.qty > avail) {
                   hintClass = 'hint warn';
                   hintText = `Stokta ${numfmt(avail)} ${pItem.birim || 'adet'} var, yetersiz.`;
-                } else if (pItem.kritik_stok_seviyesi > 0 && after <= pItem.kritik_stok_seviyesi) {
+                } else if (pItem.kritik_stok > 0 && after <= pItem.kritik_stok) {
                   hintClass = 'hint warn';
                   hintText = `Stokta ${numfmt(avail)} ${pItem.birim || 'adet'} var. Bu işlemle kritik stoğa düşer.`;
                 } else {

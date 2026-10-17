@@ -132,7 +132,7 @@ export const VehicleSearchScreen: React.FC<VehicleSearchScreenProps> = ({
       // 2. Fetch parts for low stock count
       const partsRes = await apiRequest('/parts?limit=500');
       const allParts = partsRes.success ? partsRes.items || [] : [];
-      const lowParts = allParts.filter((p: any) => (p.stok_miktari || 0) <= (p.kritik_stok_seviyesi || 0));
+      const lowParts = allParts.filter((p: any) => (p.stok_miktari || 0) <= (p.kritik_stok || 0));
       setLowStockParts(lowParts);
 
       // Calculations for stats
@@ -552,7 +552,7 @@ export const VehicleSearchScreen: React.FC<VehicleSearchScreenProps> = ({
                     <div key={p.id} className="li" style={{ gridTemplateColumns: 'minmax(0,1fr) auto' }}>
                       <span className="what">
                         <b>{p.ad}</b>
-                        <span>{p.oem_kodu || p.parca_kodu || ''}</span>
+                        <span>{p.kod || ''}</span>
                       </span>
                       <span className="pill low">{numfmt(p.stok_miktari)} {p.birim || 'adet'}</span>
                     </div>
