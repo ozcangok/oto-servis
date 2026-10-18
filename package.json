@@ -19,7 +19,10 @@
     "verify": "npm run build && npm test && npm run test:e2e",
     "dev:server": "npm run dev --workspace=@oto-servis/server",
     "dev:client": "npm run dev --workspace=@oto-servis/client",
-    "start": "npm run start --workspace=@oto-servis/server"
+    "start": "npm run start --workspace=@oto-servis/server",
+    "dist:mac": "npm run build:desktop && npm run dist:mac --workspace=@oto-servis/electron",
+    "dist:win": "npm run build:desktop && npm run dist:win --workspace=@oto-servis/electron",
+    "dist:dir": "npm run build:desktop && npm run dist:dir --workspace=@oto-servis/electron"
   },
   "devDependencies": {
     "@midscene/web": "1.16.0",

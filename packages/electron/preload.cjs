@@ -16,7 +16,7 @@ const API_BASE_ARG = '--oto-api-base=';
 /** Gömülü sunucunun adresi ana süreçten komut satırı argümanıyla gelir. */
 function resolveApiBase() {
   const arg = process.argv.find((value) => value.startsWith(API_BASE_ARG));
-  return arg ? arg.slice(API_BASE_ARG.length) : 'http://localhost:3001';
+  return arg ? arg.slice(API_BASE_ARG.length) : 'http://127.0.0.1:3001';
 }
 
 contextBridge.exposeInMainWorld('otoDesktop', {

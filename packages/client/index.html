@@ -6,10 +6,12 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
     <meta name="theme-color" content="#1e293b" />
     <meta name="description" content="Oto Tamir Dükkanı Servis Yönetim Programı - İş Emri, Stok, Cari, Kasa ve Hatırlatıcı Takip Sistemi" />
-    <link rel="manifest" href="/manifest.json" />
+    <link rel="manifest" href="./manifest.json" />
     <title>Servis Defteri</title>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    <!-- ÇEVRİMDIŞI: PDF dışa aktarma kütüphaneleri CDN yerine yerelden yüklenir
+         (masaüstü/kurulum sürümü internetsiz çalışır). -->
+    <script src="./vendor/html2canvas.min.js"></script>
+    <script src="./vendor/jspdf.umd.min.js"></script>
   </head>
   <body>
     <div id="root"></div>

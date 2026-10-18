@@ -150,14 +150,43 @@ Sunucunuzda `http://SUNUCU_IP:3001` adresinde hem API hem React arayüzü tek po
 
 ---
 
-## 💻 Windows Masaüstü (.exe) Paketi
+## 💻 Masaüstü Kurulumu (Windows & macOS) — Çevrimdışı
 
-Windows kurulum dosyası (`.exe`) oluşturmak için:
-```bash
-cd /root/oto-servis/packages/electron
-npm run dist:win
-```
-Çıktı `dist-electron/` klasörü altına oluşturulur.
+Uygulama; gömülü API sunucusu + SQLite veritabanı ile **tamamen çevrimdışı** çalışan tek
+masaüstü kurulumu olarak paketlenir. Kurulan bilgisayarda **Node.js, internet veya ek
+bileşen gerekmez** (Node çalışma zamanı Electron ile birlikte gelir).
+
+### Kurulum dosyalarını üretme
+
+| Hedef | Komut | Çıktı |
+| --- | --- | --- |
+| macOS (.dmg · arm64 + x64) | `npm run dist:mac` | `packages/electron/dist-electron/Oto-Servis-*.dmg` |
+| Windows (.exe · NSIS) | `npm run dist:win` | `packages/electron/dist-electron/Oto-Servis-*-kurulum.exe` |
+
+> Windows `.exe` kurulumu **yalnızca Windows üzerinde** üretilebilir (NSIS). Bu yüzden her
+> iki platformun kurulumları **GitHub Actions** ile otomatik üretilir
+> (`.github/workflows/build-installers.yml`): depo **Actions** sekmesinden "Run workflow",
+> ya da `v1.0.0` gibi bir etiket göndererek (`git tag v1.0.0 && git push origin v1.0.0`)
+> tetikleyin. Üretilen dosyalar çalıştırma sonunda **Artifacts** bölümünden indirilir.
+
+Paketleme, monorepo'ya uygun **izole bir staging** (`packages/electron/dist-app/`) hazırlar
+(`scripts/prepare-app.cjs`): üretim bağımlılıklarını kökten kopyalar ve native modülü
+(`better-sqlite3`) Electron ABI'si için yalnızca bu kopyada yeniden derler — böylece
+geliştirme/test ortamı bozulmaz.
+
+### Çevrimdışılık ve veri konumu
+
+- **Veritabanı (SQLite):** kullanıcı veri klasöründe tutulur (kendi içinde, taşınabilir):
+  - macOS: `~/Library/Application Support/Oto Servis Yonetimi/data/oto-servis.sqlite`
+  - Windows: `%APPDATA%\Oto Servis Yonetimi\data\oto-servis.sqlite`
+- **Yedek (dışa aktarma):** uygulama **düzgün kapatıldığında** veritabanı otomatik olarak
+  `Belgelerim/CinarOto_Yedekler/oto-servis-YYYYAAAAGG-SSDDss.sqlite` biçiminde kopyalanır.
+  WAL ana dosyaya işlendiği için yedek **tek dosya** halinde eksiksiz ve taşınabilirdir;
+  başka bir bilgisayara kopyalanıp aynı konuma konularak kullanılabilir.
+- **Dış kaynak yok:** PDF dışa aktarma kütüphaneleri (html2canvas, jsPDF) CDN yerine
+  uygulamanın içinden yüklenir; internet olmadan da çalışır.
+- Kurulumlar **imzasızdır**; Windows SmartScreen / macOS Gatekeeper ilk açılışta uyarı
+  gösterir ("Yine de aç" ile çalıştırılır).
 
 ### Paketlemeden Masaüstü Denemesi (geliştirici)
 ```bash
@@ -173,6 +202,12 @@ sonuçlar konsola yazılır):
 ```bash
 npm run build:desktop
 OTO_SMOKE_TEST=1 OTO_USE_DIST=1 OTO_SERVER_PORT=3100 npm run start --workspace=@oto-servis/electron
+```
+
+Paketlenmiş (kuruluma hazır) `.app` üzerinde aynı duman testi:
+```bash
+packages/electron/dist-electron/mac-arm64/"Oto Servis Yonetimi.app"/Contents/MacOS/"Oto Servis Yonetimi"
+# örn: OTO_SMOKE_TEST=1 OTO_SERVER_PORT=3999 ... (3001 başka bir süreç tarafından kullanılıyorsa)
 ```
 
 ---

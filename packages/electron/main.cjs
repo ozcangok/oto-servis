@@ -44,6 +44,18 @@ function getDataDir() {
   return path.join(app.getPath('userData'), 'data');
 }
 
+/**
+ * Gömülü sunucunun ÇALIŞMA DİZİNİ.
+ *
+ * Sunucu, `process.cwd()`e göre iki yol çözer: yüklenen dosyalar (`uploads/`) ve
+ * (varsa) derlenmiş arayüz. Paketlenmiş uygulamada süreç dizini tahmin edilemez
+ * olduğundan burayı açıkça kullanıcı veri klasörüne sabitliyoruz; böylece
+ * yüklenen dosyalar kullanıcıya ait kalıcı bir konumda tutulur.
+ */
+function getServerCwd() {
+  return app.getPath('userData');
+}
+
 function startEmbeddedServer() {
   const serverPath = path.join(__dirname, '../server/dist/index.js');
   const env = {
@@ -66,18 +78,19 @@ function startEmbeddedServer() {
 
   if (useElectronNode) {
     console.log('[ELECTRON] Gömülü sunucu (Electron Node) başlatılıyor:', serverPath);
-    serverProcess = fork(serverPath, [], { env });
+    serverProcess = fork(serverPath, [], { env, cwd: getServerCwd() });
   } else {
     const nodeBin = process.env.OTO_NODE_BIN || 'node';
     console.log(`[ELECTRON] Gömülü sunucu (${nodeBin}) başlatılıyor:`, serverPath);
     try {
       serverProcess = spawn(nodeBin, [serverPath], {
         env,
+        cwd: getServerCwd(),
         stdio: ['ignore', 'inherit', 'inherit', 'ipc']
       });
     } catch (err) {
       console.error('[ELECTRON] Sistem Node başlatılamadı, Electron Node deneniyor:', err);
-      serverProcess = fork(serverPath, [], { env });
+      serverProcess = fork(serverPath, [], { env, cwd: getServerCwd() });
     }
   }
 
@@ -86,7 +99,7 @@ function startEmbeddedServer() {
     // Sistem Node bulunamadıysa Electron Node'una düş (paketlenmiş davranış).
     if (!useElectronNode && err && err.code === 'ENOENT') {
       console.warn('[ELECTRON] Sistem Node bulunamadı; Electron Node ile yeniden deneniyor.');
-      serverProcess = fork(serverPath, [], { env });
+      serverProcess = fork(serverPath, [], { env, cwd: getServerCwd() });
       serverProcess.on('error', (e2) => console.error('[ELECTRON] Sunucu hatası:', e2));
     }
   });
@@ -172,8 +185,9 @@ function createWindow() {
     contextIsolation: true,
     preload: path.join(__dirname, 'preload.cjs'),
     // file:// altında göreli API yolları çalışmadığı için gömülü sunucunun
-    // mutlak adresi arayüze aktarılır.
-    additionalArguments: [`--oto-api-base=http://localhost:${SERVER_PORT}`]
+    // mutlak adresi arayüze aktarılır. IPv4 (127.0.0.1) sabitlenir: gömülü
+    // sunucu IPv4 dinler, oysa "localhost" bazı sistemlerde IPv6 (::1) çözülür.
+    additionalArguments: [`--oto-api-base=http://127.0.0.1:${SERVER_PORT}`]
   };
   // Duman testinde pencere görünmez; arka plan kısıtlaması kapatılır ki arayüz
   // gerçek kullanıcıdaki gibi çizilsin.
@@ -230,7 +244,7 @@ function runSmokeTest() {
     setTimeout(async () => {
       // 1) Gömülü sunucu ayakta mı? (yerel modüller/DB yolu doğru mu?)
       try {
-        const res = await fetch(`http://localhost:${SERVER_PORT}/api/health`);
+        const res = await fetch(`http://127.0.0.1:${SERVER_PORT}/api/health`);
         console.log(`[SMOKE] Gömülü sunucu sağlık yanıtı: HTTP ${res.status}`);
         if (!res.ok) process.exitCode = 1;
       } catch (err) {

@@ -1,0 +1,62 @@
+# Oto Servis Yönetimi — electron-builder yapılandırması
+#
+# Bu dosya `scripts/prepare-app.cjs` tarafından `dist-app/` içine kopyalanır ve
+# kurulum şu şekilde üretilir:
+#   npm run dist:mac   (macOS .dmg)
+#   npm run dist:win   (Windows .exe / NSIS)
+#
+# Notlar:
+#  - Kurulumlar İMZASIZDIR (kod imzalama sertifikası yok). Windows SmartScreen /
+#    macOS Gatekeeper ilk açılışta uyarı gösterir; "Yine de aç" ile çalışır.
+#  - `asar: false`: gömülü API sunucusu ayrı bir Node süreci olarak `fork`
+#    edildiği ve native modül (better-sqlite3) içerdiği için dosyalar diskte
+#    tutulur (asar içinden fork edilemez).
+#  - better-sqlite3, Electron ABI'si için otomatik yeniden derlenir (npmRebuild).
+
+appId: com.otoservis.app
+productName: Oto Servis Yonetimi
+copyright: Copyright © Çınar Oto
+
+# Kökte kurulu Electron sürümüyle birebir aynı olmalı (packages/electron devDependency).
+electronVersion: 30.5.1
+
+asar: false
+npmRebuild: true
+
+directories:
+  output: ../dist-electron
+  buildResources: build
+
+files:
+  - "**/*"
+
+mac:
+  category: public.app-category.business
+  target:
+    - target: dmg
+      arch:
+        - arm64
+        - x64
+  artifactName: "Oto-Servis-${version}-${arch}.${ext}"
+  # İmzasız dağıtım
+  identity: null
+
+dmg:
+  title: "Oto Servis Yönetimi"
+  artifactName: "Oto-Servis-${version}-${arch}.${ext}"
+
+win:
+  target:
+    - target: nsis
+      arch:
+        - x64
+  artifactName: "Oto-Servis-${version}-kurulum.${ext}"
+
+nsis:
+  oneClick: false
+  perMachine: false
+  allowToChangeInstallationDirectory: true
+  createDesktopShortcut: true
+  createStartMenuShortcut: true
+  shortcutName: Oto Servis
+  artifactName: "Oto-Servis-${version}-kurulum.${ext}"

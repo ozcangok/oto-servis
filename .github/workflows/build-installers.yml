@@ -1,0 +1,74 @@
+name: Masaüstü Kurulumları
+
+# Windows (.exe / NSIS) ve macOS (.dmg) kurulum dosyalarını üretir.
+#  - Elle: Actions sekmesinden "Run workflow"
+#  - Etiket (tag) ile:  git tag v1.0.0 && git push origin v1.0.0
+# Üretilen dosyalar, çalışma sonunda "Artifacts" bölümünden indirilebilir.
+
+on:
+  workflow_dispatch:
+  push:
+    tags:
+      - 'v*'
+
+permissions:
+  contents: read
+
+jobs:
+  macos:
+    name: macOS (.dmg)
+    runs-on: macos-14
+    steps:
+      - name: Depoyu çek
+        uses: actions/checkout@v4
+
+      - name: Node.js kur
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - name: Bağımlılıkları kur
+        run: npm ci
+
+      # build:desktop + izole staging + electron-builder (arm64 & x64 .dmg)
+      - name: Kurulum dosyası üret
+        run: npm run dist:mac
+        env:
+          CSC_IDENTITY_AUTO_DISCOVERY: 'false'
+
+      - name: Yükle (macOS)
+        uses: actions/upload-artifact@v4
+        with:
+          name: macos-dmg
+          path: packages/electron/dist-electron/*.dmg
+          if-no-files-found: error
+
+  windows:
+    name: Windows (.exe)
+    runs-on: windows-latest
+    steps:
+      - name: Depoyu çek
+        uses: actions/checkout@v4
+
+      - name: Node.js kur
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - name: Bağımlılıkları kur
+        run: npm ci
+
+      # build:desktop + izole staging + electron-builder (NSIS .exe)
+      - name: Kurulum dosyası üret
+        run: npm run dist:win
+        env:
+          CSC_IDENTITY_AUTO_DISCOVERY: 'false'
+
+      - name: Yükle (Windows)
+        uses: actions/upload-artifact@v4
+        with:
+          name: windows-exe
+          path: packages/electron/dist-electron/*.exe
+          if-no-files-found: error

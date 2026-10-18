@@ -5,32 +5,10 @@
   "scripts": {
     "start": "electron .",
     "test": "node --test tests",
-    "dist:win": "electron-builder --win nsis"
-  },
-  "build": {
-    "appId": "com.otoservis.app",
-    "productName": "Oto Servis Yonetimi",
-    "directories": {
-      "output": "dist-electron"
-    },
-    "win": {
-      "target": "nsis"
-    },
-    "nsis": {
-      "oneClick": false,
-      "allowToChangeInstallationDirectory": true,
-      "createDesktopShortcut": true,
-      "createStartMenuShortcut": true,
-      "shortcutName": "Oto Servis"
-    },
-    "files": [
-      "main.cjs",
-      "preload.cjs",
-      "backup.cjs",
-      "../server/dist/**/*",
-      "../server/node_modules/**/*",
-      "../client/dist/**/*"
-    ]
+    "prepare-app": "node scripts/prepare-app.cjs",
+    "dist:dir": "npm run prepare-app && electron-builder --project dist-app --dir",
+    "dist:mac": "npm run prepare-app && electron-builder --project dist-app --mac",
+    "dist:win": "npm run prepare-app && electron-builder --project dist-app --win nsis"
   },
   "devDependencies": {
     "electron": "^30.0.1",

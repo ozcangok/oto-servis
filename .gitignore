@@ -8,6 +8,10 @@ dist/
 build/
 .tsbuildinfo
 
+# Electron masaüstü paketleme (staging + kurulum çıktıları)
+packages/electron/dist-app/
+packages/electron/dist-electron/
+
 # SQLite databases & temp files
 *.sqlite
 *.sqlite-wal
