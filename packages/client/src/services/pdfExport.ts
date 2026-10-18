@@ -156,7 +156,7 @@ export function statementHTML(orders: any[], v: any, settings: any = {}) {
     </div>` : '';
 
   const css = `
-    #stmt{width:794px;box-sizing:border-box;background:#fff;color:#1b2430;font-family:"IBM Plex Sans",Arial,sans-serif;font-size:12.5px;line-height:1.45;padding-bottom:6px}
+    #stmt{width:794px;box-sizing:border-box;background:#fff;color:#1b2430;font-family:"IBM Plex Sans",Arial,sans-serif;font-size:12.5px;line-height:1.45;padding-bottom:6px;color-scheme:light;--surface:#ffffff;--surface-subtle:#f8fafc;--surface-hover:#f1f5f9;--border-card:#e2e8f0;--border-input:#cbd5e1;--divider:#eef1f5;--text:#0f172a;--text-body:#1b2430;--text-muted:#8a95a5;--card:#ffffff;--line:#e2e8f0;--radius-card:8px;--shadow-card:none}
     #stmt *{box-sizing:border-box}
     #stmt .hd{display:flex;justify-content:space-between;align-items:flex-start;gap:24px;padding:26px 40px 20px;border-bottom:3px solid #0f2a5c}
     #stmt .hd-l{display:flex;align-items:center;gap:14px;min-width:0}
@@ -172,7 +172,7 @@ export function statementHTML(orders: any[], v: any, settings: any = {}) {
     #stmt .pl{display:inline-block;border:1.5px solid #10151c;border-radius:4px;padding:1px 7px;font-family:"Barlow Condensed","Arial Narrow",sans-serif;font-weight:700;font-size:15px;letter-spacing:.06em}
     #stmt .bd{padding:20px 40px 26px}
     #stmt .cards{display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:20px}
-    #stmt .card{border:1px solid #dbe1ea;border-radius:8px;overflow:hidden}
+    #stmt .card{background:#fff;box-shadow:none;border:1px solid #dbe1ea;border-radius:8px;overflow:hidden}
     #stmt .card-t{background:#f3f6fa;border-bottom:1px solid #dbe1ea;padding:8px 14px;font-size:10.5px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:#3f4c60}
     #stmt .card-g{display:grid;grid-template-columns:1fr 1fr;gap:10px 16px;padding:12px 14px}
     #stmt .fld{min-width:0}
