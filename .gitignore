@@ -33,6 +33,11 @@ blob-report/
 # İzole E2E test veritabanı
 packages/server/.e2e-data/
 
+# AI (Midscene) E2E — opt-in paket çıktıları
+midscene_run/
+test-results-ai/
+packages/server/.e2e-ai-data/
+
 # Environment files
 .env
 .env.local

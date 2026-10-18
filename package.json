@@ -14,12 +14,15 @@
     "test:e2e": "playwright test",
     "test:e2e:headed": "playwright test --headed",
     "test:e2e:ui": "playwright test --ui",
+    "test:ai": "playwright test --config=playwright.ai.config.ts",
+    "test:ai:headed": "playwright test --config=playwright.ai.config.ts --headed",
     "verify": "npm run build && npm test && npm run test:e2e",
     "dev:server": "npm run dev --workspace=@oto-servis/server",
     "dev:client": "npm run dev --workspace=@oto-servis/client",
     "start": "npm run start --workspace=@oto-servis/server"
   },
   "devDependencies": {
+    "@midscene/web": "1.16.0",
     "@playwright/test": "^1.64.1"
   }
 }
