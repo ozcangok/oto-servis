@@ -1,4 +1,4 @@
-import { and, gte, lte, eq, isNull } from 'drizzle-orm';
+import { and, gte, lte, eq, isNull, inArray, sql } from 'drizzle-orm';
 import { getDb, payments, workOrders, vehicles, customers, users, workOrderLines } from '../db/index.js';
 import { formatCurrency, formatDateTime } from '@oto-servis/shared';
 import type { PaymentMethod } from '@oto-servis/shared';
@@ -85,30 +85,63 @@ export async function getCashDeskSummary(startDate?: string, endDate?: string): 
     };
   });
 
-  // Calculate Labor Costs (İşçilik Bedelleri) for the selected period
-  const periodLaborRows = db
+  // İşçilik bedelleri, müşterinin ÖDEME YAPTIĞI güne göre raporlanır.
+  // Bir iş emrinin işçiliği, o iş emrine ait en son ödemenin tarihine atanır;
+  // böylece dün açılıp bugün tahsil edilen işin işçiliği bugünün kasasında görünür
+  // ve ödemesi alınmamış işlerin işçiliği kasaya yazılmaz.
+  const orderPaymentDates = db
     .select({
-      line: workOrderLines,
-      workOrder: workOrders,
-      vehicle: vehicles,
-      customer: customers
+      is_emri_id: payments.is_emri_id,
+      paidAt: sql<string>`MAX(${payments.tarih})`.as('paid_at')
     })
-    .from(workOrderLines)
-    .innerJoin(workOrders, eq(workOrderLines.is_emri_id, workOrders.id))
+    .from(payments)
+    .innerJoin(workOrders, eq(payments.is_emri_id, workOrders.id))
     .leftJoin(vehicles, eq(workOrders.arac_id, vehicles.id))
     .leftJoin(customers, eq(vehicles.musteri_id, customers.id))
     .where(
       and(
-        eq(workOrderLines.tur, 'iscilik'),
         isNull(workOrders.deleted_at),
         isNull(vehicles.deleted_at),
-        isNull(customers.deleted_at),
-        gte(workOrders.tarih, start),
-        lte(workOrders.tarih, end)
+        isNull(customers.deleted_at)
       )
     )
-    .orderBy(workOrders.tarih)
+    .groupBy(payments.is_emri_id)
     .all();
+
+  const paidOrderIds: number[] = [];
+  const paidOrderDates = new Map<number, string>();
+  for (const r of orderPaymentDates) {
+    if (r.is_emri_id != null && r.paidAt && r.paidAt >= start && r.paidAt <= end) {
+      paidOrderIds.push(r.is_emri_id);
+      paidOrderDates.set(r.is_emri_id, r.paidAt);
+    }
+  }
+
+  const periodLaborRows =
+    paidOrderIds.length > 0
+      ? db
+          .select({
+            line: workOrderLines,
+            workOrder: workOrders,
+            vehicle: vehicles,
+            customer: customers
+          })
+          .from(workOrderLines)
+          .innerJoin(workOrders, eq(workOrderLines.is_emri_id, workOrders.id))
+          .leftJoin(vehicles, eq(workOrders.arac_id, vehicles.id))
+          .leftJoin(customers, eq(vehicles.musteri_id, customers.id))
+          .where(
+            and(
+              eq(workOrderLines.tur, 'iscilik'),
+              isNull(workOrders.deleted_at),
+              isNull(vehicles.deleted_at),
+              isNull(customers.deleted_at),
+              inArray(workOrderLines.is_emri_id, paidOrderIds)
+            )
+          )
+          .orderBy(workOrders.tarih)
+          .all()
+      : [];
 
   let totalLaborKurus = 0;
   const laborItems = periodLaborRows.map((r) => {
@@ -122,7 +155,7 @@ export async function getCashDeskSummary(startDate?: string, endDate?: string): 
       birim: r.line.birim,
       birim_fiyat_kurus: r.line.birim_fiyat_kurus,
       toplam_kurus: lineTotal,
-      tarih: r.workOrder.tarih,
+      tarih: paidOrderDates.get(r.line.is_emri_id) ?? r.workOrder.tarih,
       plaka: r.vehicle?.plaka_gorunen,
       musteri: r.customer?.ad_soyad
     };
@@ -148,10 +181,6 @@ export async function getCashDeskSummary(startDate?: string, endDate?: string): 
   for (const r of allLaborRows) {
     grandTotalLaborKurus += (r.adet || 1) * (r.birim_fiyat_kurus || 0);
   }
-
-  // İşçilik bedellerini genel toplama ve ödeme yöntemine dahil et
-  totalCollectedKurus += totalLaborKurus;
-  byMethod.nakit += totalLaborKurus;
 
   return {
     startDate: start,

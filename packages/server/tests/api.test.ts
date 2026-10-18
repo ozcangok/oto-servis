@@ -644,9 +644,12 @@ expect(closedOrder.kapanis_tarihi).toBeDefined();
       headers: { authorization: `Bearer ${adminToken}` }
     });
     const summary = JSON.parse(resCash.body).summary;
-    // İşçilik bedellerı artık ciro/toplama dahil edildiği için nakit toplamı artar
-    expect(summary.nakit_kurus).toBe(120000); // 100000 işçilik + 20000 ödeme
-    expect(summary.by_method.nakit).toBe(120000); // aynı: 100000 + 20000
+    // İşçilik artık tahsilat toplamına eklenmez (mükerrer sayım olmaz);
+    // yalnızca gerçek ödeme nakit olarak raporlanır.
+    expect(summary.nakit_kurus).toBe(20000); // sadece 20000 ödeme
+    expect(summary.by_method.nakit).toBe(20000);
+    // İşçilik, ödeme yapıldığı gün 'Toplam İşçilik Bedeli' alanında ayrı görünür.
+    expect(summary.totalLaborKurus).toBe(100000);
     expect(summary.payments.length).toBeGreaterThan(0);
     const tx = summary.payments.find((t: any) => t.tutar_kurus === 20000);
     expect(tx.musteri_ad).toBe('Alias Test');
