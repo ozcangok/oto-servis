@@ -86,25 +86,39 @@ test.describe('14) Arayüz mahremiyeti, XSS ve ekran görüntüleri', () => {
     }
   });
 
-  test('staff cari hesap adresi ve menüsü (tasarım sapması ölçümü)', async ({ page }) => {
+  test('staff cari hesap adresi ve menüsü (tasarım kararı: yalnızca sahip)', async ({ page }) => {
     await login(page, STAFF);
     const cariTabCount = await page.getByRole('tab', { name: 'Cari hesap' }).count();
     await page.goto('/#/cari');
     await page.reload();
-    const cariVisible = (await page.locator('body').innerText()).length > 200;
+    // Ölçüm: yalnızca GERÇEK cari içeriğine bak (sekme, adres ve ekran başlığı).
+    // Gövde uzunluğuna bakmak yanlış pozitif üretiyordu: personel #/cari'den
+    // yönlendirilse bile panonun gövdesi uzun olduğundan "görüyor" sanılıyordu.
+    const hash = new URL(page.url()).hash;
+    const cariScreenCount = await page.getByRole('heading', { name: 'Açık hesaplar' }).count();
+    const cariVisible = hash === '#/cari' || cariScreenCount > 0;
     if (cariTabCount > 0 || cariVisible) {
       findings.push(
         'Personel "Cari hesap" menüsünü ve ekranını görebiliyor (varsayılan matrise göre cari/bakiyeler yalnızca sahipte)'
       );
     }
+    // Karar verildi: cari hesap (bakiyeler) yalnızca dükkan sahibine açıktır.
+    expect(cariTabCount, 'staff cari sekmesini görmemeli').toBe(0);
+    expect(hash, 'staff #/cari adresinden yönlendirilmeli').not.toBe('#/cari');
+    expect(cariScreenCount, 'staff cari ekranını görmemeli').toBe(0);
   });
 
-  test('staff Ayarlar düğmesi ile modal açabiliyor mu (tasarım sapması ölçümü)', async ({ page }) => {
+  test('staff Ayarlar düğmesi ile modal açabiliyor mu (tasarım kararı: yalnızca sahip)', async ({ page }) => {
     await login(page, STAFF);
     const settingsBtn = page.getByRole('button', { name: /Ayarlar/i });
     if ((await settingsBtn.count()) > 0) {
       findings.push('Personel menüsünde "Ayarlar" düğmesi görünüyor (rota koruması var ama düğme korumasız)');
     }
+    // Karar verildi: Ayarlar (dükkan bilgileri, KDV/iskonto, yedek) yalnızca sahipte.
+    await expect(settingsBtn, 'staff menüde "Ayarlar" düğmesi görmemeli').toHaveCount(0);
+    await page.goto('/#/ayarlar');
+    await page.reload();
+    await expect(page.getByRole('dialog'), 'staff Ayarlar modalını açamamalı').toHaveCount(0);
   });
 
   test('XSS: müşteri adına yazılan etiket çalışmaz', async ({ page, request }) => {

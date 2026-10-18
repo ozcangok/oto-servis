@@ -530,10 +530,15 @@ export function App() {
           </nav>
 
           <div className="menu-foot">
-            <button className="menu-item" type="button" onClick={() => setShowSettings(true)}>
-              <Settings size={18} strokeWidth={1.75} aria-hidden="true" />
-              Ayarlar
-            </button>
+            {/* Ayarlar (dükkan bilgileri, KDV/iskonto, yedek) yalnızca dükkan sahibine
+                açıktır. Personel (staff) için hem düğme gizlenir hem de modal
+                render edilmez (bkz. SettingsScreen bloğu → `showSettings && isOwner`). */}
+            {isOwner && (
+              <button className="menu-item" type="button" onClick={() => setShowSettings(true)}>
+                <Settings size={18} strokeWidth={1.75} aria-hidden="true" />
+                Ayarlar
+              </button>
+            )}
             <button
               className="menu-item"
               type="button"
@@ -616,8 +621,8 @@ export function App() {
         />
       )}
 
-      {/* Settings Modal */}
-      {showSettings && (
+      {/* Settings Modal (yalnızca dükkan sahibi: rota koruması + düğme gizleme + bu koşul) */}
+      {showSettings && isOwner && (
         <SettingsScreen
           onClose={() => setShowSettings(false)}
           onSettingsSaved={(newSettings) => {
