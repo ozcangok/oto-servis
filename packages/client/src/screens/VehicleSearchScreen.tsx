@@ -9,6 +9,7 @@ import {
   buildMonthCells,
   buildOrdersByDate,
   getAgendaForDate,
+  orderDateKey,
   formatMonthLabel,
   formatLongDateTR,
   formatAgendaTitle,
@@ -205,8 +206,15 @@ export const VehicleSearchScreen: React.FC<VehicleSearchScreenProps> = ({
       } catch {}
 
       // Calculations for stats
+      // "Serviste olan araçlar": teslim edilmemiş iş emirleri. Gelecek tarihli
+      // kayıtlar (randevular) henüz servise gelmediği için listede görünmez;
+      // tarihi bugün veya geçmiş olduğunda otomatik olarak belirir.
+      const todayKey = toDateKey(new Date());
       const inShop = allOrdersData
-        .filter((o: any) => o.durum !== 'teslim_edildi')
+        .filter(
+          (o: any) =>
+            o.durum !== 'teslim_edildi' && orderDateKey(o.giris_tarihi ?? o.tarih) <= todayKey
+        )
         .sort((a: any, b: any) =>
           String(b.updated_at || b.giris_tarihi || '').localeCompare(
             String(a.updated_at || a.giris_tarihi || '')
@@ -739,15 +747,23 @@ export const VehicleSearchScreen: React.FC<VehicleSearchScreenProps> = ({
                       <span>İşlem</span>
                       <span>Durum</span>
                       <span className="svc-amount">Tutar</span>
+                      <span className="svc-act" aria-hidden="true" />
                     </div>
                     {inShopOrders.slice(0, 8).map((o: any) => {
                       const nk = stageNormKey(o.durum);
                       return (
-                        <button
+                        <div
                           key={o.id}
-                          type="button"
                           className="svc-row"
+                          role="button"
+                          tabIndex={0}
                           onClick={() => handleSelectVehicle(o.plaka)}
+                          onKeyDown={(e) => {
+                            if (e.key === 'Enter' || e.key === ' ') {
+                              e.preventDefault();
+                              handleSelectVehicle(o.plaka);
+                            }
+                          }}
                         >
                           <PlateBadge plate={o.plaka} />
                           <span className="svc-cust">{o.musteri_ad || 'Müşteri belirtilmemiş'}</span>
@@ -757,7 +773,21 @@ export const VehicleSearchScreen: React.FC<VehicleSearchScreenProps> = ({
                             {STAGE_TXT[nk] || o.durum}
                           </span>
                           <span className="svc-amount">{money(o.brut_tutar_kurus || 0)}</span>
-                        </button>
+                          <span className="svc-act">
+                            <button
+                              className="btn btn-sm svc-act-btn"
+                              type="button"
+                              title="İşleme al: parça / işçilik ekle"
+                              aria-label="İşleme al"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                onOpenWorkOrder(o.id);
+                              }}
+                            >
+                              <Wrench size={16} strokeWidth={1.9} aria-hidden="true" />
+                            </button>
+                          </span>
+                        </div>
                       );
                     })}
                   </div>

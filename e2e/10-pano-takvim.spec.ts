@@ -141,6 +141,57 @@ test.describe('10) Araç sorgu panosu & takvim', () => {
     await expect(q).toBeFocused();
   });
 
+  test('randevu: gelecek tarihli kayıt listede görünmez, bugünkü görünür ve "İşleme al" açılır', async ({
+    page,
+    request
+  }) => {
+    const token = await apiLogin(request, OWNER);
+
+    const now = new Date();
+    const y = now.getFullYear();
+    const m0 = now.getMonth();
+    const d = now.getDate();
+
+    // Bugünün randevusu
+    const cToday = await createCustomer(request, token, { ad_soyad: 'Bugün Randevu' });
+    const todayPlate = uniqPlate();
+    const vToday = await createVehicle(request, token, { plaka: todayPlate, musteri_id: cToday.id });
+    const woToday = await createWorkOrder(request, token, {
+      arac_id: vToday.id,
+      plaka: todayPlate,
+      giris_tarihi: isoAtNoon(y, m0, d),
+      durum: 'kabul',
+      kalemler: [{ tur: 'iscilik', ad: 'Bugün işçilik', adet: 1, birim: 'Adet', birim_fiyat_kurus: 5000 }]
+    });
+    expect(woToday.status, JSON.stringify(woToday.body)).toBe(200);
+
+    // Gelecek (3 gün sonra) randevusu — henüz servise gelmedi
+    const future = new Date(y, m0, d + 3);
+    const cFuture = await createCustomer(request, token, { ad_soyad: 'Gelecek Randevu' });
+    const futurePlate = uniqPlate();
+    const vFuture = await createVehicle(request, token, { plaka: futurePlate, musteri_id: cFuture.id });
+    const woFuture = await createWorkOrder(request, token, {
+      arac_id: vFuture.id,
+      plaka: futurePlate,
+      giris_tarihi: isoAtNoon(future.getFullYear(), future.getMonth(), future.getDate()),
+      durum: 'kabul',
+      kalemler: [{ tur: 'iscilik', ad: 'Gelecek işçilik', adet: 1, birim: 'Adet', birim_fiyat_kurus: 5000 }]
+    });
+    expect(woFuture.status, JSON.stringify(woFuture.body)).toBe(200);
+
+    await login(page, OWNER);
+
+    // Gelecek randevu "Serviste olan araçlar" listesinde YOK; bugünkü VAR.
+    const svc = page.locator('.svc');
+    await expect(svc).toContainText(todayPlate);
+    await expect(svc).not.toContainText(futurePlate);
+
+    // Tek tık "İşleme al" → iş emri formu açılır (parça/işçilik eklenebilir).
+    const row = page.locator('.svc-row', { hasText: todayPlate }).first();
+    await row.getByRole('button', { name: 'İşleme al' }).click();
+    await expect(page.getByRole('dialog')).toBeVisible();
+  });
+
   test('yerleşim: arama kutusu büyük kalır; formdaki plaka kutusu normal kontrol yüksekliğinde', async ({
     page
   }) => {

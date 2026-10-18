@@ -347,8 +347,8 @@ input[type=text]:focus,input[type=number]:focus,input[type=date]:focus,input[typ
 
 /* Serviste olan araçlar tablosu */
 .svc-scroll{overflow-x:auto}
-.svc{min-width:740px}
-.svc-head,.svc-row{display:grid;grid-template-columns:160px minmax(0,1fr) minmax(0,1.2fr) 150px 110px;gap:16px;align-items:center}
+.svc{min-width:860px}
+.svc-head,.svc-row{display:grid;grid-template-columns:160px minmax(0,1fr) minmax(0,1.2fr) 150px 110px 112px;gap:16px;align-items:center}
 .svc-head{
   padding:12px 24px;background:var(--surface-subtle);border-bottom:1px solid var(--divider);
   font-size:12px;font-weight:600;text-transform:uppercase;letter-spacing:.06em;color:var(--text-muted);
@@ -363,6 +363,9 @@ input[type=text]:focus,input[type=number]:focus,input[type=date]:focus,input[typ
 .svc-cust{font-weight:500;color:var(--text);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .svc-job{color:var(--text-muted);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .svc-amount{text-align:right;font-weight:500;font-variant-numeric:tabular-nums}
+.svc-act{justify-self:end;display:flex;align-items:center}
+.svc-act-btn{width:36px;min-width:36px;padding:0;min-height:32px;display:inline-flex;align-items:center;justify-content:center}
+.svc-act .btn{white-space:nowrap}
 .svc-head-link{font-size:14px;font-weight:500;color:var(--text-muted);cursor:pointer}
 .svc-head-link:hover{color:var(--text)}
 .svc-empty{padding:32px 24px;text-align:center;color:var(--text-muted);display:flex;flex-direction:column;align-items:center;gap:12px}
@@ -627,7 +630,7 @@ button.li:hover{background:var(--surface-subtle)}
   .screen.cockpit .svc-scroll{flex:1 1 auto;min-height:0;overflow:auto}
   /* Tablo, kart genişliğine sığar; gerekirse yatay kaydırılır */
   .screen.cockpit .svc{min-width:0}
-  .screen.cockpit .svc-head,.screen.cockpit .svc-row{grid-template-columns:152px minmax(0,1fr) minmax(0,1fr) 112px 92px;gap:12px}
+  .screen.cockpit .svc-head,.screen.cockpit .svc-row{grid-template-columns:146px minmax(0,1fr) minmax(0,1fr) 104px 88px 40px;gap:8px}
   /* Boşlukları daralt: hero + arama + 5 özet + tablo + takvim tek ekrana sığar */
   .screen.cockpit .hero{padding-bottom:0}
   .screen.cockpit .hero h1{font-size:26px}
