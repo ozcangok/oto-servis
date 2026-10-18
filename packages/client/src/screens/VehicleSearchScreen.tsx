@@ -747,23 +747,15 @@ export const VehicleSearchScreen: React.FC<VehicleSearchScreenProps> = ({
                       <span>İşlem</span>
                       <span>Durum</span>
                       <span className="svc-amount">Tutar</span>
-                      <span className="svc-act" aria-hidden="true" />
                     </div>
                     {inShopOrders.slice(0, 8).map((o: any) => {
                       const nk = stageNormKey(o.durum);
                       return (
-                        <div
+                        <button
                           key={o.id}
+                          type="button"
                           className="svc-row"
-                          role="button"
-                          tabIndex={0}
                           onClick={() => handleSelectVehicle(o.plaka)}
-                          onKeyDown={(e) => {
-                            if (e.key === 'Enter' || e.key === ' ') {
-                              e.preventDefault();
-                              handleSelectVehicle(o.plaka);
-                            }
-                          }}
                         >
                           <PlateBadge plate={o.plaka} />
                           <span className="svc-cust">{o.musteri_ad || 'Müşteri belirtilmemiş'}</span>
@@ -773,21 +765,7 @@ export const VehicleSearchScreen: React.FC<VehicleSearchScreenProps> = ({
                             {STAGE_TXT[nk] || o.durum}
                           </span>
                           <span className="svc-amount">{money(o.brut_tutar_kurus || 0)}</span>
-                          <span className="svc-act">
-                            <button
-                              className="btn btn-sm svc-act-btn"
-                              type="button"
-                              title="İşleme al: parça / işçilik ekle"
-                              aria-label="İşleme al"
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                onOpenWorkOrder(o.id);
-                              }}
-                            >
-                              <Wrench size={16} strokeWidth={1.9} aria-hidden="true" />
-                            </button>
-                          </span>
-                        </div>
+                        </button>
                       );
                     })}
                   </div>
@@ -881,25 +859,52 @@ export const VehicleSearchScreen: React.FC<VehicleSearchScreenProps> = ({
                 </div>
 
                 {agendaOrders.length > 0 ? (
-                  agendaOrders.map((o: any) => (
-                    <button
-                      key={o.id}
-                      type="button"
-                      className="agenda-item"
-                      onClick={() => handleSelectVehicle(o.plaka)}
-                    >
-                      <span className="agenda-time">{orderTimeLabel(o.giris_tarihi)}</span>
-                      <span className="agenda-main">
-                        <span className="agenda-plate">
-                          {formatPlateDisplay(normalizePlate(String(o.plaka || '')))}
+                  agendaOrders.map((o: any) => {
+                    // Tarihi gelmiş (bugün/geçmiş) ve teslim edilmemiş iş emri
+                    // ajandadan tek tıkla "İşleme al" ile açılabilir.
+                    const canProcess =
+                      o.durum !== 'teslim_edildi' &&
+                      orderDateKey(o.giris_tarihi ?? o.tarih) <= todayKey;
+                    return (
+                      <div
+                        key={o.id}
+                        className="agenda-item"
+                        role="button"
+                        tabIndex={0}
+                        onClick={() => handleSelectVehicle(o.plaka)}
+                        onKeyDown={(e) => {
+                          if (e.key === 'Enter' || e.key === ' ') {
+                            e.preventDefault();
+                            handleSelectVehicle(o.plaka);
+                          }
+                        }}
+                      >
+                        <span className="agenda-time">{orderTimeLabel(o.giris_tarihi)}</span>
+                        <span className="agenda-main">
+                          <span className="agenda-plate">
+                            {formatPlateDisplay(normalizePlate(String(o.plaka || '')))}
+                          </span>
+                          <span className="agenda-cust"> · {o.musteri_ad || 'Müşteri belirtilmemiş'}</span>
+                          <div className="agenda-sub">
+                            {[o.arac_marka, o.arac_model].filter(Boolean).join(' ') || o.sikayet || 'Kayıt yok'}
+                          </div>
                         </span>
-                        <span className="agenda-cust"> · {o.musteri_ad || 'Müşteri belirtilmemiş'}</span>
-                        <div className="agenda-sub">
-                          {[o.arac_marka, o.arac_model].filter(Boolean).join(' ') || o.sikayet || 'Kayıt yok'}
-                        </div>
-                      </span>
-                    </button>
-                  ))
+                        {canProcess && (
+                          <button
+                            className="btn btn-sm agenda-act"
+                            type="button"
+                            title="İşleme al: parça / işçilik ekle"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              onOpenWorkOrder(o.id);
+                            }}
+                          >
+                            İşleme al
+                          </button>
+                        )}
+                      </div>
+                    );
+                  })
                 ) : (
                   <div className="agenda-empty">
                     <CalendarDays size={22} strokeWidth={1.75} aria-hidden="true" />

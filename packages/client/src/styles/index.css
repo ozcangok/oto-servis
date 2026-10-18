@@ -347,8 +347,8 @@ input[type=text]:focus,input[type=number]:focus,input[type=date]:focus,input[typ
 
 /* Serviste olan araçlar tablosu */
 .svc-scroll{overflow-x:auto}
-.svc{min-width:860px}
-.svc-head,.svc-row{display:grid;grid-template-columns:160px minmax(0,1fr) minmax(0,1.2fr) 150px 110px 112px;gap:16px;align-items:center}
+.svc{min-width:740px}
+.svc-head,.svc-row{display:grid;grid-template-columns:160px minmax(0,1fr) minmax(0,1.2fr) 150px 110px;gap:16px;align-items:center}
 .svc-head{
   padding:12px 24px;background:var(--surface-subtle);border-bottom:1px solid var(--divider);
   font-size:12px;font-weight:600;text-transform:uppercase;letter-spacing:.06em;color:var(--text-muted);
@@ -363,9 +363,6 @@ input[type=text]:focus,input[type=number]:focus,input[type=date]:focus,input[typ
 .svc-cust{font-weight:500;color:var(--text);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .svc-job{color:var(--text-muted);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .svc-amount{text-align:right;font-weight:500;font-variant-numeric:tabular-nums}
-.svc-act{justify-self:end;display:flex;align-items:center}
-.svc-act-btn{width:36px;min-width:36px;padding:0;min-height:32px;display:inline-flex;align-items:center;justify-content:center}
-.svc-act .btn{white-space:nowrap}
 .svc-head-link{font-size:14px;font-weight:500;color:var(--text-muted);cursor:pointer}
 .svc-head-link:hover{color:var(--text)}
 .svc-empty{padding:32px 24px;text-align:center;color:var(--text-muted);display:flex;flex-direction:column;align-items:center;gap:12px}
@@ -400,12 +397,13 @@ input[type=text]:focus,input[type=number]:focus,input[type=date]:focus,input[typ
 .agenda-title{font-size:16px;font-weight:600;color:var(--text)}
 .agenda-count{font-size:14px;color:var(--text-muted);white-space:nowrap}
 .agenda-item{
-  display:flex;gap:14px;padding:12px 14px;border:1px solid #eef2f6;border-radius:12px;background:var(--surface);
+  display:flex;gap:12px;align-items:center;padding:12px 14px;border:1px solid #eef2f6;border-radius:12px;background:var(--surface);
   cursor:pointer;text-align:left;width:100%;
 }
 .agenda-item:hover{background:var(--surface-subtle)}
 .agenda-time{font-size:14px;font-weight:600;font-variant-numeric:tabular-nums;color:var(--text);min-width:48px}
-.agenda-main{min-width:0}
+.agenda-main{min-width:0;flex:1 1 auto}
+.agenda-act{flex:0 0 auto}
 .agenda-plate{font-family:var(--f-cond);font-weight:700;letter-spacing:.08em;color:var(--text);font-size:15px}
 .agenda-cust{font-weight:500;color:var(--text-body)}
 .agenda-sub{font-size:13.5px;color:var(--text-muted);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
@@ -630,7 +628,7 @@ button.li:hover{background:var(--surface-subtle)}
   .screen.cockpit .svc-scroll{flex:1 1 auto;min-height:0;overflow:auto}
   /* Tablo, kart genişliğine sığar; gerekirse yatay kaydırılır */
   .screen.cockpit .svc{min-width:0}
-  .screen.cockpit .svc-head,.screen.cockpit .svc-row{grid-template-columns:146px minmax(0,1fr) minmax(0,1fr) 104px 88px 40px;gap:8px}
+  .screen.cockpit .svc-head,.screen.cockpit .svc-row{grid-template-columns:152px minmax(0,1fr) minmax(0,1fr) 112px 92px;gap:12px}
   /* Boşlukları daralt: hero + arama + 5 özet + tablo + takvim tek ekrana sığar */
   .screen.cockpit .hero{padding-bottom:0}
   .screen.cockpit .hero h1{font-size:26px}

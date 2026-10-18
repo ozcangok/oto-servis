@@ -186,9 +186,9 @@ test.describe('10) Araç sorgu panosu & takvim', () => {
     await expect(svc).toContainText(todayPlate);
     await expect(svc).not.toContainText(futurePlate);
 
-    // Tek tık "İşleme al" → iş emri formu açılır (parça/işçilik eklenebilir).
-    const row = page.locator('.svc-row', { hasText: todayPlate }).first();
-    await row.getByRole('button', { name: 'İşleme al' }).click();
+    // Takvim ajandasında bugünkü randevu → tek tık "İşleme al" iş emri formunu açar.
+    const agendaItem = page.locator('.agenda-item', { hasText: todayPlate }).first();
+    await agendaItem.getByRole('button', { name: 'İşleme al' }).click();
     await expect(page.getByRole('dialog')).toBeVisible();
   });
 
