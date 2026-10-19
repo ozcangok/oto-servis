@@ -12,10 +12,11 @@
  *    en az 10 saniye sonra uygulamayı kapatmak (`app.quit()`).
  */
 
-const { app, BrowserWindow, ipcMain } = require('electron');
+const { app, BrowserWindow, ipcMain, Menu, dialog } = require('electron');
 const path = require('path');
+const fs = require('fs');
 const { fork, spawn } = require('child_process');
-const { createDatabaseBackup } = require('./backup.cjs');
+const { createDatabaseBackup, backupStamp } = require('./backup.cjs');
 
 // Geliştirme ve paketlenmiş sürüm AYNI veri klasörünü kullansın diye ad
 // burada sabitlenir (electron-builder `productName` ile birebir aynı).
@@ -54,6 +55,136 @@ function getDataDir() {
  */
 function getServerCwd() {
   return app.getPath('userData');
+}
+
+/** SQLite metin değeri için güvenli tırnaklama. */
+function sqlString(value) {
+  return `'${String(value).replace(/'/g, "''")}'`;
+}
+
+/**
+ * Veritabanını kullanıcının seçtiği konuma TEK DOSYA olarak dışa aktarır.
+ *
+ * `VACUUM INTO` kullanılır: gömülü sunucu çalışırken bile TUTARLI (WAL dahil)
+ * bir anlık görüntü üretir; böylece dışa aktarılan `.sqlite` dosyası eksiksizdir.
+ *
+ * Not: `better-sqlite3` yerel (native) modülü yalnızca paketlenmiş uygulamada
+ * Electron ABI'siyle derlendiği için tembel (lazy) yüklenir.
+ */
+async function exportDatabase() {
+  const dbPath = path.join(getDataDir(), 'oto-servis.sqlite');
+  if (!fs.existsSync(dbPath)) {
+    dialog.showErrorBox('Veritabanı bulunamadı', `Veritabanı dosyası bulunamadı:\n${dbPath}`);
+    return;
+  }
+
+  const stamp = backupStamp(new Date());
+  const chosen = await dialog.showSaveDialog(mainWindow, {
+    title: 'Veritabanını Dışa Aktar',
+    defaultPath: path.join(app.getPath('documents'), `oto-servis-${stamp}.sqlite`),
+    filters: [{ name: 'SQLite Veritabanı', extensions: ['sqlite'] }]
+  });
+  if (chosen.canceled || !chosen.filePath) return;
+
+  const target = chosen.filePath;
+  try {
+    if (fs.existsSync(target)) fs.unlinkSync(target);
+
+    const Database = require('better-sqlite3');
+    const db = new Database(dbPath);
+    try {
+      db.exec(`VACUUM INTO ${sqlString(target)}`);
+    } finally {
+      db.close();
+    }
+
+    await dialog.showMessageBox(mainWindow, {
+      type: 'info',
+      title: 'Dışa Aktarma Tamamlandı',
+      message: 'Veritabanı başarıyla dışa aktarıldı.',
+      detail: target,
+      buttons: ['Tamam']
+    });
+  } catch (err) {
+    dialog.showErrorBox(
+      'Dışa Aktarma Hatası',
+      `Veritabanı dışa aktarılamadı:\n${String((err && err.message) || err)}`
+    );
+  }
+}
+
+/** Uygulama menüsü — "Veritabanını Dışa Aktar…" buradan erişilir. */
+function buildApplicationMenu() {
+  const isMac = process.platform === 'darwin';
+  const exportItem = {
+    label: 'Veritabanını Dışa Aktar…',
+    accelerator: 'CommandOrControl+Shift+E',
+    click: () => {
+      void exportDatabase();
+    }
+  };
+
+  const template = [];
+
+  if (isMac) {
+    template.push({
+      label: app.name,
+      submenu: [
+        { role: 'about', label: 'Hakkında' },
+        { type: 'separator' },
+        exportItem,
+        { type: 'separator' },
+        { role: 'hide', label: 'Gizle' },
+        { role: 'hideOthers', label: 'Diğerlerini Gizle' },
+        { role: 'unhide', label: 'Tümünü Göster' },
+        { type: 'separator' },
+        { role: 'quit', label: 'Çıkış' }
+      ]
+    });
+  } else {
+    template.push({
+      label: 'Dosya',
+      submenu: [exportItem, { type: 'separator' }, { role: 'quit', label: 'Çıkış' }]
+    });
+  }
+
+  template.push(
+    {
+      label: 'Düzen',
+      submenu: [
+        { role: 'undo', label: 'Geri Al' },
+        { role: 'redo', label: 'Yinele' },
+        { type: 'separator' },
+        { role: 'cut', label: 'Kes' },
+        { role: 'copy', label: 'Kopyala' },
+        { role: 'paste', label: 'Yapıştır' },
+        { role: 'selectAll', label: 'Tümünü Seç' }
+      ]
+    },
+    {
+      label: 'Görünüm',
+      submenu: [
+        { role: 'reload', label: 'Yenile' },
+        { role: 'forceReload', label: 'Zorla Yenile' },
+        { role: 'toggleDevTools', label: 'Geliştirici Araçları' },
+        { type: 'separator' },
+        { role: 'resetZoom', label: 'Normal Boyut' },
+        { role: 'zoomIn', label: 'Yakınlaştır' },
+        { role: 'zoomOut', label: 'Uzaklaştır' },
+        { type: 'separator' },
+        { role: 'togglefullscreen', label: 'Tam Ekran' }
+      ]
+    },
+    {
+      label: 'Pencere',
+      submenu: [
+        { role: 'minimize', label: 'Küçült' },
+        { role: 'close', label: 'Kapat' }
+      ]
+    }
+  );
+
+  Menu.setApplicationMenu(Menu.buildFromTemplate(template));
 }
 
 function startEmbeddedServer() {
@@ -287,6 +418,7 @@ function runSmokeTest() {
 }
 
 app.whenReady().then(() => {
+  buildApplicationMenu();
   startEmbeddedServer();
   // Small delay to allow fastify server to bind
   setTimeout(createWindow, 1500);

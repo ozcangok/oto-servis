@@ -183,6 +183,10 @@ geliştirme/test ortamı bozulmaz.
   `Belgelerim/CinarOto_Yedekler/oto-servis-YYYYAAAAGG-SSDDss.sqlite` biçiminde kopyalanır.
   WAL ana dosyaya işlendiği için yedek **tek dosya** halinde eksiksiz ve taşınabilirdir;
   başka bir bilgisayara kopyalanıp aynı konuma konularak kullanılabilir.
+- **İsteğe bağlı dışa aktarma:** uygulama menüsünden **Veritabanını Dışa Aktar…**
+  (`Cmd/Ctrl+Shift+E`) ile istediğin zaman, istediğin konuma (örn. USB bellek) **tek `.sqlite`
+  dosyası** olarak kaydedebilirsin. `VACUUM INTO` kullanıldığı için uygulama açıkken bile
+  tutarlı (WAL dahil) bir anlık görüntü alınır.
 - **Dış kaynak yok:** PDF dışa aktarma kütüphaneleri (html2canvas, jsPDF) CDN yerine
   uygulamanın içinden yüklenir; internet olmadan da çalışır.
 - Kurulumlar **imzasızdır**; Windows SmartScreen / macOS Gatekeeper ilk açılışta uyarı
