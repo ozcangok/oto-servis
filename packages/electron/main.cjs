@@ -16,6 +16,7 @@ const { app, BrowserWindow, ipcMain, Menu, dialog } = require('electron');
 const path = require('path');
 const fs = require('fs');
 const { fork, spawn } = require('child_process');
+const http = require('http');
 const { createDatabaseBackup, backupStamp } = require('./backup.cjs');
 
 // Geliştirme ve paketlenmiş sürüm AYNI veri klasörünü kullansın diye ad
@@ -374,10 +375,22 @@ function runSmokeTest() {
     console.log('[SMOKE] Arayüz yüklendi.');
     setTimeout(async () => {
       // 1) Gömülü sunucu ayakta mı? (yerel modüller/DB yolu doğru mu?)
+      //    Not: global `fetch` Node 18+ ile geldi; Electron 22 (Node 16, Windows 7
+      //    destekli son sürüm) altında bulunmadığı için `http` kullanılır.
       try {
-        const res = await fetch(`http://127.0.0.1:${SERVER_PORT}/api/health`);
-        console.log(`[SMOKE] Gömülü sunucu sağlık yanıtı: HTTP ${res.status}`);
-        if (!res.ok) process.exitCode = 1;
+        const status = await new Promise((resolve, reject) => {
+          const req = http.get(
+            { host: '127.0.0.1', port: SERVER_PORT, path: '/api/health', timeout: 5000 },
+            (res) => {
+              res.resume();
+              resolve(res.statusCode);
+            }
+          );
+          req.on('timeout', () => req.destroy(new Error('zaman aşımı')));
+          req.on('error', reject);
+        });
+        console.log(`[SMOKE] Gömülü sunucu sağlık yanıtı: HTTP ${status}`);
+        if (status !== 200) process.exitCode = 1;
       } catch (err) {
         console.log('[SMOKE] Gömülü sunucuya ulaşılamadı:', err && err.message);
         process.exitCode = 1;

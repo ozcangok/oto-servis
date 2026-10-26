@@ -8,10 +8,10 @@
     "prepare-app": "node scripts/prepare-app.cjs",
     "dist:dir": "npm run prepare-app && electron-builder --project dist-app --dir",
     "dist:mac": "npm run prepare-app && electron-builder --project dist-app --mac",
-    "dist:win": "npm run prepare-app && electron-builder --project dist-app --win nsis"
+    "dist:win": "npm run prepare-app && electron-builder --project dist-app --win nsis --x64"
   },
   "devDependencies": {
-    "electron": "^30.0.1",
+    "electron": "22.3.27",
     "electron-builder": "^24.13.3"
   }
 }

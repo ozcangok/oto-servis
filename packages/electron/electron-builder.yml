@@ -18,7 +18,8 @@ productName: Oto Servis Yonetimi
 copyright: Copyright © Çınar Oto
 
 # Kökte kurulu Electron sürümüyle birebir aynı olmalı (packages/electron devDependency).
-electronVersion: 30.5.1
+# 22.3.27 = Windows 7 / 8 / 8.1 destekleyen SON Electron sürümü (23+ yalnızca Windows 10+).
+electronVersion: 22.3.27
 
 asar: false
 npmRebuild: true
