@@ -29,6 +29,7 @@ import {
   Settings,
   Sparkles,
   TrendingUp,
+  UserRound,
   Wallet,
   Wrench,
   X
@@ -58,6 +59,7 @@ interface DashboardScreenProps {
   onOpenSettings: () => void;
   onLockScreen: () => void;
   onLogout: () => void;
+  onSwitchUser?: (username: string, password: string) => Promise<void>;
 }
 
 interface OrderRow {
@@ -321,7 +323,8 @@ export function DashboardScreen({
   onNavigate,
   onOpenSettings,
   onLockScreen,
-  onLogout
+  onLogout,
+  onSwitchUser
 }: DashboardScreenProps) {
   const isOwner = currentUser.role === 'owner';
 
@@ -340,6 +343,28 @@ export function DashboardScreen({
   const [error, setError] = useState<string | null>(null);
   const [busyId, setBusyId] = useState<number | null>(null);
   const [bildirim, setBildirim] = useState<{ tur: 'ok' | 'hata'; metin: string } | null>(null);
+
+  const [switchUser, setSwitchUser] = useState('');
+  const [switchPassword, setSwitchPassword] = useState('');
+  const [switchBusy, setSwitchBusy] = useState(false);
+  const [switchError, setSwitchError] = useState<string | null>(null);
+
+  const doSwitchUser = async () => {
+    if (!onSwitchUser) return;
+    if (!switchUser.trim() || !switchPassword) {
+      setSwitchError('Hesap değiştirmek için kullanıcı adı ve parola gerekli.');
+      return;
+    }
+    setSwitchBusy(true);
+    setSwitchError(null);
+    try {
+      await onSwitchUser(switchUser.trim(), switchPassword);
+    } catch (e: any) {
+      setSwitchError(e?.message || 'Hesap değiştirilemedi.');
+    } finally {
+      setSwitchBusy(false);
+    }
+  };
 
   const [vehicleModal, setVehicleModal] = useState(false);
   const [invoiceOrder, setInvoiceOrder] = useState<OrderRow | null>(null);
@@ -887,6 +912,43 @@ export function DashboardScreen({
                 <PackageSearch className="h-3.5 w-3.5" />
                 Parça İste
               </button>
+            )}
+
+            {isOwner && (
+              <div className="flex items-center gap-2 rounded-2xl border border-white/10 bg-white/[0.04] px-3 py-1.5">
+                <UserRound className="h-3.5 w-3.5 text-zinc-500" />
+                <select
+                  value={switchUser}
+                  onChange={(e) => setSwitchUser(e.target.value)}
+                  className="max-w-[140px] bg-transparent text-[11px] text-zinc-200 outline-none"
+                  aria-label="Hesap değiştirme"
+                >
+                  <option value="">Hesap seç…</option>
+                  {users
+                    .filter((u) => u.role === 'staff')
+                    .map((u) => (
+                      <option key={u.id} value={u.username}>
+                        {u.full_name} (@{u.username})
+                      </option>
+                    ))}
+                </select>
+                <input
+                  type="password"
+                  value={switchPassword}
+                  onChange={(e) => setSwitchPassword(e.target.value)}
+                  placeholder="Parola"
+                  className="w-24 bg-transparent text-[11px] text-zinc-200 outline-none placeholder:text-zinc-500"
+                />
+                <button
+                  type="button"
+                  onClick={() => void doSwitchUser()}
+                  disabled={switchBusy}
+                  className="rounded-lg border border-white/10 bg-white/[0.04] px-2 py-1 text-[10px] font-medium text-zinc-300 transition hover:border-white/20 hover:text-white disabled:opacity-50"
+                >
+                  {switchBusy ? 'Değiştiriliyor…' : 'Değiştir'}
+                </button>
+                {switchError && <span className="text-[10px] text-rose-300">{switchError}</span>}
+              </div>
             )}
 
             <div className="flex items-center gap-3 rounded-2xl border border-white/10 bg-white/[0.04] py-1.5 pl-1.5 pr-3 backdrop-blur-xl">

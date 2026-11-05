@@ -80,7 +80,7 @@ test.describe('14) Arayüz mahremiyeti, XSS ve ekran görüntüleri', () => {
       await page.goto(`/${hash}`);
       await page.reload();
       const current = new URL(page.url()).hash;
-      expect(current, `staff ${hash} adresinden yönlendirilmeli`).toBe('#/panel');
+      expect(current, `staff ${hash} adresinden yönlendirilmeli`).toBe('#/sorgu');
       await expect(page.locator('.kasa-sum')).toHaveCount(0);
       await expect(page.getByRole('dialog')).toHaveCount(0);
     }

@@ -68,7 +68,7 @@ function normalizePathRoute() {
 export function App() {
   const [currentUser, setCurrentUser] = useState<any | null>(null);
   const [authChecked, setAuthChecked] = useState(false);
-  const [activeTab, setActiveTab] = useState<TabKey>('panel');
+  const [activeTab, setActiveTab] = useState<TabKey>('sorgu');
 
   // Work order sheet modal state
   const [workOrderModalOpen, setWorkOrderModalOpen] = useState(false);
@@ -188,14 +188,33 @@ export function App() {
 
   const handleAuthSuccess = (user: any) => {
     setCurrentUser(user);
-    // Giriş sonrası yeni Panel açılır (kullanıcı tercihi). Rol ne olursa olsun
-    // panel rol bazlı içerik gösterir; personel finansal kartları görmez.
-    setActiveTab('panel');
-    try {
-      window.history.replaceState(null, '', '#/panel');
-    } catch {}
+    // Giriş sonrası ana ekrana dönülür; otomatik Panel yönlendirmesi kaldırıldı
+    // (sadece dashboard değişikliği hedeflendi, diğer ekran davranışı aynı kaldı).
     loadRemindersBadge();
     loadSettings();
+  };
+
+  /**
+   * Panel içinden kullanıcı hesabı değiştirme. Mevcut oturumu güvenli biçimde
+   * kapatıp seçilen hesapla yeniden giriş yapar; giriş sonrası ana ekrana
+   * (Araç sorgu) dönülür. Bu akış login/çıkış akışıyla aynıdır; sadece panel
+   * üzerinden tetikleniyor.
+   */
+  const handleSwitchUser = async (username: string, password: string) => {
+    clearSession();
+    await new Promise((r) => setTimeout(r, 0));
+    const res = await apiRequest('/auth/login', {
+      method: 'POST',
+      body: JSON.stringify({ username, password })
+    });
+    if (res.success && res.token && res.user) {
+      setAuthToken(res.token);
+      setCurrentUser(res.user);
+      setAuthChecked(true);
+      setActiveTab('sorgu');
+    } else {
+      throw new Error(res.error || 'Hesap değiştirilemedi.');
+    }
   };
 
   /**
@@ -322,8 +341,8 @@ export function App() {
         if (isOwner) {
           setShowSettings(true);
         } else {
-          window.history.replaceState(null, '', '#/panel');
-          setActiveTab('panel');
+          window.history.replaceState(null, '', '#/sorgu');
+          setActiveTab('sorgu');
         }
         return;
       }
@@ -332,15 +351,15 @@ export function App() {
       setShowSettings(false);
 
       if (name === 'kasa' && !isOwner) {
-        window.history.replaceState(null, '', '#/panel');
-        setActiveTab('panel');
+        window.history.replaceState(null, '', '#/sorgu');
+        setActiveTab('sorgu');
         return;
       }
       // Cari hesap (bakiyeler/alacaklar) ticari mahremiyet kapsamındadır:
       // personel doğrudan adresle de açamaz.
       if (name === 'cari' && !isOwner) {
-        window.history.replaceState(null, '', '#/panel');
-        setActiveTab('panel');
+        window.history.replaceState(null, '', '#/sorgu');
+        setActiveTab('sorgu');
         return;
       }
       if (name === 'login') {
@@ -611,6 +630,7 @@ export function App() {
               onOpenSettings={() => setShowSettings(true)}
               onLockScreen={handleLockNow}
               onLogout={handleLogout}
+              onSwitchUser={(username: string, password: string) => handleSwitchUser(username, password)}
             />
           </Suspense>
         )}

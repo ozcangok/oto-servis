@@ -82,6 +82,7 @@ export const WorkOrderScreen: React.FC<WorkOrderScreenProps> = ({
   const [lines, setLines] = useState<OrderLineState[]>([
     { kind: 'part', partId: null, name: '', qty: 1, price: '', unit: 'adet' }
   ]);
+  const [laborJobs, setLaborJobs] = useState<string[]>([]);
 
   // Financials
   const [vatRate, setVatRate] = useState<number>(20);
@@ -215,6 +216,16 @@ export const WorkOrderScreen: React.FC<WorkOrderScreenProps> = ({
               unit: l.birim || 'adet'
             }))
           );
+        }
+
+        // İşçilik (labor) iş isimleri: yeni iş emri formunda
+        // "Yapılan işlem" kutusuna kategorik seçim (datalist) olarak sunulur.
+        if (o.kalemler) {
+          for (const l of o.kalemler) {
+            if (l?.tur === 'iscilik' && l?.ad && !laborJobs.includes(l.ad)) {
+              setLaborJobs((prev) => [...prev, l.ad]);
+            }
+          }
         }
 
         if (o.arac) {
@@ -689,6 +700,12 @@ export const WorkOrderScreen: React.FC<WorkOrderScreenProps> = ({
             ))}
           </datalist>
 
+          <datalist id="laborlist">
+            {laborJobs.map((name) => (
+              <option key={name} value={name} />
+            ))}
+          </datalist>
+
           {/* Stage & Barcode scanner */}
           <div className="grid g2">
             <div className="field">
@@ -791,7 +808,7 @@ export const WorkOrderScreen: React.FC<WorkOrderScreenProps> = ({
                   <div className="lname">
                     <input
                       type="text"
-                      list={isPart ? 'partlist' : undefined}
+                      list={isPart ? 'partlist' : 'laborlist'}
                       placeholder={isPart ? 'Parça adı veya kodu (stoktan seçilebilir)' : 'Yapılan işlem'}
                       value={l.name}
                       onChange={(e) => handleLineChange(i, 'name', e.target.value)}
