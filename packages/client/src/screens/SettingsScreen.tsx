@@ -11,6 +11,8 @@ export const SettingsScreen: React.FC<SettingsScreenProps> = ({ onClose, onSetti
   const [shopName, setShopName] = useState('GÜVEN OTO');
   const [shopPhone, setShopPhone] = useState('');
   const [shopAddress, setShopAddress] = useState('');
+  const [shopTaxOffice, setShopTaxOffice] = useState('');
+  const [shopTaxNumber, setShopTaxNumber] = useState('');
   const [vatRate, setVatRate] = useState<number>(20);
   const [cashDiscount, setCashDiscount] = useState<number>(5);
   const [saving, setSaving] = useState(false);
@@ -30,6 +32,8 @@ export const SettingsScreen: React.FC<SettingsScreenProps> = ({ onClose, onSetti
         setShopName(res.settings.shop_name || 'GÜVEN OTO');
         setShopPhone(res.settings.shop_phone || '');
         setShopAddress(res.settings.shop_address || '');
+        setShopTaxOffice(res.settings.shop_tax_office || '');
+        setShopTaxNumber(res.settings.shop_tax_number || '');
         setVatRate(res.settings.default_kdv_rate ?? 20);
         setCashDiscount(res.settings.default_cash_discount_rate ?? 5);
       }
@@ -44,12 +48,19 @@ export const SettingsScreen: React.FC<SettingsScreenProps> = ({ onClose, onSetti
   };
 
   const handleSave = async () => {
+    const taxNo = shopTaxNumber.trim();
+    if (taxNo && !/^\d{10,11}$/.test(taxNo)) {
+      toast('Vergi no 10 (VKN) veya 11 (TCKN) haneli olmalıdır.');
+      return;
+    }
     setSaving(true);
     try {
       const body = {
         shop_name: shopName.trim() || 'GÜVEN OTO',
         shop_phone: shopPhone.trim(),
         shop_address: shopAddress.trim(),
+        shop_tax_office: shopTaxOffice.trim(),
+        shop_tax_number: shopTaxNumber.trim(),
         default_kdv_rate: Number(vatRate) || 0,
         default_cash_discount_rate: Number(cashDiscount) || 0
       };
@@ -95,7 +106,7 @@ export const SettingsScreen: React.FC<SettingsScreenProps> = ({ onClose, onSetti
 
       const backupData = {
         exportedAt: new Date().toISOString(),
-        settings: { shopName, shopPhone, shopAddress, vatRate, cashDiscount },
+        settings: { shopName, shopPhone, shopAddress, shopTaxOffice, shopTaxNumber, vatRate, cashDiscount },
         vehicles: veh.items || [],
         customers: cust.items || [],
         orders: ord.items || [],
@@ -158,6 +169,37 @@ export const SettingsScreen: React.FC<SettingsScreenProps> = ({ onClose, onSetti
               />
             </div>
           </div>
+
+          <div className="grid g2">
+            <div className="field">
+              <label htmlFor="st-tax-office">Vergi dairesi</label>
+              <input
+                id="st-tax-office"
+                type="text"
+                placeholder="Örn. Marmara V.D."
+                value={shopTaxOffice}
+                onChange={(e) => setShopTaxOffice(e.target.value)}
+              />
+            </div>
+
+            <div className="field">
+              <label htmlFor="st-tax-number">Vergi no (VKN / TCKN)</label>
+              <input
+                id="st-tax-number"
+                type="text"
+                inputMode="numeric"
+                placeholder="10 veya 11 haneli numara"
+                value={shopTaxNumber}
+                onChange={(e) => setShopTaxNumber(e.target.value.replace(/\D/g, ''))}
+                maxLength={11}
+              />
+            </div>
+          </div>
+
+          <p className="muted">
+            Dükkan adı, adres, telefon, vergi dairesi ve vergi no; indirilen servis dökümü (PDF)
+            belgelerinin başlığında otomatik olarak görünür.
+          </p>
 
           <div className="grid g2">
             <div className="field">

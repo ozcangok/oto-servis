@@ -187,6 +187,23 @@ export const VehicleSearchScreen: React.FC<VehicleSearchScreenProps> = ({
     } catch {}
   };
 
+  /**
+   * PDF başlığındaki dükkan/vergi bilgileri Ayarlar ekranından değiştirilebildiği
+   * için dökümü üretmeden hemen önce ayarları tazeleriz; aksi halde sayfa ilk
+   * açıldığındaki eski değerler kullanılırdı.
+   */
+  const exportWithFreshSettings = async (list: any[], vehicle: any) => {
+    let fresh = settings;
+    try {
+      const res = await apiRequest('/settings');
+      if (res.success && res.settings) {
+        fresh = res.settings;
+        setSettings(res.settings);
+      }
+    } catch {}
+    await exportStatementPDF(list, vehicle, fresh);
+  };
+
   const loadDashboardData = async () => {
     try {
       // 1. Fetch work orders
@@ -1031,7 +1048,7 @@ export const VehicleSearchScreen: React.FC<VehicleSearchScreenProps> = ({
                 <button
                   className="btn"
                   type="button"
-                  onClick={() => exportStatementPDF(orders, v, settings)}
+                  onClick={() => exportWithFreshSettings(orders, v)}
                 >
                   Tüm geçmiş (PDF)
                 </button>
@@ -1191,7 +1208,7 @@ export const VehicleSearchScreen: React.FC<VehicleSearchScreenProps> = ({
                         <button
                           className="btn btn-sm"
                           type="button"
-                          onClick={() => exportStatementPDF([o], v, settings)}
+                          onClick={() => exportWithFreshSettings([o], v)}
                         >
                           PDF döküm
                         </button>
