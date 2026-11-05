@@ -222,6 +222,9 @@ export async function seedDatabase() {
     sonraki_bakim_tarihi: new Date(Date.now() + 365 * 24 * 60 * 60 * 1000).toISOString(),
     sonraki_bakim_km: 95200,
     olusturan_kullanici_id: adminId || 1,
+    // Örnek iş emri varsayılan olarak dükkan sahibine atanır; personel
+    // listesinde görünmez, sahip panelinde "Atanmadı" görünmez.
+    atanan_kullanici_id: adminId || 1,
     is_sample: true,
     created_at: now,
     updated_at: now

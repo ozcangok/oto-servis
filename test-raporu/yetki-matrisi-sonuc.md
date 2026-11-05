@@ -37,10 +37,10 @@ Sahip çağrısı atlanan yıkıcı uçlar `—` ile işaretlidir.
 | `POST /api/work-orders` | 401 | 200 | 200 | personel + sahip | ✅ | İş emri oluşturma |
 | `PUT /api/work-orders/1` | 401 | 200 | 200 | personel + sahip | ✅ | İş emri düzenleme |
 | `PUT /api/work-orders/1/status` | 401 | 200 | 200 | personel + sahip | ✅ | Durum güncelleme |
-| `POST /api/work-orders/1/payments` | 401 | 200 | 200 | personel + sahip | ✅ | İş emrine ödeme |
-| `POST /api/work-orders/1/reopen` | 401 | 200 | 200 | personel + sahip | ✅ | İş emri yeniden açma |
-| `POST /api/payments` | 401 | 200 | 200 | personel + sahip | ✅ | Ödeme ekleme |
-| `GET /api/payments/work-order/1` | 401 | 200 | 200 | personel + sahip | ✅ | İş emri ödemeleri |
+| `POST /api/work-orders/1/payments` | 401 | 403 | 200 | yalnız sahip | ✅ | İş emrine ödeme (finansal) |
+| `POST /api/work-orders/1/reopen` | 401 | 403 | 200 | yalnız sahip | ✅ | İş emri yeniden açma (finansal kapanış) |
+| `POST /api/payments` | 401 | 403 | 200 | yalnız sahip | ✅ | Ödeme ekleme (finansal) |
+| `GET /api/payments/work-order/1` | 401 | 403 | 200 | yalnız sahip | ✅ | İş emri ödemeleri (mali) |
 | `GET /api/cash-desk/summary` | 401 | 403 | 200 | yalnız sahip | ✅ | Kasa raporu (mali) |
 | `GET /api/cash-desk/export-csv` | 401 | 403 | 200 | yalnız sahip | ✅ | Kasa CSV (mali) |
 | `GET /api/expenses` | 401 | 200 | 200 | personel + sahip | ✅ | Gider listesi (özet sahibe) |

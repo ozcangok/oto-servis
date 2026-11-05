@@ -1,0 +1,124 @@
+/*
+ * Dark Glassmorphism Panel
+ * ------------------------
+ * Tailwind yalnızca utilities olarak yüklenir (preflight kapalı). Mevcut
+ * tasarım sistemini bozmamak için tüm sıfırlamalar `.oto-panel` altında ve
+ * `:where()` ile sıfır özgüllükte yapılır; böylece Tailwind sınıfları
+ * (mt-4, text-sm, bg-*) rahatça uygulanabilir.
+ */
+
+.oto-panel {
+  font-family: 'IBM Plex Sans', system-ui, -apple-system, 'Segoe UI', sans-serif;
+  color-scheme: dark;
+
+  /* Kabuğun `.wrap` iç boşluğunu tamamen kapla; mobilde 16px, masaüstünde
+     32px olan yatay boşlukla birebir eşleşir (taşma yapmaz). */
+  margin: -20px -16px 0;
+
+
+  /* Tailwind preflight kapalı olduğu için gradyan/ring/shadow yardımcı
+     sınıflarının beklediği özel değişken varsayılanlarını burada tanımlıyoruz.
+     Aksi hâlde `bg-gradient-to-r` hesaplanamaz ve düğmeler tarayıcının gri
+     varsayılan arka planında kalır. */
+  --tw-gradient-from-position: 0%;
+  --tw-gradient-via-position: 50%;
+  --tw-gradient-to-position: 100%;
+  --tw-ring-inset: ;
+  --tw-ring-offset-width: 0px;
+  --tw-ring-offset-color: #fff;
+  --tw-ring-color: rgb(59 130 246 / 0.5);
+  --tw-ring-offset-shadow: 0 0 #0000;
+  --tw-ring-shadow: 0 0 #0000;
+  --tw-shadow: 0 0 #0000;
+  --tw-shadow-colored: 0 0 #0000;
+}
+
+@media (min-width: 901px) {
+  .oto-panel {
+    margin: -24px -32px 0;
+  }
+}
+
+.oto-panel :where(*, *::before, *::after) {
+  box-sizing: border-box;
+}
+
+.oto-panel :where(h1, h2, h3, h4, p, ul, ol, figure) {
+  margin: 0;
+  padding: 0;
+}
+
+.oto-panel :where(ul, ol) {
+  list-style: none;
+}
+
+.oto-panel :where(table) {
+  border-collapse: collapse;
+  border-spacing: 0;
+}
+
+.oto-panel :where(svg) {
+  display: block;
+}
+
+.oto-panel :where(button, input, select, textarea) {
+  font-family: inherit;
+}
+
+.oto-panel :where(button) {
+  cursor: pointer;
+}
+
+.oto-panel :where(button:disabled) {
+  cursor: not-allowed;
+}
+
+.oto-panel :where(select option) {
+  background-color: #141419;
+  color: #f4f4f5;
+}
+
+.oto-panel :where(input, textarea, select)::placeholder {
+  color: #52525b;
+}
+
+.oto-panel .scrollbar-thin::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+.oto-panel .scrollbar-thin::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.oto-panel .scrollbar-thin::-webkit-scrollbar-thumb {
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.12);
+}
+
+.oto-panel .scrollbar-thin::-webkit-scrollbar-thumb:hover {
+  background: rgba(255, 255, 255, 0.22);
+}
+
+@keyframes otoFadeUp {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.oto-panel .animate-fade-up {
+  animation: otoFadeUp 0.5s ease both;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .oto-panel .animate-fade-up {
+    animation: none;
+  }
+}
+
+@tailwind utilities;

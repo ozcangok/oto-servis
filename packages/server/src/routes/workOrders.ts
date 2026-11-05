@@ -1,6 +1,7 @@
 import type { FastifyPluginAsync } from 'fastify';
 import { z } from 'zod';
 import { eq, and, isNull, desc, sql, inArray, like } from 'drizzle-orm';
+import { alias } from 'drizzle-orm/sqlite-core';
 import path from 'path';
 import fs from 'fs';
 import {
@@ -24,6 +25,10 @@ import { logAudit } from '../services/auditService.js';
 import { recordStatusNotification } from '../services/whatsappService.js';
 import { calculateWorkOrderTotals } from '@oto-servis/shared';
 import type { WorkOrderStatus, LineType, PaymentMethod } from '@oto-servis/shared';
+
+// Atanan personel için users tablosunun ikinci bir takma adı (oluşturan
+// kullanıcıyla aynı sorguda join edilebilsin).
+const atananKullanici = alias(users, 'atanan_kullanici');
 
 const lineItemSchema = z.object({
   id: z.number().optional(),
@@ -51,6 +56,8 @@ const workOrderCreateSchema = z.object({
   sonraki_bakim_tarihi: z.string().optional().nullable(),
   sonraki_bakim_km: z.number().int().min(0).optional().nullable(),
   kalemler: z.array(lineItemSchema).default([]),
+  /** İşi yürütecek personel (yalnızca dükkan sahibi değiştirebilir). */
+  atanan_kullanici_id: z.number().int().positive().optional().nullable(),
   override_negative_stock: z.boolean().optional()
 });
 
@@ -81,6 +88,11 @@ export const workOrderRoutes: FastifyPluginAsync = async (fastify) => {
     if (status) {
       conditions.push(eq(workOrders.durum, status));
     }
+    // Personel yalnızca kendine atanan iş emirlerini görür. Dükkan sahibi
+    // tüm işletme kayıtlarını görür.
+    if (request.user!.role !== 'owner') {
+      conditions.push(eq(workOrders.atanan_kullanici_id, request.user!.id));
+    }
 
     const whereClause = and(...conditions)!;
 
@@ -95,11 +107,15 @@ export const workOrderRoutes: FastifyPluginAsync = async (fastify) => {
       .select({
         workOrder: workOrders,
         vehicle: vehicles,
-        customer: customers
+        customer: customers,
+        atanan_id: atananKullanici.id,
+        atanan_ad: atananKullanici.full_name,
+        atanan_kullanici: atananKullanici.username
       })
       .from(workOrders)
       .leftJoin(vehicles, eq(workOrders.arac_id, vehicles.id))
       .leftJoin(customers, eq(vehicles.musteri_id, customers.id))
+      .leftJoin(atananKullanici, eq(workOrders.atanan_kullanici_id, atananKullanici.id))
       .where(whereClause)
       .orderBy(desc(workOrders.tarih), desc(workOrders.id))
       .limit(limit)
@@ -108,7 +124,7 @@ export const workOrderRoutes: FastifyPluginAsync = async (fastify) => {
 
     const pesinRate = await getPesinRate();
 
-    const items = orders.map(({ workOrder, vehicle, customer }) => {
+    const items = orders.map(({ workOrder, vehicle, customer, atanan_id, atanan_ad, atanan_kullanici }) => {
       // Get lines
       const lines = db
         .select()
@@ -145,6 +161,7 @@ export const workOrderRoutes: FastifyPluginAsync = async (fastify) => {
         {
           ...workOrder,
           arac: vehicle ? { ...withVehicleAliases(vehicle), musteri: customer } : undefined,
+          atanan: atanan_id ? { id: atanan_id, full_name: atanan_ad, username: atanan_kullanici } : null,
           kalem_sayisi: lines.length,
           toplam_kurus: calc.toplam_kurus,
           net_kurus: calc.net_kurus,
@@ -187,17 +204,26 @@ export const workOrderRoutes: FastifyPluginAsync = async (fastify) => {
         workOrder: workOrders,
         vehicle: vehicles,
         customer: customers,
-        creator: users
+        creator: users,
+        atanan_id: atananKullanici.id,
+        atanan_ad: atananKullanici.full_name,
+        atanan_kullanici: atananKullanici.username
       })
       .from(workOrders)
       .leftJoin(vehicles, eq(workOrders.arac_id, vehicles.id))
       .leftJoin(customers, eq(vehicles.musteri_id, customers.id))
       .leftJoin(users, eq(workOrders.olusturan_kullanici_id, users.id))
+      .leftJoin(atananKullanici, eq(workOrders.atanan_kullanici_id, atananKullanici.id))
       .where(and(eq(workOrders.id, id), isNull(workOrders.deleted_at)))
       .get();
 
     if (!row) {
       return reply.status(404).send({ success: false, error: 'İş emri bulunamadı.' });
+    }
+
+    // Personel yalnızca kendine atanan iş emrinin detayını açabilir.
+    if (request.user!.role !== 'owner' && row.workOrder.atanan_kullanici_id !== request.user!.id) {
+      return reply.status(403).send({ success: false, error: 'Bu iş emrine erişim yetkiniz yok.' });
     }
 
     const lines = db
@@ -245,6 +271,7 @@ export const workOrderRoutes: FastifyPluginAsync = async (fastify) => {
           ...row.workOrder,
           arac: row.vehicle ? { ...withVehicleAliases(row.vehicle), musteri: row.customer } : undefined,
           olusturan: row.creator ? { id: row.creator.id, full_name: row.creator.full_name, username: row.creator.username } : undefined,
+          atanan: row.atanan_id ? { id: row.atanan_id, full_name: row.atanan_ad, username: row.atanan_kullanici } : null,
           kalemler: safeLines,
           odemeler: orderPayments,
           fotograflar: orderPhotos,
@@ -291,6 +318,24 @@ export const workOrderRoutes: FastifyPluginAsync = async (fastify) => {
       return reply.status(404).send({ success: false, error: 'Araç bulunamadı.' });
     }
 
+    // Personel oluşturduğu işi otomatik olarak kendine atar; dükkan sahibi
+    // dilerse başka bir personeli atayabilir. Atanmazsa işletme sahibinde kalır.
+    const atananId =
+      request.user!.role === 'staff'
+        ? request.user!.id
+        : parse.data.atanan_kullanici_id ?? request.user!.id;
+
+    if (atananId) {
+      const atanan = db
+        .select({ id: users.id })
+        .from(users)
+        .where(and(eq(users.id, atananId), eq(users.is_active, true)))
+        .get();
+      if (!atanan) {
+        return reply.status(400).send({ success: false, error: 'Atanacak personel bulunamadı.' });
+      }
+    }
+
     const now = new Date().toISOString();
     let warnings: string[] = [];
 
@@ -312,6 +357,7 @@ export const workOrderRoutes: FastifyPluginAsync = async (fastify) => {
         sonraki_bakim_tarihi: parse.data.sonraki_bakim_tarihi || null,
         sonraki_bakim_km: parse.data.sonraki_bakim_km || null,
         olusturan_kullanici_id: request.user!.id,
+        atanan_kullanici_id: atananId,
         is_sample: false,
         created_at: now,
         updated_at: now
@@ -403,6 +449,28 @@ export const workOrderRoutes: FastifyPluginAsync = async (fastify) => {
       return reply.status(404).send({ success: false, error: 'İş emri bulunamadı.' });
     }
 
+    // Personel yalnızca kendine atanan işi güncelleyebilir.
+    if (request.user!.role !== 'owner' && existing.atanan_kullanici_id !== request.user!.id) {
+      return reply.status(403).send({ success: false, error: 'Bu iş emrine erişim yetkiniz yok.' });
+    }
+
+    // Atama yalnızca dükkan sahibi tarafından değiştirilebilir.
+    const yeniAtanan =
+      request.user!.role === 'owner' && parse.data.atanan_kullanici_id !== undefined
+        ? parse.data.atanan_kullanici_id
+        : existing.atanan_kullanici_id;
+
+    if (yeniAtanan) {
+      const atanan = db
+        .select({ id: users.id })
+        .from(users)
+        .where(and(eq(users.id, yeniAtanan), eq(users.is_active, true)))
+        .get();
+      if (!atanan) {
+        return reply.status(400).send({ success: false, error: 'Atanacak personel bulunamadı.' });
+      }
+    }
+
     const now = new Date().toISOString();
     let warnings: string[] = [];
 
@@ -421,6 +489,7 @@ export const workOrderRoutes: FastifyPluginAsync = async (fastify) => {
           pesin_fiyat_elle_kurus: parse.data.pesin_fiyat_elle_kurus || null,
           sonraki_bakim_tarihi: parse.data.sonraki_bakim_tarihi || null,
           sonraki_bakim_km: parse.data.sonraki_bakim_km || null,
+          atanan_kullanici_id: yeniAtanan,
           updated_at: now
         }).where(eq(workOrders.id, id)).returning().get();
 
@@ -491,13 +560,14 @@ export const workOrderRoutes: FastifyPluginAsync = async (fastify) => {
     const body = (request.body as any) || {};
     const durum = body.durum;
 
-    if (!['kabul', 'onarimda', 'onarımda', 'tamamlandı', 'teslime_hazir', 'teslim_edildi'].includes(durum)) {
+    if (!['kabul', 'onarimda', 'onarımda', 'parca_bekliyor', 'parça_bekliyor', 'tamamlandı', 'teslime_hazir', 'teslim_edildi'].includes(durum)) {
       return reply.status(400).send({ success: false, error: 'Geçersiz servis durumu.' });
     }
 
     // Normalize legacy/alternate spellings to canonical DB values
     const canonical =
       durum === 'onarımda' ? 'onarimda'
+      : durum === 'parça_bekliyor' ? 'parca_bekliyor'
       : durum === 'tamamlandı' ? 'teslime_hazir'
       : durum;
 
@@ -510,6 +580,17 @@ export const workOrderRoutes: FastifyPluginAsync = async (fastify) => {
 
     if (!existing) {
       return reply.status(404).send({ success: false, error: 'İş emri bulunamadı.' });
+    }
+
+    // Personel yalnızca kendine atanan işin durumunu değiştirebilir ve
+    // teslim işlemini (finansal kapanış) yalnızca dükkan sahibi yapabilir.
+    if (request.user!.role !== 'owner') {
+      if (existing.atanan_kullanici_id !== request.user!.id) {
+        return reply.status(403).send({ success: false, error: 'Bu iş emrine erişim yetkiniz yok.' });
+      }
+      if (canonical === 'teslim_edildi') {
+        return reply.status(403).send({ success: false, error: 'Teslim işlemini yalnızca dükkan sahibi yapabilir.' });
+      }
     }
 
     const now = new Date().toISOString();
@@ -548,6 +629,11 @@ export const workOrderRoutes: FastifyPluginAsync = async (fastify) => {
       summary: 'İş emrine ödeme ekle'
     }
   }, async (request, reply) => {
+    // Tahsilat/finansal işlem: yalnızca dükkan sahibi.
+    if (request.user!.role !== 'owner') {
+      return reply.status(403).send({ success: false, error: 'Bu işlem için dükkan sahibi yetkisi gereklidir.' });
+    }
+
     const id = Number((request.params as any).id);
     const body = (request.body as any) || {};
     const tutar = body.tutar_kurus;
@@ -598,6 +684,11 @@ export const workOrderRoutes: FastifyPluginAsync = async (fastify) => {
       summary: 'İş emrini peşin fiyat üzerinden tahsil ederek kapat'
     }
   }, async (request, reply) => {
+    // Peşin kapatma kasayı doğrudan etkiler: yalnızca dükkan sahibi.
+    if (request.user!.role !== 'owner') {
+      return reply.status(403).send({ success: false, error: 'Bu işlem için dükkan sahibi yetkisi gereklidir.' });
+    }
+
     const id = Number((request.params as any).id);
     const db = getDb();
     const sqlite = getSqlite();
@@ -668,6 +759,12 @@ export const workOrderRoutes: FastifyPluginAsync = async (fastify) => {
       summary: 'Kapanmış iş emrini yeniden aç'
     }
   }, async (request, reply) => {
+    // Kapanmış (teslim edilmiş) işi yeniden açmak finansal kaydı etkiler:
+    // yalnızca dükkan sahibi.
+    if (request.user!.role !== 'owner') {
+      return reply.status(403).send({ success: false, error: 'Bu işlem için dükkan sahibi yetkisi gereklidir.' });
+    }
+
     const id = Number((request.params as any).id);
     const db = getDb();
 

@@ -15,7 +15,8 @@ export function toast(msg: string) {
 
 export const STAGES: [string, string][] = [
   ['accepted', 'Kabul edildi'],
-  ['repairing', 'Onarımda'],
+  ['repairing', 'Bakımda / Onarımda'],
+  ['waiting', 'Parça bekliyor'],
   ['ready', 'Teslime hazır'],
   ['delivered', 'Teslim edildi']
 ];
@@ -23,6 +24,7 @@ export const STAGES: [string, string][] = [
 export const STAGE_TXT: Record<string, string> = {
   accepted: 'Kabul edildi',
   repairing: 'Onarımda',
+  waiting: 'Parça bekliyor',
   ready: 'Teslime hazır',
   delivered: 'Teslim edildi'
 };

@@ -107,7 +107,7 @@ export const workOrders = sqliteTable('work_orders', {
   arac_id: integer('arac_id').notNull().references(() => vehicles.id),
   tarih: text('tarih').notNull(), // UTC ISO
   km: integer('km').notNull().default(0),
-  durum: text('durum', { enum: ['kabul', 'onarimda', 'teslime_hazir', 'teslim_edildi'] })
+  durum: text('durum', { enum: ['kabul', 'onarimda', 'parca_bekliyor', 'teslime_hazir', 'teslim_edildi'] })
     .notNull()
     .default('kabul'),
   sikayet: text('sikayet').notNull(),
@@ -120,6 +120,8 @@ export const workOrders = sqliteTable('work_orders', {
   sonraki_bakim_km: integer('sonraki_bakim_km'),
   kapanis_tarihi: text('kapanis_tarihi'),
   olusturan_kullanici_id: integer('olusturan_kullanici_id').notNull().references(() => users.id),
+  // İşi yürütecek personel. Personel yalnızca kendine atanan iş emirlerini görür.
+  atanan_kullanici_id: integer('atanan_kullanici_id').references(() => users.id),
   is_sample: integer('is_sample', { mode: 'boolean' }).notNull().default(false),
   created_at: text('created_at').notNull(),
   updated_at: text('updated_at').notNull(),
@@ -208,7 +210,7 @@ export const photos = sqliteTable('photos', {
 export const whatsappMessages = sqliteTable('whatsapp_messages', {
   id: integer('id').primaryKey({ autoIncrement: true }),
   is_emri_id: integer('is_emri_id').notNull().references(() => workOrders.id),
-  durum: text('durum', { enum: ['kabul', 'onarimda', 'teslime_hazir', 'teslim_edildi'] }).notNull(),
+  durum: text('durum', { enum: ['kabul', 'onarimda', 'parca_bekliyor', 'teslime_hazir', 'teslim_edildi', 'fatura'] }).notNull(),
   musteri_id: integer('musteri_id').references(() => customers.id),
   musteri_ad: text('musteri_ad').notNull(),
   telefon: text('telefon').notNull(),
@@ -269,4 +271,44 @@ export const auditLog = sqliteTable('audit_log', {
   hedefTabloIdx: index('idx_audit_log_hedef_tablo').on(table.hedef_tablo),
   islemIdx: index('idx_audit_log_islem').on(table.islem),
   createdAtIdx: index('idx_audit_log_created_at').on(table.created_at)
+}));
+
+/**
+ * Invoices (Faturalar)
+ */
+export const invoices = sqliteTable('invoices', {
+  id: integer('id').primaryKey({ autoIncrement: true }),
+  is_emri_id: integer('is_emri_id').notNull().references(() => workOrders.id),
+  fatura_no: text('fatura_no').notNull().unique(),
+  tarih: text('tarih').notNull(),
+  tutar_kurus: integer('tutar_kurus').notNull(),
+  kdv_kurus: integer('kdv_kurus').notNull().default(0),
+  durum: text('durum', { enum: ['kesildi', 'iptal'] }).notNull().default('kesildi'),
+  notlar: text('notlar'),
+  olusturan_kullanici_id: integer('olusturan_kullanici_id').notNull().references(() => users.id),
+  created_at: text('created_at').notNull(),
+  updated_at: text('updated_at').notNull()
+}, (table) => ({
+  isEmriIdIdx: index('idx_invoices_is_emri_id').on(table.is_emri_id),
+  faturaNoIdx: index('idx_invoices_fatura_no').on(table.fatura_no),
+  tarihIdx: index('idx_invoices_tarih').on(table.tarih)
+}));
+
+/**
+ * Part requests (Personelin yedek parça talepleri)
+ */
+export const partRequests = sqliteTable('part_requests', {
+  id: integer('id').primaryKey({ autoIncrement: true }),
+  parca_id: integer('parca_id').references(() => parts.id),
+  parca_ad: text('parca_ad').notNull(),
+  adet: integer('adet').notNull().default(1),
+  is_emri_id: integer('is_emri_id').references(() => workOrders.id),
+  talep_eden_id: integer('talep_eden_id').notNull().references(() => users.id),
+  durum: text('durum', { enum: ['bekliyor', 'onaylandi', 'reddedildi'] }).notNull().default('bekliyor'),
+  notlar: text('notlar'),
+  created_at: text('created_at').notNull(),
+  updated_at: text('updated_at').notNull()
+}, (table) => ({
+  durumIdx: index('idx_part_requests_durum').on(table.durum),
+  talepEdenIdx: index('idx_part_requests_talep_eden').on(table.talep_eden_id)
 }));

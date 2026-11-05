@@ -9,11 +9,12 @@ export const USER_ROLES: { [K in UserRole]: { label: string; description: string
   staff: { label: 'Dükkan Elemanı', description: 'İş emri, müşteri, araç, parça ve cari işlemleri (kasa hariç)' }
 };
 
-export type WorkOrderStatus = 'kabul' | 'onarimda' | 'teslime_hazir' | 'teslim_edildi';
+export type WorkOrderStatus = 'kabul' | 'onarimda' | 'parca_bekliyor' | 'teslime_hazir' | 'teslim_edildi';
 
 export const WORK_ORDER_STATUSES: { [K in WorkOrderStatus]: { label: string; color: string } } = {
   kabul: { label: 'Araç Kabul', color: '#3b82f6' },
-  onarimda: { label: 'Onarımda', color: '#f59e0b' },
+  onarimda: { label: 'Bakımda / Onarımda', color: '#f59e0b' },
+  parca_bekliyor: { label: 'Parça Bekliyor', color: '#f97316' },
   teslime_hazir: { label: 'Teslime Hazır', color: '#10b981' },
   teslim_edildi: { label: 'Teslim Edildi', color: '#6b7280' }
 };
@@ -67,7 +68,12 @@ export type AuditAction =
   | 'settings_update'
   | 'expense_create'
   | 'expense_update'
-  | 'expense_delete';
+  | 'expense_delete'
+  | 'invoice_create'
+  | 'invoice_cancel'
+  | 'part_request_create'
+  | 'part_request_approve'
+  | 'part_request_reject';
 
 export interface User {
   id: number;

@@ -31,7 +31,7 @@ test.describe('2) Rol, yetki ve ticari mahremiyet', () => {
 
     await expect(page.locator('.kasa-sum')).toHaveCount(0);
     await expect(page.getByRole('tab', { name: 'Kasa' })).toHaveCount(0);
-    expect(new URL(page.url()).hash).toBe('#/sorgu');
+    expect(new URL(page.url()).hash).toBe('#/panel');
   });
 
   test('staff /#/ayarlar adresini açamaz', async ({ page }) => {
@@ -40,7 +40,7 @@ test.describe('2) Rol, yetki ve ticari mahremiyet', () => {
     await page.reload();
 
     await expect(page.getByRole('dialog')).toHaveCount(0);
-    expect(new URL(page.url()).hash).toBe('#/sorgu');
+    expect(new URL(page.url()).hash).toBe('#/panel');
   });
 
   test('owner /#/kasa ve /#/ayarlar adreslerine girebilir', async ({ page }) => {

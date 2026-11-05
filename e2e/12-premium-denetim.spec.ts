@@ -120,7 +120,8 @@ test.describe('12) Premium masaüstü katmanı (splash · kilit · güvenli kapa
     const splash = page.getByTestId('splash');
     await expect(splash).toBeVisible();
 
-    await expect(splash).toHaveAttribute('data-phase', 'ready', { timeout: 15_000 });
+    // 7 sn zorunlu kilit + yavaş makinede paket ayrıştırma gecikmesi için pay.
+    await expect(splash).toHaveAttribute('data-phase', 'ready', { timeout: 30_000 });
     await page.mouse.move(500, 300);
     await expect(page.getByRole('dialog')).toBeVisible({ timeout: 10_000 });
 
@@ -165,6 +166,7 @@ test.describe('12) Premium masaüstü katmanı (splash · kilit · güvenli kapa
 
   test('elle kilit: "Ekranı kilitle" düğmesi 3 dakika beklemeden katmanı indirir', async ({ page }) => {
     await login(page, OWNER);
+    await page.getByRole('tab', { name: 'Araç sorgu' }).click();
 
     // İKİ YERDE birden bulunur:
     //  1) Sol panelde "Hatırlatıcılar"ın HEMEN ALTINDA, ikon + yazı ile

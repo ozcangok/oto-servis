@@ -80,7 +80,7 @@ test.describe('14) Arayüz mahremiyeti, XSS ve ekran görüntüleri', () => {
       await page.goto(`/${hash}`);
       await page.reload();
       const current = new URL(page.url()).hash;
-      expect(current, `staff ${hash} adresinden yönlendirilmeli`).toBe('#/sorgu');
+      expect(current, `staff ${hash} adresinden yönlendirilmeli`).toBe('#/panel');
       await expect(page.locator('.kasa-sum')).toHaveCount(0);
       await expect(page.getByRole('dialog')).toHaveCount(0);
     }
@@ -147,6 +147,8 @@ test.describe('14) Arayüz mahremiyeti, XSS ve ekran görüntüleri', () => {
     // STAFF girişi
     await login(page, STAFF);
     await expect(page.getByRole('tab', { name: 'Cari hesap' })).toHaveCount(0);
+    // KPI mahremiyeti Araç sorgu panosunda doğrulanır.
+    await page.getByRole('tab', { name: 'Araç sorgu' }).click();
     await expect(page.locator('.kpi-label', { hasText: 'Bu ay (KDV dahil)' })).toHaveCount(0);
     await expect(page.locator('.kpi-label', { hasText: 'Toplam işçilik' })).toHaveCount(0);
     await expect(page.locator('.kpi-label', { hasText: 'Açık cari' })).toHaveCount(0);
@@ -158,6 +160,7 @@ test.describe('14) Arayüz mahremiyeti, XSS ve ekran görüntüleri', () => {
     // OWNER girişi
     await login(page, OWNER);
     await expect(page.getByRole('tab', { name: 'Cari hesap' })).toBeVisible();
+    await page.getByRole('tab', { name: 'Araç sorgu' }).click();
     await expect(page.locator('.kpi-label', { hasText: 'Bu ay (KDV dahil)' })).toBeVisible();
     await expect(page.locator('.kpi-label', { hasText: 'Toplam işçilik' })).toBeVisible();
     await expect(page.locator('.kpi-label', { hasText: 'Açık cari' })).toBeVisible();

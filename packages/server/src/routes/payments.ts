@@ -30,6 +30,11 @@ export const paymentRoutes: FastifyPluginAsync = async (fastify) => {
       summary: 'İş emrine ödeme ekle'
     }
   }, async (request, reply) => {
+    // Tahsilat/finansal işlem: yalnızca dükkan sahibi.
+    if (request.user!.role !== 'owner') {
+      return reply.status(403).send({ success: false, error: 'Bu işlem için dükkan sahibi yetkisi gereklidir.' });
+    }
+
     const parse = paymentInputSchema.safeParse(request.body);
     if (!parse.success) {
       return reply.status(400).send({
@@ -74,7 +79,13 @@ export const paymentRoutes: FastifyPluginAsync = async (fastify) => {
       tags: ['Ödemeler'],
       summary: 'Bir iş emrinin tüm ödemelerini listele'
     }
-  }, async (request) => {
+  }, async (request, reply) => {
+    // Tahsilat kayıtları (parça/tahsilat içerir): personel bunları gösterebilir,
+    // yalnızca dükkan sahibi listeleyebilir (mali mahremiyet).
+    if (request.user!.role !== 'owner') {
+      return reply.status(403).send({ success: false, error: 'Bu işlem için dükkan sahibi yetkisi gereklidir.' });
+    }
+
     const id = Number((request.params as any).id);
     const db = getDb();
 

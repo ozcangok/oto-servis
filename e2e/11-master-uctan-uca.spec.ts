@@ -84,6 +84,8 @@ test.describe('11) Uçtan uca master zincir', () => {
     });
 
     await login(page, OWNER);
+    // Giriş yeni Panel'e düşer; bu test Araç sorgu panosundaki akışı doğrular.
+    await page.getByRole('tab', { name: 'Araç sorgu' }).click();
 
     // PDF kütüphaneleri (html2canvas + jsPDF) hazır olana kadar bekle
     await page.waitForFunction(() => (window as any).html2canvas && (window as any).jspdf, null, {
@@ -454,6 +456,7 @@ test.describe('11) Uçtan uca master zincir', () => {
     }
 
     await login(page, OWNER);
+    await page.getByRole('tab', { name: 'Araç sorgu' }).click();
     await expect(page.locator('.screen.cockpit')).toBeVisible();
     await expect(page.locator('.svc-scroll')).toBeVisible();
 

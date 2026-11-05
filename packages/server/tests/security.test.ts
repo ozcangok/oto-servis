@@ -476,6 +476,9 @@ describe('Bölüm 4.5 — Genel web güvenliği (yerel kapsam)', () => {
       {
         arac_id: veh.id,
         durum: 'kabul',
+        // Personel yalnızca kendine atanan işi güncelleyebilir; bu testte
+        // personelin stok korumasını sınamak için işi personele ata.
+        atanan_kullanici_id: staffUser.id,
         sikayet: 'stok koruma testi',
         kdv_orani: 20,
         kdv_dahil_mi: false,

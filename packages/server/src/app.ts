@@ -160,6 +160,12 @@ export async function buildApp(options: AppOptions = {}): Promise<FastifyInstanc
   const { paymentRoutes } = await import('./routes/payments.js');
   await app.register(paymentRoutes, { prefix: '/api/payments' });
 
+  const { invoiceRoutes } = await import('./routes/invoices.js');
+  await app.register(invoiceRoutes, { prefix: '/api/invoices' });
+
+  const { partRequestRoutes } = await import('./routes/partRequests.js');
+  await app.register(partRequestRoutes, { prefix: '/api/part-requests' });
+
   const { cashDeskRoutes } = await import('./routes/cashDesk.js');
   await app.register(cashDeskRoutes, { prefix: '/api/cash-desk' });
 

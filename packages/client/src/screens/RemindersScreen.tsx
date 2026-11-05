@@ -109,7 +109,10 @@ export const RemindersScreen: React.FC = () => {
             notifs.map((n) => {
               const phone = waPhone(n.telefon);
               const isSent = Boolean(n.gonderildi_tarihi);
-              const label = STATUS_NOTIFICATION_LABELS[n.durum as keyof typeof STATUS_NOTIFICATION_LABELS] || n.durum;
+              const label =
+                n.durum === 'fatura'
+                  ? 'Fatura Bildirimi'
+                  : STATUS_NOTIFICATION_LABELS[n.durum as keyof typeof STATUS_NOTIFICATION_LABELS] || n.durum;
 
               return (
                 <div key={n.id} className="rem" data-testid="status-notification">

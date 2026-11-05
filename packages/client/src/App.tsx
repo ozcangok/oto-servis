@@ -1,6 +1,6 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, lazy, Suspense } from 'react';
 import {
-  Moon, Sun, LogOut, Search, Car, Users, Package, Wallet, Banknote, Receipt, Bell, Settings, Lock
+  Moon, Sun, LogOut, Search, Car, Users, Package, Wallet, Banknote, Receipt, Bell, Settings, Lock, LayoutDashboard
 } from 'lucide-react';
 import { apiRequest, setAuthToken, setUnauthorizedHandler } from './services/api.js';
 import { LoginScreen } from './components/LoginScreen.js';
@@ -19,10 +19,17 @@ import { ExpensesScreen } from './screens/ExpensesScreen.js';
 import { RemindersScreen } from './screens/RemindersScreen.js';
 import { SettingsScreen } from './screens/SettingsScreen.js';
 
-type TabKey = 'sorgu' | 'arac' | 'musteri' | 'parca' | 'cari' | 'kasa' | 'gider' | 'hatir';
+// Panel (Dashboard) React.lazy ile yüklenir: recharts ağır import'u login /
+// splash akışından ve ileride tüm uygulamanın ilk yüklemesinden ayırır.
+const DashboardScreen = lazy(() =>
+  import('./screens/DashboardScreen.js').then((m) => ({ default: m.DashboardScreen }))
+);
+
+type TabKey = 'panel' | 'sorgu' | 'arac' | 'musteri' | 'parca' | 'cari' | 'kasa' | 'gider' | 'hatir';
 
 // Sekme <-> adres (hash) eşlemesi. Rol koruması bu rotalarda uygulanır.
 const TAB_TO_HASH: Record<TabKey, string> = {
+  panel: 'panel',
   sorgu: 'sorgu',
   arac: 'araclar',
   musteri: 'musteriler',
@@ -34,6 +41,7 @@ const TAB_TO_HASH: Record<TabKey, string> = {
 };
 
 const HASH_TO_TAB: Record<string, TabKey> = {
+  panel: 'panel',
   sorgu: 'sorgu',
   araclar: 'arac',
   musteriler: 'musteri',
@@ -60,13 +68,16 @@ function normalizePathRoute() {
 export function App() {
   const [currentUser, setCurrentUser] = useState<any | null>(null);
   const [authChecked, setAuthChecked] = useState(false);
-  const [activeTab, setActiveTab] = useState<TabKey>('sorgu');
+  const [activeTab, setActiveTab] = useState<TabKey>('panel');
 
   // Work order sheet modal state
   const [workOrderModalOpen, setWorkOrderModalOpen] = useState(false);
   const [activeWorkOrderId, setActiveWorkOrderId] = useState<number | null>(null);
   const [workOrderPlate, setWorkOrderPlate] = useState<string>('');
   const [workOrderDate, setWorkOrderDate] = useState<string>('');
+  // Panelden açılan iş emri kaydedildiğinde panele dönüp verileri tazelemek için.
+  const [workOrderReturnTab, setWorkOrderReturnTab] = useState<TabKey>('panel');
+  const [panelRefresh, setPanelRefresh] = useState(0);
 
   // Search screen active plate
   const [selectedPlate, setSelectedPlate] = useState<string>('');
@@ -108,9 +119,13 @@ export function App() {
   const [locked, setLocked] = useState(false);
 
   useEffect(() => {
-    document.documentElement.setAttribute('data-theme', theme);
+    // Panel kendi koyu cam tasarımıyla gelir; kabuk (kenar çubuğu vb.) da
+    // paneldeyken koyu temaya geçer. Diğer sekmelerde kullanıcının seçimi
+    // aynen korunur.
+    const effectiveTheme = activeTab === 'panel' ? 'dark' : theme;
+    document.documentElement.setAttribute('data-theme', effectiveTheme);
     localStorage.setItem('oto_theme', theme);
-  }, [theme]);
+  }, [theme, activeTab]);
 
   useEffect(() => {
     checkCurrentUser();
@@ -173,6 +188,12 @@ export function App() {
 
   const handleAuthSuccess = (user: any) => {
     setCurrentUser(user);
+    // Giriş sonrası yeni Panel açılır (kullanıcı tercihi). Rol ne olursa olsun
+    // panel rol bazlı içerik gösterir; personel finansal kartları görmez.
+    setActiveTab('panel');
+    try {
+      window.history.replaceState(null, '', '#/panel');
+    } catch {}
     loadRemindersBadge();
     loadSettings();
   };
@@ -301,8 +322,8 @@ export function App() {
         if (isOwner) {
           setShowSettings(true);
         } else {
-          window.history.replaceState(null, '', '#/sorgu');
-          setActiveTab('sorgu');
+          window.history.replaceState(null, '', '#/panel');
+          setActiveTab('panel');
         }
         return;
       }
@@ -311,15 +332,15 @@ export function App() {
       setShowSettings(false);
 
       if (name === 'kasa' && !isOwner) {
-        window.history.replaceState(null, '', '#/sorgu');
-        setActiveTab('sorgu');
+        window.history.replaceState(null, '', '#/panel');
+        setActiveTab('panel');
         return;
       }
       // Cari hesap (bakiyeler/alacaklar) ticari mahremiyet kapsamındadır:
       // personel doğrudan adresle de açamaz.
       if (name === 'cari' && !isOwner) {
-        window.history.replaceState(null, '', '#/sorgu');
-        setActiveTab('sorgu');
+        window.history.replaceState(null, '', '#/panel');
+        setActiveTab('panel');
         return;
       }
       if (name === 'login') {
@@ -366,6 +387,7 @@ export function App() {
   }, []);
 
   const handleNewWorkOrder = (plate?: string, date?: string) => {
+    setWorkOrderReturnTab(activeTab);
     setActiveWorkOrderId(null);
     setWorkOrderPlate(plate || selectedPlate || '');
     setWorkOrderDate(date || '');
@@ -373,6 +395,7 @@ export function App() {
   };
 
   const handleOpenWorkOrder = (id: number) => {
+    setWorkOrderReturnTab(activeTab);
     setActiveWorkOrderId(id);
     setWorkOrderPlate('');
     setWorkOrderDate('');
@@ -421,6 +444,16 @@ export function App() {
           <nav className="menu" role="tablist" aria-label="Bölümler">
             <div className="menu-group">
               <div className="menu-label">Operasyon</div>
+              <a
+                className="menu-item"
+                href="#/panel"
+                role="tab"
+                aria-selected={activeTab === 'panel'}
+                aria-current={activeTab === 'panel' ? 'page' : undefined}
+              >
+                <LayoutDashboard size={18} strokeWidth={1.75} aria-hidden="true" />
+                Panel
+              </a>
               <a
                 className="menu-item"
                 href="#/sorgu"
@@ -560,6 +593,28 @@ export function App() {
 
       {/* Main Wrap Container */}
       <main className="wrap">
+        {activeTab === 'panel' && (
+          <Suspense
+            fallback={
+              <div className="flex min-h-[50vh] items-center justify-center rounded-2xl border border-white/10 bg-white/[0.03] px-6 py-10 text-center text-[11px] text-zinc-500 backdrop-blur-xl">
+                Panel yükleniyor…
+              </div>
+            }
+          >
+            <DashboardScreen
+              currentUser={currentUser}
+              shopName={shopName}
+              refreshToken={panelRefresh}
+              onNewWorkOrder={(plate) => handleNewWorkOrder(plate)}
+              onOpenWorkOrder={(id) => handleOpenWorkOrder(id)}
+              onNavigate={(tab) => setActiveTab(tab as TabKey)}
+              onOpenSettings={() => setShowSettings(true)}
+              onLockScreen={handleLockNow}
+              onLogout={handleLogout}
+            />
+          </Suspense>
+        )}
+
         {activeTab === 'sorgu' && (
           <VehicleSearchScreen
             initialPlate={selectedPlate}
@@ -607,6 +662,8 @@ export function App() {
           workOrderId={activeWorkOrderId}
           initialPlate={workOrderPlate}
           initialDate={workOrderDate}
+          userRole={currentUser?.role === 'staff' ? 'staff' : 'owner'}
+          currentUserId={currentUser?.id}
           onClose={() => {
             setWorkOrderModalOpen(false);
             setActiveWorkOrderId(null);
@@ -615,7 +672,12 @@ export function App() {
           }}
           onSaved={(savedPlate) => {
             setSelectedPlate(savedPlate);
-            setActiveTab('sorgu');
+            if (workOrderReturnTab === 'panel') {
+              setActiveTab('panel');
+              setPanelRefresh((n) => n + 1);
+            } else {
+              setActiveTab('sorgu');
+            }
             loadRemindersBadge();
           }}
         />

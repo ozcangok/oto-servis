@@ -76,7 +76,7 @@ function jsonOf(r: { body: string }) {
 
 async function seed() {
   const owner = await setupInitialAdmin({ username: 'mat_owner', password: 'Matris!12345', full_name: 'Matris Sahip' });
-  await createUser(owner as any, { username: 'mat_staff', password: 'Matris!12345', full_name: 'Matris Personel', role: 'staff' });
+  const staffUser = await createUser(owner as any, { username: 'mat_staff', password: 'Matris!12345', full_name: 'Matris Personel', role: 'staff' });
   await createUser(owner as any, { username: 'mat_staff2', password: 'Matris!12345', full_name: 'Matris Personel 2', role: 'staff' });
   ownerToken = (await loginUser('mat_owner', 'Matris!12345')).token;
   staffToken = (await loginUser('mat_staff', 'Matris!12345')).token;
@@ -118,6 +118,8 @@ async function seed() {
       arac_id: veh.id,
       durum: 'kabul',
       sikayet: 'Matris iş emri',
+      // Personelin kendi iş emrini düzenleyebilmesi için işi personele ata.
+      atanan_kullanici_id: staffUser.id,
       kdv_orani: 20,
       kdv_dahil_mi: false,
       kalemler: [{ tur: 'parca', parca_id: ids.part, ad: 'Matris Parça', adet: 1, birim: 'Adet', birim_fiyat_kurus: 2500 }]
@@ -233,12 +235,12 @@ function inventory(): Row[] {
       payload: { arac_id: v, durum: 'kabul', sikayet: 'Matris iş emri', kdv_orani: 20, kdv_dahil_mi: false, kalemler: [{ tur: 'parca', parca_id: p, ad: 'Matris Parça', adet: 1, birim: 'Adet', birim_fiyat_kurus: 2500 }] }
     },
     { m: 'PUT', path: `/api/work-orders/${w}/status`, access: 'auth', why: 'Durum güncelleme', payload: { durum: 'onarimda' } },
-    { m: 'POST', path: `/api/work-orders/${w}/payments`, access: 'auth', why: 'İş emrine ödeme', payload: { is_emri_id: w, tutar_kurus: 500, yontem: 'nakit' } },
-    { m: 'POST', path: `/api/work-orders/${w}/reopen`, access: 'auth', why: 'İş emri yeniden açma', payload: { durum: 'onarimda' } },
+    { m: 'POST', path: `/api/work-orders/${w}/payments`, access: 'owner-only', why: 'İş emrine ödeme (finansal)', payload: { is_emri_id: w, tutar_kurus: 500, yontem: 'nakit' } },
+    { m: 'POST', path: `/api/work-orders/${w}/reopen`, access: 'owner-only', why: 'İş emri yeniden açma (finansal kapanış)', payload: { durum: 'onarimda' } },
 
-    // --- ödemeler
-    { m: 'POST', path: '/api/payments', access: 'auth', why: 'Ödeme ekleme', payload: { is_emri_id: w, tutar_kurus: 250, yontem: 'nakit' } },
-    { m: 'GET', path: `/api/payments/work-order/${w}`, access: 'auth', why: 'İş emri ödemeleri' },
+    // --- ödemeler (finansal: yalnız sahip)
+    { m: 'POST', path: '/api/payments', access: 'owner-only', why: 'Ödeme ekleme (finansal)', payload: { is_emri_id: w, tutar_kurus: 250, yontem: 'nakit' } },
+    { m: 'GET', path: `/api/payments/work-order/${w}`, access: 'owner-only', why: 'İş emri ödemeleri (mali)' },
 
     // --- kasa (varsayılan matris: yalnızca sahip)
     { m: 'GET', path: '/api/cash-desk/summary', access: 'owner-only', why: 'Kasa raporu (mali)' },

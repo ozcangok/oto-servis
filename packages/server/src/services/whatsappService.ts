@@ -2,6 +2,7 @@ import { desc, eq } from 'drizzle-orm';
 import { getDb, whatsappMessages, workOrders, vehicles, customers } from '../db/index.js';
 import {
   buildStatusWhatsAppMessage,
+  buildInvoiceWhatsAppMessage,
   isStatusNotificationStage,
   type WorkOrderStatus
 } from '@oto-servis/shared';
@@ -40,6 +41,58 @@ export function recordStatusNotification(isEmriId: number, durum: string): numbe
     .values({
       is_emri_id: isEmriId,
       durum: durum as WorkOrderStatus,
+      musteri_id: row.customer.id,
+      musteri_ad: row.customer.ad_soyad,
+      telefon: row.customer.telefon,
+      plaka: row.vehicle.plaka_gorunen,
+      mesaj,
+      gonderildi_tarihi: null,
+      created_at: new Date().toISOString()
+    })
+    .returning()
+    .get();
+
+  return inserted?.id ?? null;
+}
+
+/**
+ * Fatura kesildiğinde iletişim merkezine (Hatırlatıcılar) yeni bir WhatsApp
+ * gönderim kaydı düşer. Böylece mevcut WhatsApp akışı bozulmadan fatura
+ * bildirimi de aynı kuyruğa eklenir.
+ */
+export function recordInvoiceNotification(
+  isEmriId: number,
+  faturaNo: string,
+  tutarKurus: number
+): number | null {
+  const db = getDb();
+  const row = db
+    .select({ vehicle: vehicles, customer: customers })
+    .from(workOrders)
+    .leftJoin(vehicles, eq(workOrders.arac_id, vehicles.id))
+    .leftJoin(customers, eq(vehicles.musteri_id, customers.id))
+    .where(eq(workOrders.id, isEmriId))
+    .get();
+
+  if (!row?.vehicle || !row?.customer) return null;
+
+  const tutar = new Intl.NumberFormat('tr-TR', {
+    style: 'currency',
+    currency: 'TRY'
+  }).format(tutarKurus / 100);
+
+  const mesaj = buildInvoiceWhatsAppMessage(
+    row.customer.ad_soyad,
+    row.vehicle.plaka_gorunen,
+    faturaNo,
+    tutar
+  );
+
+  const inserted = db
+    .insert(whatsappMessages)
+    .values({
+      is_emri_id: isEmriId,
+      durum: 'fatura',
       musteri_id: row.customer.id,
       musteri_ad: row.customer.ad_soyad,
       telefon: row.customer.telefon,

@@ -32,6 +32,7 @@ const STAGE_TXT: Record<string, string> = {
   kabul: 'Kabul Edildi',
   onarimda: 'Onarımda',
   'onarımda': 'Onarımda',
+  parca_bekliyor: 'Parça Bekliyor',
   teslime_hazir: 'Teslime Hazır',
   'tamamlandı': 'Teslime Hazır',
   teslim_edildi: 'Teslim Edildi',

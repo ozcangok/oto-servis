@@ -12,6 +12,8 @@ export const STATUS_WHATSAPP_TEMPLATES: Record<WorkOrderStatus, string> = {
     'Sayın {musteri}, {plaka} plakalı aracınız servisimize kabul edilmiştir. Aracınızın ilk kontrolleri yapılarak onarım/bakım süreci planlanacaktır. Bizi tercih ettiğiniz için teşekkür ederiz. - Çınar Otomotiv',
   onarimda:
     'Sayın {musteri}, {plaka} plakalı aracınızın bakım ve onarım işlemleri uzman teknisyenlerimiz tarafından başlatılmıştır. Süreç tamamlandığında tarafınıza bilgi verilecektir. - Çınar Otomotiv',
+  parca_bekliyor:
+    'Sayın {musteri}, {plaka} plakalı aracınızın onarımı için gerekli yedek parçanın temini beklenmektedir. Parça elimize ulaştığında işlemlere kaldığı yerden devam edilecek ve süreç hakkında tarafınıza bilgi verilecektir. - Çınar Otomotiv',
   teslime_hazir:
     'Sayın {musteri}, {plaka} plakalı aracınızın servis işlemleri ve son kalite kontrolleri başarıyla tamamlanmıştır. Aracınız teslime hazırdır, dilediğiniz zaman servisimizden teslim alabilirsiniz. - Çınar Otomotiv',
   teslim_edildi:
@@ -36,9 +38,26 @@ export function buildStatusWhatsAppMessage(
 export const STATUS_NOTIFICATION_LABELS: Record<WorkOrderStatus, string> = {
   kabul: 'Kabul Edildi',
   onarimda: 'Onarımda',
+  parca_bekliyor: 'Parça Bekliyor',
   teslime_hazir: 'Teslime Hazır',
   teslim_edildi: 'Teslim Edildi'
 };
+
+/** Fatura kesildiğinde müşteriye gönderilecek kurumsal mesaj şablonu. */
+export const INVOICE_WHATSAPP_TEMPLATE =
+  'Sayın {musteri}, {plaka} plakalı aracınız için {tutar} tutarında {fatura_no} numaralı faturanız düzenlenmiştir. Detaylı bilgi için servisimizle iletişime geçebilirsiniz. - Çınar Otomotiv';
+
+export function buildInvoiceWhatsAppMessage(
+  musteriAd: string,
+  plaka: string,
+  faturaNo: string,
+  tutar: string
+): string {
+  return INVOICE_WHATSAPP_TEMPLATE.replace(/\{musteri\}/g, musteriAd)
+    .replace(/\{plaka\}/g, plaka)
+    .replace(/\{fatura_no\}/g, faturaNo)
+    .replace(/\{tutar\}/g, tutar);
+}
 
 export function isStatusNotificationStage(durum: string): durum is WorkOrderStatus {
   return Object.prototype.hasOwnProperty.call(STATUS_WHATSAPP_TEMPLATES, durum);

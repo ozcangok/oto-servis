@@ -188,6 +188,7 @@ export function bootstrapSchema(sqlite: Database.Database) {
       sonraki_bakim_km INTEGER,
       kapanis_tarihi TEXT,
       olusturan_kullanici_id INTEGER NOT NULL REFERENCES users(id),
+      atanan_kullanici_id INTEGER REFERENCES users(id),
       is_sample INTEGER NOT NULL DEFAULT 0,
       created_at TEXT NOT NULL,
       updated_at TEXT NOT NULL,
@@ -301,6 +302,38 @@ export function bootstrapSchema(sqlite: Database.Database) {
     CREATE INDEX IF NOT EXISTS idx_audit_log_hedef_tablo ON audit_log(hedef_tablo);
     CREATE INDEX IF NOT EXISTS idx_audit_log_islem ON audit_log(islem);
     CREATE INDEX IF NOT EXISTS idx_audit_log_created_at ON audit_log(created_at);
+
+    CREATE TABLE IF NOT EXISTS invoices (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      is_emri_id INTEGER NOT NULL REFERENCES work_orders(id),
+      fatura_no TEXT NOT NULL UNIQUE,
+      tarih TEXT NOT NULL,
+      tutar_kurus INTEGER NOT NULL,
+      kdv_kurus INTEGER NOT NULL DEFAULT 0,
+      durum TEXT NOT NULL DEFAULT 'kesildi',
+      notlar TEXT,
+      olusturan_kullanici_id INTEGER NOT NULL REFERENCES users(id),
+      created_at TEXT NOT NULL,
+      updated_at TEXT NOT NULL
+    );
+    CREATE INDEX IF NOT EXISTS idx_invoices_is_emri_id ON invoices(is_emri_id);
+    CREATE INDEX IF NOT EXISTS idx_invoices_fatura_no ON invoices(fatura_no);
+    CREATE INDEX IF NOT EXISTS idx_invoices_tarih ON invoices(tarih);
+
+    CREATE TABLE IF NOT EXISTS part_requests (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      parca_id INTEGER REFERENCES parts(id),
+      parca_ad TEXT NOT NULL,
+      adet INTEGER NOT NULL DEFAULT 1,
+      is_emri_id INTEGER REFERENCES work_orders(id),
+      talep_eden_id INTEGER NOT NULL REFERENCES users(id),
+      durum TEXT NOT NULL DEFAULT 'bekliyor',
+      notlar TEXT,
+      created_at TEXT NOT NULL,
+      updated_at TEXT NOT NULL
+    );
+    CREATE INDEX IF NOT EXISTS idx_part_requests_durum ON part_requests(durum);
+    CREATE INDEX IF NOT EXISTS idx_part_requests_talep_eden ON part_requests(talep_eden_id);
   `);
 
   // Normalize legacy status spellings to canonical ASCII values
@@ -315,6 +348,19 @@ export function bootstrapSchema(sqlite: Database.Database) {
   if (!userColumns.some((c) => c.name === 'eposta')) {
     sqlite.exec('ALTER TABLE users ADD COLUMN eposta TEXT');
   }
+
+  // Personel ataması: eski kurulumlarda sütun yoksa ekle ve mevcut iş
+  // emirlerini oluşturan kullanıcıya ata. Böylece personel geçmiş işlerini
+  // kaybetmez; yeni işlerde atama açıkça yapılır.
+  const orderColumns = sqlite.prepare('PRAGMA table_info(work_orders)').all() as Array<{ name: string }>;
+  if (!orderColumns.some((c) => c.name === 'atanan_kullanici_id')) {
+    sqlite.exec('ALTER TABLE work_orders ADD COLUMN atanan_kullanici_id INTEGER REFERENCES users(id)');
+  }
+  sqlite.exec(`
+    UPDATE work_orders
+       SET atanan_kullanici_id = olusturan_kullanici_id
+     WHERE atanan_kullanici_id IS NULL
+  `);
 
   // Rol sistemi tek dükkân modeline indirildi: owner (Dükkan Sahibi) / staff
   // (Dükkan Elemanı). Eski rolleri (admin/cashier/mechanic) yeni rollere taşı.

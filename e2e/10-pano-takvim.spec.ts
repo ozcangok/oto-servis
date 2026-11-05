@@ -35,6 +35,9 @@ function monthLabel(d: Date): string {
 test.describe('10) Araç sorgu panosu & takvim', () => {
   test('pano tek düzen: başlık, 5 özet kartı, servis tablosu ve takvim', async ({ page }) => {
     await login(page, OWNER);
+    // Giriş artık yeni Panel'e düşer; bu testler Araç sorgu panosunu doğrular.
+    await page.getByRole('tab', { name: 'Araç sorgu' }).click();
+    await expect(page.getByRole('heading', { name: 'Araç sorgu' })).toBeVisible();
 
     // Üst başlık
     await expect(page.getByRole('heading', { name: 'Araç sorgu' })).toBeVisible();
@@ -65,6 +68,9 @@ test.describe('10) Araç sorgu panosu & takvim', () => {
 
   test('takvim: 1 Ekim 2026 Perşembe sütununa denk gelir (Pazartesi başlangıç)', async ({ page }) => {
     await login(page, OWNER);
+    // Giriş artık yeni Panel'e düşer; bu testler Araç sorgu panosunu doğrular.
+    await page.getByRole('tab', { name: 'Araç sorgu' }).click();
+    await expect(page.getByRole('heading', { name: 'Araç sorgu' })).toBeVisible();
 
     const now = new Date();
     const delta = (2026 - now.getFullYear()) * 12 + (9 - now.getMonth()); // Ekim 2026
@@ -108,6 +114,9 @@ test.describe('10) Araç sorgu panosu & takvim', () => {
     expect(wo.status, JSON.stringify(wo.body)).toBe(200);
 
     await login(page, OWNER);
+    // Giriş artık yeni Panel'e düşer; bu testler Araç sorgu panosunu doğrular.
+    await page.getByRole('tab', { name: 'Araç sorgu' }).click();
+    await expect(page.getByRole('heading', { name: 'Araç sorgu' })).toBeVisible();
 
     // İlgili gün hücresine tıkla → ajanda o günü gösterir
     const monthName = TR_MONTHS_LONG[m0];
@@ -126,6 +135,9 @@ test.describe('10) Araç sorgu panosu & takvim', () => {
 
   test('kısayol: "/" plaka kutusuna odaklar; input içinde yazarken tetiklenmez', async ({ page }) => {
     await login(page, OWNER);
+    // Giriş artık yeni Panel'e düşer; bu testler Araç sorgu panosunu doğrular.
+    await page.getByRole('tab', { name: 'Araç sorgu' }).click();
+    await expect(page.getByRole('heading', { name: 'Araç sorgu' })).toBeVisible();
 
     const q = page.locator('#q');
     await expect(q).not.toBeFocused();
@@ -180,6 +192,9 @@ test.describe('10) Araç sorgu panosu & takvim', () => {
     expect(woFuture.status, JSON.stringify(woFuture.body)).toBe(200);
 
     await login(page, OWNER);
+    // Giriş artık yeni Panel'e düşer; bu testler Araç sorgu panosunu doğrular.
+    await page.getByRole('tab', { name: 'Araç sorgu' }).click();
+    await expect(page.getByRole('heading', { name: 'Araç sorgu' })).toBeVisible();
 
     // Gelecek randevu "Serviste olan araçlar" listesinde YOK; bugünkü VAR.
     const svc = page.locator('.svc');
@@ -196,6 +211,9 @@ test.describe('10) Araç sorgu panosu & takvim', () => {
     page
   }) => {
     await login(page, OWNER);
+    // Giriş artık yeni Panel'e düşer; bu testler Araç sorgu panosunu doğrular.
+    await page.getByRole('tab', { name: 'Araç sorgu' }).click();
+    await expect(page.getByRole('heading', { name: 'Araç sorgu' })).toBeVisible();
 
     const height = (sel) =>
       page.locator(sel).first().evaluate((el) => Math.round(el.getBoundingClientRect().height));

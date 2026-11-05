@@ -22,6 +22,9 @@ interface WorkOrderScreenProps {
   initialPlate?: string;
   /** Takvimden "bu güne araç ekle" için isteğe bağlı tarih (YYYY-MM-DD). */
   initialDate?: string;
+  /** Personel teslim işlemini yapamaz; atama alanı yalnızca sahibe görünür. */
+  userRole?: 'owner' | 'staff';
+  currentUserId?: number;
   onClose: () => void;
   onSaved?: (plate: string) => void;
 }
@@ -41,10 +44,13 @@ export const WorkOrderScreen: React.FC<WorkOrderScreenProps> = ({
   workOrderId,
   initialPlate = '',
   initialDate = '',
+  userRole = 'owner',
+  currentUserId,
   onClose,
   onSaved
 }) => {
   const isEditing = Boolean(workOrderId);
+  const isOwner = userRole === 'owner';
 
   // Form State
   const [plate, setPlate] = useState(
@@ -55,6 +61,8 @@ export const WorkOrderScreen: React.FC<WorkOrderScreenProps> = ({
   const [stage, setStage] = useState('accepted');
   const [barcodeInput, setBarcodeInput] = useState('');
   const [complaint, setComplaint] = useState('');
+  const [staffUsers, setStaffUsers] = useState<any[]>([]);
+  const [assigneeId, setAssigneeId] = useState<string>('');
 
   // Vehicle info state (for inline registration if plate not found)
   const [existingVehicle, setExistingVehicle] = useState<any | null>(initialVehicle || null);
@@ -125,12 +133,16 @@ export const WorkOrderScreen: React.FC<WorkOrderScreenProps> = ({
 
   const loadCatalog = async () => {
     try {
-      const [partsRes, custRes] = await Promise.all([
+      const [partsRes, custRes, usersRes] = await Promise.all([
         apiRequest('/parts?limit=1000'),
-        apiRequest('/customers?limit=1000')
+        apiRequest('/customers?limit=1000'),
+        isOwner ? apiRequest('/auth/users') : Promise.resolve(null)
       ]);
       if (partsRes.success) setCatalogParts(partsRes.items || []);
       if (custRes.success) setCustomersList(custRes.items || []);
+      if (usersRes?.success) {
+        setStaffUsers((usersRes.users || []).filter((u: any) => u.role === 'staff' && u.is_active !== false));
+      }
     } catch {}
   };
 
@@ -166,8 +178,21 @@ export const WorkOrderScreen: React.FC<WorkOrderScreenProps> = ({
         setDate(o.giris_tarihi?.split('T')[0] || todayISO());
         setKm(o.km || o.kilometre ? String(o.km || o.kilometre) : '');
 
-        const stageNorm = o.durum === 'kabul' ? 'accepted' : (o.durum === 'onarımda' || o.durum === 'onarimda') ? 'repairing' : (o.durum === 'tamamlandı' || o.durum === 'teslime_hazir') ? 'ready' : 'delivered';
+        const stageNorm =
+          o.durum === 'kabul'
+            ? 'accepted'
+            : o.durum === 'onarımda' || o.durum === 'onarimda'
+              ? 'repairing'
+              : o.durum === 'parca_bekliyor' || o.durum === 'parça_bekliyor'
+                ? 'waiting'
+                : o.durum === 'tamamlandı' || o.durum === 'teslime_hazir'
+                  ? 'ready'
+                  : 'delivered';
         setStage(stageNorm);
+        const atananId = o.atanan?.id ?? o.atanan_kullanici_id ?? null;
+        setAssigneeId(
+          atananId && String(atananId) !== String(currentUserId) ? String(atananId) : ''
+        );
         setComplaint(o.sikayet || '');
 
         setVatRate(o.kdv_orani ?? 20);
@@ -355,7 +380,16 @@ export const WorkOrderScreen: React.FC<WorkOrderScreenProps> = ({
       }
 
       // Map stage to database status
-      const dbStatus = stage === 'accepted' ? 'kabul' : stage === 'repairing' ? 'onarimda' : stage === 'ready' ? 'teslime_hazir' : 'teslim_edildi';
+      const dbStatus =
+        stage === 'accepted'
+          ? 'kabul'
+          : stage === 'repairing'
+            ? 'onarimda'
+            : stage === 'waiting'
+              ? 'parca_bekliyor'
+              : stage === 'ready'
+                ? 'teslime_hazir'
+                : 'teslim_edildi';
 
       // 2. Prepare work order body
       const orderBody: any = {
@@ -384,6 +418,16 @@ export const WorkOrderScreen: React.FC<WorkOrderScreenProps> = ({
           birim_fiyat_kurus: Math.round((parseFloat(l.price.replace(',', '.')) || 0) * 100)
         }))
       };
+
+      // Atama: personel kendi işini sunucuda otomatik üstlenir. Dükkan sahibi
+      // personel seçebilir; düzenlemede boş bırakılırsa mevcut atama korunur.
+      if (isOwner) {
+        if (assigneeId) {
+          orderBody.atanan_kullanici_id = Number(assigneeId);
+        } else if (!isEditing) {
+          orderBody.atanan_kullanici_id = null;
+        }
+      }
 
       let savedOrderId = workOrderId;
       if (isEditing) {
@@ -654,11 +698,31 @@ export const WorkOrderScreen: React.FC<WorkOrderScreenProps> = ({
                 value={stage}
                 onChange={(e) => setStage(e.target.value)}
               >
-                {STAGES.map((s) => (
+                {STAGES.filter((s) => isOwner || s[0] !== 'delivered' || stage === 'delivered').map((s) => (
                   <option key={s[0]} value={s[0]}>{s[1]}</option>
                 ))}
               </select>
             </div>
+
+            {isOwner && (
+              <div className="field">
+                <label htmlFor="of-assignee">Atanan personel</label>
+                <select
+                  id="of-assignee"
+                  value={assigneeId}
+                  onChange={(e) => setAssigneeId(e.target.value)}
+                >
+                  <option value="">Dükkan sahibi (varsayılan)</option>
+                  {staffUsers.map((u) => (
+                    <option key={u.id} value={u.id}>{u.full_name}</option>
+                  ))}
+                  {assigneeId &&
+                    !staffUsers.some((u) => String(u.id) === assigneeId) && (
+                      <option value={assigneeId}>Mevcut atama (#{assigneeId})</option>
+                    )}
+                </select>
+              </div>
+            )}
 
             <div className="field">
               <label htmlFor="of-barcode">Barkod okut</label>
