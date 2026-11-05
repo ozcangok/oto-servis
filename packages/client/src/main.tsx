@@ -9,9 +9,6 @@ import '@fontsource/ibm-plex-sans/600.css';
 import '@fontsource/ibm-plex-sans/700.css';
 import '@fontsource/ibm-plex-sans-condensed/600.css';
 import '@fontsource/ibm-plex-sans-condensed/700.css';
-// Panel yardımcı sınıfları mevcut tasarım sisteminden ÖNCE yüklenir; böylece
-// eski ekranların özel CSS kuralları çakışma durumunda öncelikli kalır.
-import './styles/panel.css';
 import './styles/index.css';
 
 // Service Worker yalnızca üretim derlemesinde (PROD) kaydedilir.

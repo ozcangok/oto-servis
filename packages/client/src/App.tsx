@@ -1,6 +1,6 @@
-import React, { useState, useEffect, useRef, lazy, Suspense } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import {
-  Moon, Sun, LogOut, Search, Car, Users, Package, Wallet, Banknote, Receipt, Bell, Settings, Lock, LayoutDashboard
+  Moon, Sun, LogOut, Search, Car, Users, Package, Wallet, Banknote, Receipt, Bell, Settings, Lock
 } from 'lucide-react';
 import { apiRequest, setAuthToken, setUnauthorizedHandler } from './services/api.js';
 import { LoginScreen } from './components/LoginScreen.js';
@@ -19,17 +19,10 @@ import { ExpensesScreen } from './screens/ExpensesScreen.js';
 import { RemindersScreen } from './screens/RemindersScreen.js';
 import { SettingsScreen } from './screens/SettingsScreen.js';
 
-// Panel (Dashboard) React.lazy ile yüklenir: recharts ağır import'u login /
-// splash akışından ve ileride tüm uygulamanın ilk yüklemesinden ayırır.
-const DashboardScreen = lazy(() =>
-  import('./screens/DashboardScreen.js').then((m) => ({ default: m.DashboardScreen }))
-);
-
-type TabKey = 'panel' | 'sorgu' | 'arac' | 'musteri' | 'parca' | 'cari' | 'kasa' | 'gider' | 'hatir';
+type TabKey = 'sorgu' | 'arac' | 'musteri' | 'parca' | 'cari' | 'kasa' | 'gider' | 'hatir';
 
 // Sekme <-> adres (hash) eşlemesi. Rol koruması bu rotalarda uygulanır.
 const TAB_TO_HASH: Record<TabKey, string> = {
-  panel: 'panel',
   sorgu: 'sorgu',
   arac: 'araclar',
   musteri: 'musteriler',
@@ -41,7 +34,6 @@ const TAB_TO_HASH: Record<TabKey, string> = {
 };
 
 const HASH_TO_TAB: Record<string, TabKey> = {
-  panel: 'panel',
   sorgu: 'sorgu',
   araclar: 'arac',
   musteriler: 'musteri',
@@ -75,9 +67,6 @@ export function App() {
   const [activeWorkOrderId, setActiveWorkOrderId] = useState<number | null>(null);
   const [workOrderPlate, setWorkOrderPlate] = useState<string>('');
   const [workOrderDate, setWorkOrderDate] = useState<string>('');
-  // Panelden açılan iş emri kaydedildiğinde panele dönüp verileri tazelemek için.
-  const [workOrderReturnTab, setWorkOrderReturnTab] = useState<TabKey>('panel');
-  const [panelRefresh, setPanelRefresh] = useState(0);
 
   // Search screen active plate
   const [selectedPlate, setSelectedPlate] = useState<string>('');
@@ -119,13 +108,9 @@ export function App() {
   const [locked, setLocked] = useState(false);
 
   useEffect(() => {
-    // Panel kendi koyu cam tasarımıyla gelir; kabuk (kenar çubuğu vb.) da
-    // paneldeyken koyu temaya geçer. Diğer sekmelerde kullanıcının seçimi
-    // aynen korunur.
-    const effectiveTheme = activeTab === 'panel' ? 'dark' : theme;
-    document.documentElement.setAttribute('data-theme', effectiveTheme);
+    document.documentElement.setAttribute('data-theme', theme);
     localStorage.setItem('oto_theme', theme);
-  }, [theme, activeTab]);
+  }, [theme]);
 
   useEffect(() => {
     checkCurrentUser();
@@ -188,33 +173,8 @@ export function App() {
 
   const handleAuthSuccess = (user: any) => {
     setCurrentUser(user);
-    // Giriş sonrası ana ekrana dönülür; otomatik Panel yönlendirmesi kaldırıldı
-    // (sadece dashboard değişikliği hedeflendi, diğer ekran davranışı aynı kaldı).
     loadRemindersBadge();
     loadSettings();
-  };
-
-  /**
-   * Panel içinden kullanıcı hesabı değiştirme. Mevcut oturumu güvenli biçimde
-   * kapatıp seçilen hesapla yeniden giriş yapar; giriş sonrası ana ekrana
-   * (Araç sorgu) dönülür. Bu akış login/çıkış akışıyla aynıdır; sadece panel
-   * üzerinden tetikleniyor.
-   */
-  const handleSwitchUser = async (username: string, password: string) => {
-    clearSession();
-    await new Promise((r) => setTimeout(r, 0));
-    const res = await apiRequest('/auth/login', {
-      method: 'POST',
-      body: JSON.stringify({ username, password })
-    });
-    if (res.success && res.token && res.user) {
-      setAuthToken(res.token);
-      setCurrentUser(res.user);
-      setAuthChecked(true);
-      setActiveTab('sorgu');
-    } else {
-      throw new Error(res.error || 'Hesap değiştirilemedi.');
-    }
   };
 
   /**
@@ -406,7 +366,6 @@ export function App() {
   }, []);
 
   const handleNewWorkOrder = (plate?: string, date?: string) => {
-    setWorkOrderReturnTab(activeTab);
     setActiveWorkOrderId(null);
     setWorkOrderPlate(plate || selectedPlate || '');
     setWorkOrderDate(date || '');
@@ -414,7 +373,6 @@ export function App() {
   };
 
   const handleOpenWorkOrder = (id: number) => {
-    setWorkOrderReturnTab(activeTab);
     setActiveWorkOrderId(id);
     setWorkOrderPlate('');
     setWorkOrderDate('');
@@ -463,16 +421,6 @@ export function App() {
           <nav className="menu" role="tablist" aria-label="Bölümler">
             <div className="menu-group">
               <div className="menu-label">Operasyon</div>
-              <a
-                className="menu-item"
-                href="#/panel"
-                role="tab"
-                aria-selected={activeTab === 'panel'}
-                aria-current={activeTab === 'panel' ? 'page' : undefined}
-              >
-                <LayoutDashboard size={18} strokeWidth={1.75} aria-hidden="true" />
-                Panel
-              </a>
               <a
                 className="menu-item"
                 href="#/sorgu"
@@ -612,29 +560,6 @@ export function App() {
 
       {/* Main Wrap Container */}
       <main className="wrap">
-        {activeTab === 'panel' && (
-          <Suspense
-            fallback={
-              <div className="flex min-h-[50vh] items-center justify-center rounded-2xl border border-white/10 bg-white/[0.03] px-6 py-10 text-center text-[11px] text-zinc-500 backdrop-blur-xl">
-                Panel yükleniyor…
-              </div>
-            }
-          >
-            <DashboardScreen
-              currentUser={currentUser}
-              shopName={shopName}
-              refreshToken={panelRefresh}
-              onNewWorkOrder={(plate) => handleNewWorkOrder(plate)}
-              onOpenWorkOrder={(id) => handleOpenWorkOrder(id)}
-              onNavigate={(tab) => setActiveTab(tab as TabKey)}
-              onOpenSettings={() => setShowSettings(true)}
-              onLockScreen={handleLockNow}
-              onLogout={handleLogout}
-              onSwitchUser={(username: string, password: string) => handleSwitchUser(username, password)}
-            />
-          </Suspense>
-        )}
-
         {activeTab === 'sorgu' && (
           <VehicleSearchScreen
             initialPlate={selectedPlate}
@@ -682,8 +607,6 @@ export function App() {
           workOrderId={activeWorkOrderId}
           initialPlate={workOrderPlate}
           initialDate={workOrderDate}
-          userRole={currentUser?.role === 'staff' ? 'staff' : 'owner'}
-          currentUserId={currentUser?.id}
           onClose={() => {
             setWorkOrderModalOpen(false);
             setActiveWorkOrderId(null);
@@ -692,12 +615,7 @@ export function App() {
           }}
           onSaved={(savedPlate) => {
             setSelectedPlate(savedPlate);
-            if (workOrderReturnTab === 'panel') {
-              setActiveTab('panel');
-              setPanelRefresh((n) => n + 1);
-            } else {
-              setActiveTab('sorgu');
-            }
+            setActiveTab('sorgu');
             loadRemindersBadge();
           }}
         />

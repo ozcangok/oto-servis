@@ -46,7 +46,7 @@ function stageBadgeClass(stage: string): string {
   const s = String(stage || '').toLocaleLowerCase('tr-TR');
   if (s === 'teslime_hazir' || s === 'tamamlandı' || s === 'tamamlandi' || s === 'teslim_edildi') return 'ok';
   if (s === 'iptal' || s === 'cancel' || s === 'cancelled') return 'bad';
-  if (s === 'kabul' || s === 'onarimda' || s === 'onarımda' || s === 'parca_bekliyor') return 'warn';
+  if (s === 'kabul' || s === 'onarimda' || s === 'onarımda') return 'warn';
   return 'neu';
 }
 
@@ -55,7 +55,6 @@ function stageNormKey(stage: string): string {
   const s = String(stage || '');
   if (s === 'kabul') return 'accepted';
   if (s === 'onarımda' || s === 'onarimda') return 'repairing';
-  if (s === 'parca_bekliyor' || s === 'parça_bekliyor') return 'waiting';
   if (s === 'tamamlandı' || s === 'teslime_hazir') return 'ready';
   if (s === 'teslim_edildi') return 'delivered';
   return 'accepted';
