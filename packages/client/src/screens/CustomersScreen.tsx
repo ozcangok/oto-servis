@@ -166,7 +166,7 @@ export const CustomersScreen: React.FC<{ currentUser?: any }> = ({ currentUser }
           id="mq"
           className="grow"
           type="text"
-          placeholder="Müşteri adı, telefon veya vergi no ara"
+          placeholder="Müşteri adı, telefon veya V.T.C.K.N ara"
           autoComplete="off"
           aria-label="Müşteri ara"
           value={searchTerm}
@@ -202,7 +202,7 @@ export const CustomersScreen: React.FC<{ currentUser?: any }> = ({ currentUser }
                   <span className="what">
                     <b>{c.ad_soyad}</b>
                     <span>
-                      {[c.telefon, c.eposta, c.vergi_no ? `Vergi No: ${c.vergi_no}` : '']
+                      {[c.telefon, c.eposta, c.vergi_no ? `V.T.C.K.N: ${c.vergi_no}` : '']
                         .filter(Boolean)
                         .join(' · ')}
                       {c.created_at ? ` · Kayıt: ${fdate(c.created_at)}` : ''}
@@ -318,14 +318,16 @@ export const CustomersScreen: React.FC<{ currentUser?: any }> = ({ currentUser }
                   />
                 </div>
                 <div className="field">
-                  <label htmlFor="mc-tax">Vergi / TC No</label>
+                  <label htmlFor="mc-tax">V.T.C.K.N</label>
                   <input
                     id="mc-tax"
                     type="text"
+                    inputMode="numeric"
                     autoComplete="off"
+                    maxLength={11}
                     placeholder="Vergi veya TC kimlik no"
                     value={form.vergi_no}
-                    onChange={(e) => setForm({ ...form, vergi_no: e.target.value })}
+                    onChange={(e) => setForm({ ...form, vergi_no: e.target.value.replace(/\D/g, '') })}
                   />
                 </div>
               </div>

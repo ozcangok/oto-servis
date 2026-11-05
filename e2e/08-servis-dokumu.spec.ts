@@ -96,6 +96,9 @@ test.describe('7) Kurumsal Servis Dökümü (PDF) — şablon & tasarım', () =>
     expect(html).toContain('Müşteri Bilgileri');
     expect(html).toContain('Araç Bilgileri');
 
+    // Vergi / TC Kimlik No (V.T.C.K.N) boşsa müşteri kartında hiç satır çıkarmaz
+    expect(html).not.toContain('V.T.C.K.N');
+
     // Profesyonel tablo başlıkları
     expect(html).toContain('>Tür<');
     expect(html).toContain('Parça / İşlem');
@@ -169,7 +172,7 @@ test.describe('7) Kurumsal Servis Dökümü (PDF) — uçtan uca üretim', () =>
     expect(setRes.status, JSON.stringify(setRes.body)).toBe(200);
 
     // Gerçek iş emri: 1.000,00 TL işçilik + %20 KDV → KDV dahil 1.200,00 ₺
-    const cust = await createCustomer(request, token, { ad_soyad: PDF_MUSTERI, telefon: uniqPhone() });
+    const cust = await createCustomer(request, token, { ad_soyad: PDF_MUSTERI, telefon: uniqPhone(), vergi_no: '312' });
     const plate = uniqPlate();
     const veh = await createVehicle(request, token, { plaka: plate, musteri_id: cust.id });
     const plaka = veh.plaka_gorunen;
@@ -241,6 +244,8 @@ test.describe('7) Kurumsal Servis Dökümü (PDF) — uçtan uca üretim', () =>
     expect(html).toContain('SERVİS DÖKÜMÜ');
     expect(html).toContain('ÇINAR OTOMOTİV'); // dükkan başlığı
     expect(html).toContain(PDF_MUSTERI); // güncel müşteri adı
+    expect(html).toContain('V.T.C.K.N'); // müşteri vergi/TC no tanımlandı
+    expect(html).toContain('312'); // ve no değeri
     expect(html).toContain(plaka); // plaka
     expect(html).toContain('1.000,00 ₺'); // Ara toplam (KDV hariç)
     expect(html).toContain('200,00 ₺'); // KDV %20

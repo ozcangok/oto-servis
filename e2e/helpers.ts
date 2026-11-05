@@ -153,11 +153,12 @@ export function uniqKod(): string {
 export async function createCustomer(
   request: APIRequestContext,
   token: string,
-  over: { ad_soyad?: string; telefon?: string } = {}
+  over: { ad_soyad?: string; telefon?: string; vergi_no?: string } = {}
 ): Promise<any> {
   const { status, body } = await apiJson(request, 'POST', '/api/customers', token, {
     ad_soyad: over.ad_soyad || 'E2E Test Müşteri',
-    telefon: over.telefon || uniqPhone()
+    telefon: over.telefon || uniqPhone(),
+    vergi_no: over.vergi_no || null
   });
   expect(status, JSON.stringify(body)).toBe(200);
   return body.customer;

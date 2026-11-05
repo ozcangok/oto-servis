@@ -249,7 +249,7 @@ export function statementHTML(orders: any[], v: any, settings: any = {}) {
               ${field('Ad Soyad', owner.ad_soyad || owner.name)}
               ${field('Telefon', owner.telefon || owner.phone)}
               ${field('E-posta', owner.eposta || owner.email)}
-              ${field('Vergi No', owner.vergi_no)}
+              ${String(owner.vergi_no || '').trim() ? field('V.T.C.K.N', owner.vergi_no) : ''}
             </div>
           </div>
           <div class="card">
