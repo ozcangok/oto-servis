@@ -1,4 +1,6 @@
-import React, { useEffect, useRef } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
+import { CORPORATE } from '@oto-servis/shared';
+import { apiRequest } from '../services/api.js';
 
 /**
  * 3 dakikalık hareketsizlik (idle) güvenlik kilidi.
@@ -9,18 +11,13 @@ import React, { useEffect, useRef } from 'react';
  *   arka planı okunmaz hale getiren yoğun buzlu cam katmanı indirilir.
  * - Kilit AYRICA elle tetiklenebilir: `App` içindeki "Ekranı kilitle" düğmesi
  *   `locked` durumunu `true` yapar ve aynı katman beklemeden iner.
- * - PIN yoktur: kilitliyken fare hareketi/tıklama kullanıcıyı `onUnlock` ile
- *   oturumu sıfırlanmış (clear token/session) şekilde dışarı çıkarır.
+ * - Kilit, oturumdaki kullanıcının kendi parolasıyla açılır. Yanlış parola
+ *   reddedilir; 5 hatalı denemeden sonra oturum güvenli şekilde kapatılır.
+ *   Böylece kilitli ekranda fare hareketi/tek tıkla oturum açılmaz.
  */
 
 const DEFAULT_IDLE_MS = 180_000;
-
-/**
- * Kilit indikten sonraki "yerleşme" süresi (ms). Kilit yeni inmişken gelen
- * ilk hareket bu süre içindeyse yok sayılır; böylece hem elle kilitleyen
- * tıklamanın sarsıntısı hem de fare kazası katmanı hemen kaldırmaz.
- */
-const LOCK_SETTLE_MS = 600;
+const MAX_UNLOCK_ATTEMPTS = 5;
 
 /** Dinlenecek kullanıcı hareketi olayları. */
 const ACTIVITY_EVENTS: (keyof WindowEventMap)[] = [
@@ -51,28 +48,43 @@ export function resolveIdleMs(): number {
 interface IdleLockProps {
   /** Kilit ekranda mı? (Hareketsizlik sayacı veya elle "Ekranı kilitle"). */
   locked: boolean;
+  /** Kilitli oturumun kullanıcısı (parola doğrulaması ve isim gösterimi için). */
+  currentUser?: any;
   /** Hareketsizlik sınırı aşıldığında çağrılır. */
   onLock: () => void;
-  /** Kilit açıldığında çağrılır (oturum güvenli şekilde kapatılır). */
-  onUnlock: () => void;
+  /** Doğru parola girildiğinde çağrılır; oturum açık kalır. */
+  onResume: () => void;
+  /** Kullanıcı "Oturumu kapat" derse veya 5 hatalı denemede çağrılır. */
+  onLogout: () => void;
 }
 
-export const IdleLock: React.FC<IdleLockProps> = ({ locked, onLock, onUnlock }) => {
-  const unlockRef = useRef(onUnlock);
+export const IdleLock: React.FC<IdleLockProps> = ({
+  locked,
+  currentUser,
+  onLock,
+  onResume,
+  onLogout
+}) => {
   const lockRef = useRef(onLock);
   useEffect(() => {
-    unlockRef.current = onUnlock;
     lockRef.current = onLock;
-  }, [onUnlock, onLock]);
+  }, [onLock]);
 
-  // Kilit yeni mi indi? (yerleşme koruması + tek seferlik açma)
-  const lockedAtRef = useRef(0);
-  const openedRef = useRef(false);
+  const [password, setPassword] = useState('');
+  const [error, setError] = useState('');
+  const [submitting, setSubmitting] = useState(false);
+  const inputRef = useRef<HTMLInputElement>(null);
+  const attemptsRef = useRef(0);
+
+  // Her kilit inisinde formu sıfırla ve parola alanına odaklan.
   useEffect(() => {
-    if (locked) {
-      lockedAtRef.current = Date.now();
-      openedRef.current = false;
-    }
+    if (!locked) return;
+    setPassword('');
+    setError('');
+    setSubmitting(false);
+    attemptsRef.current = 0;
+    const timer = window.setTimeout(() => inputRef.current?.focus(), 80);
+    return () => window.clearTimeout(timer);
   }, [locked]);
 
   // Hareketsizlik sayacı (yalnızca kilitli değilken çalışır)
@@ -93,46 +105,103 @@ export const IdleLock: React.FC<IdleLockProps> = ({ locked, onLock, onUnlock }) 
     };
   }, [locked]);
 
-  // Kilitliyken: ilk harekette kilidi aç ve oturumu güvenli şekilde kapat.
-  // Not: `{ once: true }` KULLANILMAZ; yerleşme süresi içindeki hareketler
-  // dinleyiciyi tüketmemeli (aksi halde kilit "takılı" kalabilir).
-  useEffect(() => {
-    if (!locked) return;
+  const handleSubmit = async (event: React.FormEvent) => {
+    event.preventDefault();
+    if (submitting || !password) return;
 
-    const unlock = () => {
-      if (openedRef.current) return;
-      if (Date.now() - lockedAtRef.current < LOCK_SETTLE_MS) return;
-      openedRef.current = true;
-      unlockRef.current();
-    };
-    window.addEventListener('mousemove', unlock);
-    window.addEventListener('mousedown', unlock);
-    window.addEventListener('click', unlock);
-    window.addEventListener('keydown', unlock);
-    window.addEventListener('wheel', unlock, { passive: true });
-    window.addEventListener('touchstart', unlock, { passive: true });
+    setSubmitting(true);
+    setError('');
 
-    return () => {
-      window.removeEventListener('mousemove', unlock);
-      window.removeEventListener('mousedown', unlock);
-      window.removeEventListener('click', unlock);
-      window.removeEventListener('keydown', unlock);
-      window.removeEventListener('wheel', unlock);
-      window.removeEventListener('touchstart', unlock);
-    };
-  }, [locked]);
+    try {
+      const res = await apiRequest('/auth/verify-password', {
+        method: 'POST',
+        body: JSON.stringify({ password })
+      });
+      if (!res?.success) {
+        throw new Error(res?.error || 'Parola hatalı.');
+      }
+      attemptsRef.current = 0;
+      onResume();
+    } catch (err: any) {
+      attemptsRef.current += 1;
+      if (attemptsRef.current >= MAX_UNLOCK_ATTEMPTS) {
+        setError('Çok fazla hatalı deneme. Oturum güvenli şekilde kapatılıyor...');
+        window.setTimeout(() => onLogout(), 900);
+      } else {
+        setError(err?.message || 'Parola hatalı. Lütfen tekrar deneyin.');
+        setPassword('');
+        inputRef.current?.focus();
+      }
+    } finally {
+      setSubmitting(false);
+    }
+  };
 
   if (!locked) return null;
 
+  const displayName = String(currentUser?.full_name || currentUser?.username || '').trim();
+
   return (
-    <div className="idle-lock" data-testid="idle-lock" role="dialog" aria-modal="true" aria-label="Oturum güvenliğe alındı">
+    <div
+      className="idle-lock"
+      data-testid="idle-lock"
+      role="dialog"
+      aria-modal="true"
+      aria-label="Oturum güvenliğe alındı"
+    >
       <div className="idle-lock-inner">
         <div className="holo holo-xl">
           <span className="holo-glow" aria-hidden="true">İyi çalışmalar</span>
           <h1 className="holo-text idle-title" data-testid="idle-title">İyi çalışmalar</h1>
         </div>
         <p className="idle-sub" data-testid="idle-sub">Oturumunuz güvenliğe alındı.</p>
-        <p className="idle-hint">Devam etmek için fareyi hareket ettirin</p>
+        <p className="idle-brand">{CORPORATE.legalName}</p>
+        {displayName && <p className="idle-user">{displayName}</p>}
+
+        <form className="idle-lock-form" onSubmit={handleSubmit} data-testid="idle-lock-form">
+          <label htmlFor="idle-password">Kilit parolası</label>
+          <div className="idle-lock-row">
+            <input
+              ref={inputRef}
+              id="idle-password"
+              data-testid="idle-password"
+              type="password"
+              autoComplete="current-password"
+              placeholder="Parolanızı girin"
+              value={password}
+              disabled={submitting}
+              onChange={(event) => {
+                setPassword(event.target.value);
+                if (error) setError('');
+              }}
+            />
+            <button
+              className="btn btn-primary"
+              type="submit"
+              data-testid="idle-unlock"
+              disabled={submitting || !password}
+            >
+              {submitting ? 'Kontrol ediliyor...' : 'Kilidi Aç'}
+            </button>
+          </div>
+          {error && (
+            <div className="idle-error" role="alert" data-testid="idle-error">
+              {error}
+            </div>
+          )}
+          <p className="idle-hint">
+            Devam etmek için parolanızı girin. 5 hatalı denemede oturum kapatılır.
+          </p>
+        </form>
+
+        <button
+          className="btn btn-ghost idle-logout"
+          type="button"
+          onClick={onLogout}
+          data-testid="idle-logout"
+        >
+          Oturumu kapat
+        </button>
       </div>
     </div>
   );

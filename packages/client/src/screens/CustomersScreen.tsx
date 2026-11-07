@@ -2,6 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { apiRequest } from '../services/api.js';
 import { Spinner } from '../components/Spinner.js';
 import { fdate, toast } from '../services/ui.js';
+import { isPrivileged } from '../services/roles.js';
 
 interface CustomerForm {
   id: number | null;
@@ -25,7 +26,7 @@ const PAGE_SIZE = 50;
 
 export const CustomersScreen: React.FC<{ currentUser?: any }> = ({ currentUser }) => {
   // Silme yalnızca dükkan sahibine açıktır (silme, bağlı araç/kasa kayıtlarını etkiler).
-  const isOwner = currentUser?.role === 'owner';
+  const isOwner = isPrivileged(currentUser);
   const [searchTerm, setSearchTerm] = useState('');
   const [debouncedSearch, setDebouncedSearch] = useState('');
   const [loading, setLoading] = useState(false);

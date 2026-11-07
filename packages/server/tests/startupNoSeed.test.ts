@@ -10,9 +10,9 @@ import { fileURLToPath } from 'node:url';
  * Açılışta örnek/demo veri OTOMATİK yüklenmemelidir.
  *
  * Taze bir veritabanında hiç kullanıcı olmadığı için uygulama doğrudan
- * "İlk Kurulum & Yönetici Şifresi" ekranına düşmelidir; demo hesaplar
- * (admin/admin123 ...) otomatik oluşmamalıdır. Örnek veri yalnızca
- * OTO_SEED_SAMPLE=1 ile açıkça istendiğinde yüklenir.
+ * "İlk Kurulum & Yönetici Şifresi" ekranına düşmelidir; kurumsal demo
+ * hesaplar otomatik oluşmamalıdır. Örnek veri yalnızca OTO_SEED_SAMPLE=1
+ * ile açıkça istendiğinde yüklenir.
  *
  * Bu test GERÇEK sunucuyu ayrı bir süreçte (tsx src/index.ts) başlatır ve
  * gerçek HTTP uçlarına bakar; böylece davranış uçtan uca doğrulanır.
@@ -118,11 +118,11 @@ describe('Açılışta otomatik seed yok (İlk Kurulum akışı)', () => {
     const status = await statusRes.json() as { needed: boolean };
     expect(status.needed).toBe(true);
 
-    // Demo hesapla giriş yapılamaz.
+    // Kurumsal hesapla giriş yapılamaz (henüz hesap yok).
     const loginRes = await fetch(`${baseUrl}/api/auth/login`, {
       method: 'POST',
       headers: { 'content-type': 'application/json' },
-      body: JSON.stringify({ username: 'admin', password: 'admin123' })
+      body: JSON.stringify({ username: 'sezer çınar', password: 'sezer34602026' })
     });
     expect(loginRes.status).not.toBe(200);
   }, 90_000);
@@ -148,7 +148,7 @@ describe('Açılışta otomatik seed yok (İlk Kurulum akışı)', () => {
     const loginRes = await fetch(`${baseUrl}/api/auth/login`, {
       method: 'POST',
       headers: { 'content-type': 'application/json' },
-      body: JSON.stringify({ username: 'admin', password: 'admin123' })
+      body: JSON.stringify({ username: 'sezer çınar', password: 'sezer34602026' })
     });
     expect(loginRes.status).toBe(200);
   }, 90_000);

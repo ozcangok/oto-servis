@@ -60,11 +60,14 @@ const SAMPLE_VEHICLE = {
 };
 
 const SAMPLE_SETTINGS = {
-  shop_name: 'Çınar Otomotiv',
-  shop_phone: '0532 000 00 00',
-  shop_address: 'Oto Sanayi Sitesi B Blok No: 12, İstanbul',
+  shop_name: 'Çınar Otomotiv - Özel Servis & Bakım Hizmetleri',
+  shop_owner: 'Sezer Çınar',
+  shop_phone: '0530 766 52 60',
+  shop_address: 'Esenşehir, Muradiye Sk. No:42 D:B, 34776 Ümraniye/İstanbul',
+  shop_email: 'info@cinarotomotiv.com',
   shop_tax_office: 'Marmara V.D.',
-  shop_tax_number: '1234567890'
+  shop_tax_number: '1234567890',
+  default_kdv_rate: 20
 };
 
 /** İstemci modülünden döküm HTML'ini üretir (string evaluate → tarayıcı native import). */
@@ -84,39 +87,55 @@ test.describe('7) Kurumsal Servis Dökümü (PDF) — şablon & tasarım', () =>
 
     // Logolu kurumsal başlık + dükkan adı/adres/iletişim/vergi
     expect(html).toContain('stmt-logo');
-    expect(html).toContain('SERVİS DÖKÜMÜ');
-    expect(html).toContain('ÇINAR OTOMOTİV');
-    expect(html).toContain('Oto Sanayi Sitesi B Blok No: 12');
-    expect(html).toContain('Tel: 0532 000 00 00');
+    expect(html).toContain('SERVİS İŞ EMRİ VE TEKLİF FORMU');
+    expect(html).toContain('Çınar Otomotiv');
+    expect(html).toContain('Esenşehir, Muradiye Sk. No:42 D:B, 34776 Ümraniye/İstanbul');
+    expect(html).toContain('Tel: 0530 766 52 60');
     expect(html).toContain('Vergi Dairesi: Marmara V.D.');
     expect(html).toContain('Belge Tarihi');
     expect(html).toContain('34 ABC 123');
 
-    // Yan yana bilgi kartları
+    // Yan yana müşteri/araç matrisi
     expect(html).toContain('Müşteri Bilgileri');
     expect(html).toContain('Araç Bilgileri');
 
-    // Vergi / TC Kimlik No (V.T.C.K.N) boşsa müşteri kartında hiç satır çıkarmaz
-    expect(html).not.toContain('V.T.C.K.N');
+    // Müşteri / araç matrisi alanları
+    expect(html).toContain('Ad Soyad');
+    expect(html).toContain('Telefon');
+    expect(html).toContain('E-posta');
+    expect(html).toContain('Şikayet / Talep');
+    expect(html).toContain('Marka / Model');
+    expect(html).toContain('Model Yılı');
+    expect(html).toContain('Şasi No');
+    expect(html).toContain('Motor No');
+    expect(html).toContain('Kilometre');
+    expect(html).toContain('Belge No');
+    expect(html).toContain('Vade Tarihi');
+    expect(html).toContain('CNR-');
 
     // Profesyonel tablo başlıkları
     expect(html).toContain('>Tür<');
-    expect(html).toContain('Parça / İşlem');
-    expect(html).toContain('>Adet<');
+    expect(html).toContain('>Açıklama<');
+    expect(html).toContain('>Miktar<');
+    expect(html).toContain('Birim Fiyat');
     expect(html).toContain('>Tutar<');
+    expect(html).toContain('Parça');
+    expect(html).toContain('İşçilik');
     expect(html).toMatch(/class="r amt"/); // tutarlar sağa hizalı
 
     // Sağ altta çerçeveli özet paneli
-    expect(html).toContain('totpanel');
-    expect(html).toContain('Ara Toplam (KDV hariç)');
-    expect(html).toContain('KDV %20');
-    expect(html).toContain('KDV Dahil Toplam');
-    expect(html).toContain('Peşin Fiyat');
+    expect(html).toContain('summary');
+    expect(html).toContain('Ara Toplam (KDV Hariç)');
+    expect(html).toContain('KDV (%20)');
+    expect(html).toContain('KDV Dahil Genel Toplam');
 
-    // Ortalanmış, italik resmi yasal uyarı (birebir)
-    expect(html).toContain('Bu belge bilgi amaçlı servis dökümüdür, mali fatura yerine geçmez.');
-    expect(html).toMatch(/\.ftr\{[^}]*font-style:italic/);
-    expect(html).toMatch(/\.ftr\{[^}]*text-align:center/);
+    // Yasal uyarı + çift imza/kaşe bloğu
+    expect(html).toContain('Bu belge bilgi amaçlı servis dökümüdür, resmi fatura yerine geçmesi için faturaya dönüştürülmelidir.');
+    expect(html).toContain('Müşteri Onayı / İmza');
+    expect(html).toContain('Yetkili Servis Kaşe / İmza');
+    expect(html).toContain('Sezer Çınar - Çınar Otomotiv');
+    expect(html).toMatch(/\.legal\{[^}]*font-style:italic/);
+    expect(html).toMatch(/\.legal\{[^}]*text-align:center/);
 
     // Logo alanı boş/kırık değil: vektör amblem gerçekten render ediliyor
     const logo = await page.evaluate((h) => {
@@ -168,7 +187,9 @@ test.describe('7) Kurumsal Servis Dökümü (PDF) — uçtan uca üretim', () =>
     const token = await apiLogin(request, OWNER);
 
     // Kurumsal başlık için dükkan adını sabitle
-    const setRes = await apiJson(request, 'PUT', '/api/settings', token, { shop_name: 'Çınar Otomotiv' });
+    const setRes = await apiJson(request, 'PUT', '/api/settings', token, {
+      shop_name: 'Çınar Otomotiv - Özel Servis & Bakım Hizmetleri'
+    });
     expect(setRes.status, JSON.stringify(setRes.body)).toBe(200);
 
     // Gerçek iş emri: 1.000,00 TL işçilik + %20 KDV → KDV dahil 1.200,00 ₺
@@ -219,7 +240,7 @@ test.describe('7) Kurumsal Servis Dökümü (PDF) — uçtan uca üretim', () =>
     await q.click();
     await q.fill(plaka);
 
-    const pdfBtn = page.getByRole('button', { name: 'PDF döküm' });
+    const pdfBtn = page.getByRole('button', { name: 'PDF döküm', exact: true });
     await expect(pdfBtn).toBeVisible({ timeout: 15_000 });
 
     // 1) PDF üretimi hatasız tetiklenir ve gerçek bir PDF indirilir
@@ -241,16 +262,16 @@ test.describe('7) Kurumsal Servis Dökümü (PDF) — uçtan uca üretim', () =>
     expect(captured.length, 'PDF üretim fonksiyonu tetiklenmedi').toBeGreaterThan(0);
     const html = captured[0];
 
-    expect(html).toContain('SERVİS DÖKÜMÜ');
-    expect(html).toContain('ÇINAR OTOMOTİV'); // dükkan başlığı
+    expect(html).toContain('SERVİS İŞ EMRİ VE TEKLİF FORMU');
+    expect(html).toContain('Çınar Otomotiv'); // dükkan başlığı
+    expect(html).toContain('Çınar Otomotiv - Özel Servis &amp; Bakım Hizmetleri'); // dinamik ticari unvan (HTML-escaped)
     expect(html).toContain(PDF_MUSTERI); // güncel müşteri adı
-    expect(html).toContain('V.T.C.K.N'); // müşteri vergi/TC no tanımlandı
-    expect(html).toContain('312'); // ve no değeri
+    expect(html).toContain('Şikayet / Talep');
     expect(html).toContain(plaka); // plaka
     expect(html).toContain('1.000,00 ₺'); // Ara toplam (KDV hariç)
     expect(html).toContain('200,00 ₺'); // KDV %20
-    expect(html).toContain('1.200,00 ₺'); // KDV dahil toplam
-    expect(html).toContain('KDV Dahil Toplam');
+    expect(html).toContain('1.200,00 ₺'); // Genel toplam
+    expect(html).toContain('KDV Dahil Genel Toplam');
 
     // 4) Görsel kontrol: logo alanı dolu ve render edilmiş (boş/kırık değil)
     expect(html).toContain('stmt-logo');

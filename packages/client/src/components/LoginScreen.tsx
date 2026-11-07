@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { AuthModal } from './AuthModal.js';
-import { APP_BRAND_NAME, splashGreeting } from '@oto-servis/shared';
+import { APP_BRAND_NAME, CORPORATE, splashGreeting } from '@oto-servis/shared';
 
 interface LoginScreenProps {
   onSuccess: (user: any) => void;
@@ -46,6 +46,7 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ onSuccess, notice }) =
           engellemez (pointer-events:none). */}
       <div className="login-holo" aria-hidden="true">
         <div className="login-holo-brand">{APP_BRAND_NAME}</div>
+        <div className="login-holo-legal">{CORPORATE.legalName}</div>
         <div className="holo holo-lg">
           <span className="holo-glow">{greeting}</span>
           <h1 className="holo-text">{greeting}</h1>

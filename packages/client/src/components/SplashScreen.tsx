@@ -1,5 +1,5 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { APP_BRAND_NAME, splashGreeting } from '@oto-servis/shared';
+import { APP_BRAND_NAME, CORPORATE, splashGreeting } from '@oto-servis/shared';
 
 /**
  * Saat/gün duyarlı, dokunulmaz açılış (splash) ekranı.
@@ -75,6 +75,7 @@ export const SplashScreen: React.FC<SplashScreenProps> = ({ onDone, brand = APP_
     <div className={`splash ${phase}`} data-testid="splash" data-phase={phase} data-lock-ms={lockMs}>
       <div className="splash-inner">
         <div className="splash-brand" aria-hidden="true">{brand}</div>
+        <div className="splash-legal" aria-hidden="true">{CORPORATE.legalName}</div>
         <div className="holo holo-lg">
           <span className="holo-glow" aria-hidden="true">{greeting}</span>
           <h1 className="holo-text splash-text" data-testid="splash-text">{greeting}</h1>

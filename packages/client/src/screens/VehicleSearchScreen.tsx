@@ -1,9 +1,20 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import { Bell, Plus, Search, ChevronLeft, ChevronRight, CalendarDays, Wrench, TrendingUp, Coins, Wallet, Package, Lock } from 'lucide-react';
+import { Bell, Plus, Search, ChevronLeft, ChevronRight, CalendarDays, Lock } from 'lucide-react';
 import { apiRequest } from '../services/api.js';
 import { Spinner } from '../components/Spinner.js';
 import { PlateInput, PlateBadge } from '../components/PlateInput.js';
 import { exportStatementPDF } from '../services/pdfExport.js';
+import { WelcomeBanner } from '../components/dashboard/WelcomeBanner.js';
+import { AdminKpiGrid } from '../components/dashboard/AdminKpiGrid.js';
+import { StaffKpiGrid } from '../components/dashboard/StaffKpiGrid.js';
+import { RevenueTrendChart } from '../components/dashboard/RevenueTrendChart.js';
+import { OfflineAiPanel } from '../components/dashboard/OfflineAiPanel.js';
+import { StaffNotesPanel } from '../components/dashboard/StaffNotesPanel.js';
+import { OperationalPipeline } from '../components/dashboard/OperationalPipeline.js';
+import { ServiceTable } from '../components/dashboard/ServiceTable.js';
+import { analyzeOffline, buildStaffNotes } from '../services/offlineAnalytics.js';
+import { isPrivileged } from '../services/roles.js';
+import { useSettings } from '../contexts/SettingsContext.js';
 import {
   toDateKey,
   buildMonthCells,
@@ -11,7 +22,6 @@ import {
   getAgendaForDate,
   orderDateKey,
   formatMonthLabel,
-  formatLongDateTR,
   formatAgendaTitle,
   orderTimeLabel
 } from '../services/calendar.js';
@@ -72,7 +82,8 @@ export const VehicleSearchScreen: React.FC<VehicleSearchScreenProps> = ({
   currentUser
 }) => {
   // Mali özetler (ciro/işçilik/açık cari) ve silme yalnızca dükkan sahibine açıktır.
-  const isOwner = currentUser?.role === 'owner';
+  const isOwner = isPrivileged(currentUser);
+  const { settings, companyProfile, refresh: refreshSettings } = useSettings();
   const [searchTerm, setSearchTerm] = useState(initialPlate);
   const [loading, setLoading] = useState(false);
   const [vehicleData, setVehicleData] = useState<any | null>(null);
@@ -80,20 +91,11 @@ export const VehicleSearchScreen: React.FC<VehicleSearchScreenProps> = ({
   const [unregisteredPlate, setUnregisteredPlate] = useState<string | null>(null);
 
   // Dashboard Data
-  const [dashboardStats, setDashboardStats] = useState({
-    inShopCount: 0,
-    readyCount: 0,
-    monthTotalKurus: 0,
-    monthLaborKurus: 0,
-    openCariKurus: 0,
-    openCustomersCount: 0,
-    lowPartsCount: 0,
-    criticalPartsCount: 0
-  });
   const [inShopOrders, setInShopOrders] = useState<any[]>([]);
   const [allOrders, setAllOrders] = useState<any[]>([]);
-  const [settings, setSettings] = useState<any>({});
+  const [allParts, setAllParts] = useState<any[]>([]);
   const [remindersDue, setRemindersDue] = useState(0);
+  const [analysisRefreshing, setAnalysisRefreshing] = useState(false);
 
   // Takvim durumu
   const now = new Date();
@@ -170,7 +172,6 @@ export const VehicleSearchScreen: React.FC<VehicleSearchScreenProps> = ({
 
   useEffect(() => {
     loadDashboardData();
-    loadSettings();
   }, []);
 
   useEffect(() => {
@@ -180,41 +181,28 @@ export const VehicleSearchScreen: React.FC<VehicleSearchScreenProps> = ({
     }
   }, [initialPlate]);
 
-  const loadSettings = async () => {
-    try {
-      const res = await apiRequest('/settings');
-      if (res.success && res.settings) setSettings(res.settings);
-    } catch {}
-  };
-
   /**
-   * PDF başlığındaki dükkan/vergi bilgileri Ayarlar ekranından değiştirilebildiği
-   * için dökümü üretmeden hemen önce ayarları tazeleriz; aksi halde sayfa ilk
-   * açıldığındaki eski değerler kullanılırdı.
+   * PDF her zaman global ayar kaynağından beslenir. Belge üretilmeden hemen
+   * önce sunucudan tazeleme yapılır; başarısız olursa son başarılı/önbellek
+   * değerleri kullanılır. Böylece Ayarlar > Kaydet sonrası belge anında güncel
+   * şirket kimliğini taşır.
    */
   const exportWithFreshSettings = async (list: any[], vehicle: any) => {
-    let fresh = settings;
-    try {
-      const res = await apiRequest('/settings');
-      if (res.success && res.settings) {
-        fresh = res.settings;
-        setSettings(res.settings);
-      }
-    } catch {}
+    const fresh = (await refreshSettings()) || settings;
     await exportStatementPDF(list, vehicle, fresh);
   };
 
   const loadDashboardData = async () => {
     try {
-      // 1. Fetch work orders
+      // 1. Fetch work orders (personel için sunucu yalnızca kendine atananları döndürür)
       const ordersRes = await apiRequest('/work-orders?limit=100');
       const allOrdersData: any[] = ordersRes.success ? ordersRes.items || [] : [];
       setAllOrders(allOrdersData);
 
-      // 2. Fetch parts for low stock count
+      // 2. Parça stokları — offline analiz motorunun stok uyarıları için.
       const partsRes = await apiRequest('/parts?limit=500');
-      const allParts: any[] = partsRes.success ? partsRes.items || [] : [];
-      const lowParts = allParts.filter((p: any) => (p.stok_miktari || 0) <= (p.kritik_stok || 0));
+      const allPartsData: any[] = partsRes.success ? partsRes.items || [] : [];
+      setAllParts(allPartsData);
 
       // 3. Yaklaşan/gecikmiş hatırlatıcı sayısı (zil noktası)
       try {
@@ -222,7 +210,6 @@ export const VehicleSearchScreen: React.FC<VehicleSearchScreenProps> = ({
         if (remRes.success) setRemindersDue(remRes.count || 0);
       } catch {}
 
-      // Calculations for stats
       // "Serviste olan araçlar": teslim edilmemiş iş emirleri. Gelecek tarihli
       // kayıtlar (randevular) henüz servise gelmediği için listede görünmez;
       // tarihi bugün veya geçmiş olduğunda otomatik olarak belirir.
@@ -238,43 +225,6 @@ export const VehicleSearchScreen: React.FC<VehicleSearchScreenProps> = ({
           )
         );
       setInShopOrders(inShop);
-
-      const nowD = new Date();
-      const thisMonth = `${nowD.getFullYear()}-${String(nowD.getMonth() + 1).padStart(2, '0')}`;
-      let monthGross = 0;
-      let monthLabor = 0;
-      let totalOpen = 0;
-      const openCustomers = new Set<string>();
-      let readyCount = 0;
-
-      allOrdersData.forEach((o: any) => {
-        const orderDate = String(o.giris_tarihi || o.created_at || '');
-        if (orderDate.startsWith(thisMonth)) {
-          monthGross += o.brut_tutar_kurus || 0;
-          monthLabor += o.iscilik_toplam_kurus || 0;
-        }
-        const remaining = Math.max(0, o.kalan_tutar_kurus || 0);
-        if (remaining > 0) {
-          totalOpen += remaining;
-          openCustomers.add(String(o.musteri_ad || o.plaka || '').trim() || '—');
-        }
-        if (o.durum === 'teslime_hazir' || o.durum === 'tamamlandı') readyCount += 1;
-      });
-
-      const criticalParts = lowParts.filter(
-        (p: any) => (p.kritik_stok || 0) > 0 && (p.stok_miktari || 0) / (p.kritik_stok || 1) < 0.5
-      );
-
-      setDashboardStats({
-        inShopCount: inShop.length,
-        readyCount,
-        monthTotalKurus: monthGross,
-        monthLaborKurus: monthLabor,
-        openCariKurus: totalOpen,
-        openCustomersCount: openCustomers.size,
-        lowPartsCount: lowParts.length,
-        criticalPartsCount: criticalParts.length
-      });
     } catch (e) {
       console.error(e);
     }
@@ -595,51 +545,73 @@ export const VehicleSearchScreen: React.FC<VehicleSearchScreenProps> = ({
   // Pano kokpiti: sorgu yokken tek ekrana sığdırılan düzen
   const showDash = !searchTerm && !loading;
 
+  // Yerel (offline) analiz: bulut API'si yok; aynı veri + aynı gün = aynı çıktı.
+  const offlineAnalysis = useMemo(
+    () =>
+      analyzeOffline({
+        orders: allOrders,
+        parts: allParts,
+        shopName: companyProfile.name
+      }),
+    [allOrders, allParts, companyProfile.name]
+  );
+
+  const staffNotes = useMemo(() => buildStaffNotes(allOrders), [allOrders]);
+
+  const refreshAnalysis = async () => {
+    setAnalysisRefreshing(true);
+    try {
+      await loadDashboardData();
+    } finally {
+      window.setTimeout(() => setAnalysisRefreshing(false), 350);
+    }
+  };
+
+  const focusPlateSearch = () => {
+    const input = document.getElementById('q') as HTMLInputElement | null;
+    input?.focus();
+    input?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+  };
+
   return (
-    <div className={`screen${showDash ? ' cockpit' : ''}`}>
-      {/* Üst başlık */}
-      <div className="hero">
-        <div>
-          <div className="hero-date">{formatLongDateTR(new Date())}</div>
-          <h1>Araç sorgu</h1>
-        </div>
-        <div className="hero-actions">
-          <a
-            className="icon-btn bare"
-            href="#/hatirlaticilar"
-            aria-label="Hatırlatıcılar"
-            title="Hatırlatıcılar"
-          >
-            <Bell size={18} strokeWidth={1.75} aria-hidden="true" />
-            {remindersDue > 0 && <span className="dot-badge" aria-hidden="true" />}
-          </a>
-          {/* Ekranı kilitle: sağ üstteki ikinci görev. 3 dakika beklenmeden
-              buzlu cam katmanını ANINDA indirir (hareketsizlik kilidiyle aynı). */}
-          <button
-            className="icon-btn bare"
-            type="button"
-            onClick={onLockScreen}
-            aria-label="Ekranı kilitle"
-            title="Ekranı kilitle"
-            data-testid="lock-now"
-          >
-            <Lock size={18} strokeWidth={1.75} aria-hidden="true" />
-          </button>
-          <button className="btn btn-primary" type="button" onClick={() => onNewWorkOrder()}>
-            <Plus size={18} strokeWidth={1.75} aria-hidden="true" />
-            Yeni iş emri
-          </button>
-        </div>
-      </div>
+    <div className="screen">
+      {/* Karşılama bandı — yalnızca pano görünümünde */}
+      {showDash && (
+        <WelcomeBanner
+          user={currentUser}
+          isPrivileged={isOwner}
+          inShopCount={offlineAnalysis.metrics.inShopCount}
+          readyCount={offlineAnalysis.metrics.readyCount}
+          pendingPartsCount={offlineAnalysis.metrics.pendingPartsCount}
+          todayAppointments={offlineAnalysis.metrics.todayAppointments}
+          onNewWorkOrder={() => onNewWorkOrder()}
+          onFocusSearch={focusPlateSearch}
+          onLockScreen={onLockScreen}
+        />
+      )}
 
       {/* Plaka sorgu kartı */}
-      <section className="card search-card">
-        <div>
-          <div className="search-label">
-            <label htmlFor="q">Plaka ile sorgula</label>
+      <section className="card search-card" aria-labelledby="search-title">
+        <div className="search-card-head">
+          <div>
+            <h2 id="search-title">Araç sorgu</h2>
+            <div className="search-label">
+              <label htmlFor="q">Plaka ile sorgula</label>
+            </div>
+            <div className="search-help">
+              Plakayı yazın; araç, müşteri ve tüm işlem geçmişi gelir. Müşteri adıyla da arayabilirsiniz.
+            </div>
           </div>
-          <div className="search-help">
-            Plakayı yazın; araç, müşteri ve tüm işlem geçmişi gelir. Müşteri adıyla da arayabilirsiniz.
+          <div className="search-quick">
+            <a
+              className="icon-btn bare"
+              href="#/hatirlaticilar"
+              aria-label="Hatırlatıcılar"
+              title="Hatırlatıcılar"
+            >
+              <Bell size={18} strokeWidth={1.75} aria-hidden="true" />
+              {remindersDue > 0 && <span className="dot-badge" aria-hidden="true" />}
+            </a>
           </div>
         </div>
         <div className="plate-row">
@@ -682,125 +654,41 @@ export const VehicleSearchScreen: React.FC<VehicleSearchScreenProps> = ({
       )}
 
       {/* DASHBOARD VIEW (when query is empty) */}
-      {!searchTerm && !loading && (
-        <div className="dash">
-          <div className="kpis">
-            <div className="kpi">
-              <div className="kpi-top">
-                <span className="kpi-label">Serviste</span>
-                <span className="kpi-ic"><Wrench size={18} strokeWidth={1.75} aria-hidden="true" /></span>
-              </div>
-              <div className="kpi-val">{dashboardStats.inShopCount} araç</div>
-              <div className="kpi-sub">{dashboardStats.readyCount} teslime hazır</div>
-            </div>
-
-            {/* Ciro / işçilik / açık cari yalnızca dükkan sahibine gösterilir:
-                personel mali rakamları görmez (ticari mahremiyet). */}
-            {isOwner && (
-              <>
-                <div className="kpi">
-                  <div className="kpi-top">
-                    <span className="kpi-label">Bu ay (KDV dahil)</span>
-                    <span className="kpi-ic"><TrendingUp size={18} strokeWidth={1.75} aria-hidden="true" /></span>
-                  </div>
-                  <div className="kpi-val">{money(dashboardStats.monthTotalKurus)}</div>
-                  <div className="kpi-sub">{monthLabel}</div>
-                </div>
-
-                <div className="kpi">
-                  <div className="kpi-top">
-                    <span className="kpi-label">Toplam işçilik</span>
-                    <span className="kpi-ic"><Coins size={18} strokeWidth={1.75} aria-hidden="true" /></span>
-                  </div>
-                  <div className="kpi-val">{money(dashboardStats.monthLaborKurus)}</div>
-                  <div className="kpi-sub">Bu ay</div>
-                </div>
-
-                <div className="kpi">
-                  <div className="kpi-top">
-                    <span className="kpi-label">Açık cari</span>
-                    <span className="kpi-ic"><Wallet size={18} strokeWidth={1.75} aria-hidden="true" /></span>
-                  </div>
-                  <div className="kpi-val">{money(dashboardStats.openCariKurus)}</div>
-                  <div className="kpi-sub">{dashboardStats.openCustomersCount} müşteri</div>
-                </div>
-              </>
+      {showDash && (
+        <div className="dashboard-layout">
+          <div className="dashboard-center">
+            {isOwner ? (
+              <AdminKpiGrid
+                metrics={offlineAnalysis.metrics}
+                onOpenParts={() => onNavigateToParts && onNavigateToParts()}
+                onOpenAccounts={() => {
+                  window.location.hash = '#/cari';
+                }}
+              />
+            ) : (
+              <StaffKpiGrid metrics={offlineAnalysis.metrics} />
             )}
 
-            <button
-              className="kpi clickable"
-              type="button"
-              onClick={() => onNavigateToParts && onNavigateToParts()}
-            >
-              <div className="kpi-top">
-                <span className="kpi-label">Azalan parça</span>
-                <span className="kpi-ic"><Package size={18} strokeWidth={1.75} aria-hidden="true" /></span>
-              </div>
-              <div className="kpi-val">{dashboardStats.lowPartsCount} kalem</div>
-              <div className={`kpi-sub${dashboardStats.criticalPartsCount > 0 ? ' danger' : ''}`}>
-                {dashboardStats.criticalPartsCount > 0
-                  ? `${dashboardStats.criticalPartsCount} kritik seviyede`
-                  : 'Stok yeterli'}
-              </div>
-            </button>
+            {isOwner ? (
+              <RevenueTrendChart orders={allOrders} />
+            ) : (
+              <OperationalPipeline orders={inShopOrders} onOpenOrder={onOpenWorkOrder} />
+            )}
+
+            <ServiceTable
+              orders={inShopOrders}
+              showFinancials={isOwner}
+              onSelectVehicle={(plate) => handleSelectVehicle(normalizePlate(plate))}
+              onOpenOrder={onOpenWorkOrder}
+              onShowAll={() => {
+                window.location.hash = '#/araclar';
+              }}
+            />
           </div>
 
-          <div className="dash-grid">
-            {/* Serviste olan araçlar */}
-            <section className="card dash-main">
-              <div className="card-head">
-                <h2>Serviste olan araçlar</h2>
-                {inShopOrders.length > 0 && (
-                  <a className="svc-head-link" href="#/araclar">Tümünü gör</a>
-                )}
-              </div>
-
-              {inShopOrders.length > 0 ? (
-                <div className="svc-scroll">
-                  <div className="svc">
-                    <div className="svc-head">
-                      <span>Plaka</span>
-                      <span>Müşteri</span>
-                      <span>İşlem</span>
-                      <span>Durum</span>
-                      <span className="svc-amount">Tutar</span>
-                    </div>
-                    {inShopOrders.slice(0, 8).map((o: any) => {
-                      const nk = stageNormKey(o.durum);
-                      return (
-                        <button
-                          key={o.id}
-                          type="button"
-                          className="svc-row"
-                          onClick={() => handleSelectVehicle(o.plaka)}
-                        >
-                          <PlateBadge plate={o.plaka} />
-                          <span className="svc-cust">{o.musteri_ad || 'Müşteri belirtilmemiş'}</span>
-                          <span className="svc-job">{o.sikayet || 'İşlem notu yok'}</span>
-                          <span className={`badge ${stageBadgeClass(o.durum)}`}>
-                            <span className="dot" aria-hidden="true" />
-                            {STAGE_TXT[nk] || o.durum}
-                          </span>
-                          <span className="svc-amount">{money(o.brut_tutar_kurus || 0)}</span>
-                        </button>
-                      );
-                    })}
-                  </div>
-                </div>
-              ) : (
-                <div className="svc-empty">
-                  <b>Serviste araç yok</b>
-                  <span>Yeni bir iş emri açarak başlayın.</span>
-                  <button className="btn btn-ghost" type="button" onClick={() => onNewWorkOrder()}>
-                    <Plus size={18} strokeWidth={1.75} aria-hidden="true" />
-                    Yeni iş emri
-                  </button>
-                </div>
-              )}
-            </section>
-
-            {/* Takvim */}
-            <section className="card cal dash-side">
+          <aside className="dashboard-rail" aria-label="Takvim ve AI analiz">
+            {/* Takvim — mevcut mini takvim bileşeni korunur. */}
+            <section className="card cal dashboard-calendar">
               <div className="cal-head">
                 <h2>Takvim</h2>
                 <div className="cal-nav">
@@ -877,8 +765,6 @@ export const VehicleSearchScreen: React.FC<VehicleSearchScreenProps> = ({
 
                 {agendaOrders.length > 0 ? (
                   agendaOrders.map((o: any) => {
-                    // Tarihi gelmiş (bugün/geçmiş) ve teslim edilmemiş iş emri
-                    // ajandadan tek tıkla "İşleme al" ile açılabilir.
                     const canProcess =
                       o.durum !== 'teslim_edildi' &&
                       orderDateKey(o.giris_tarihi ?? o.tarih) <= todayKey;
@@ -946,7 +832,21 @@ export const VehicleSearchScreen: React.FC<VehicleSearchScreenProps> = ({
                 </button>
               </div>
             </section>
-          </div>
+
+            {isOwner ? (
+              <OfflineAiPanel
+                analysis={offlineAnalysis}
+                onRefresh={refreshAnalysis}
+                refreshing={analysisRefreshing}
+              />
+            ) : (
+              <StaffNotesPanel
+                notes={staffNotes}
+                orders={inShopOrders}
+                onOpenOrder={onOpenWorkOrder}
+              />
+            )}
+          </aside>
         </div>
       )}
 
@@ -1044,7 +944,7 @@ export const VehicleSearchScreen: React.FC<VehicleSearchScreenProps> = ({
               >
                 Araç bilgisi
               </button>
-              {orders.length > 0 && (
+              {isOwner && orders.length > 0 && (
                 <button
                   className="btn"
                   type="button"
@@ -1099,7 +999,9 @@ export const VehicleSearchScreen: React.FC<VehicleSearchScreenProps> = ({
                           <option key={s[0]} value={s[0]}>{s[1]}</option>
                         ))}
                       </select>
-                      <span className={`pill ${status} sp-auto`}>{STATUS_TXT[status]}</span>
+                      {isOwner && (
+                        <span className={`pill ${status} sp-auto`}>{STATUS_TXT[status]}</span>
+                      )}
                     </div>
 
                     {o.sikayet && (
@@ -1116,8 +1018,8 @@ export const VehicleSearchScreen: React.FC<VehicleSearchScreenProps> = ({
                             <th></th>
                             <th>Değişen parça / işlem</th>
                             <th className="num">Adet</th>
-                            <th className="num">Birim ({priceNote})</th>
-                            <th className="num">Tutar</th>
+                            {isOwner && <th className="num">Birim ({priceNote})</th>}
+                            {isOwner && <th className="num">Tutar</th>}
                           </tr>
                         </thead>
                         <tbody>
@@ -1138,14 +1040,14 @@ export const VehicleSearchScreen: React.FC<VehicleSearchScreenProps> = ({
                                   <td className="num">
                                     {numfmt(qty)} {l.birim && l.birim !== 'adet' ? l.birim : ''}
                                   </td>
-                                  <td className="num">{money(unitPrice, false)}</td>
-                                  <td className="num">{money(rowTotal, false)}</td>
+                                  {isOwner && <td className="num">{money(unitPrice, false)}</td>}
+                                  {isOwner && <td className="num">{money(rowTotal, false)}</td>}
                                 </tr>
                               );
                             })
                           ) : (
                             <tr>
-                              <td colSpan={5} className="muted" style={{ padding: '16px' }}>
+                              <td colSpan={isOwner ? 5 : 3} className="muted" style={{ padding: '16px' }}>
                                 Kalem yok
                               </td>
                             </tr>
@@ -1154,8 +1056,8 @@ export const VehicleSearchScreen: React.FC<VehicleSearchScreenProps> = ({
                       </table>
                     </div>
 
-                    {/* Payments list note */}
-                    {(o.odemeler || []).length > 0 && (
+                    {/* Payments list note — personel görünümünde mali veri yok. */}
+                    {isOwner && (o.odemeler || []).length > 0 && (
                       <div className="order-note">
                         <small>Ödemeler</small>
                         {o.odemeler.map((p: any, pIdx: number) => (
@@ -1187,7 +1089,7 @@ export const VehicleSearchScreen: React.FC<VehicleSearchScreenProps> = ({
                         >
                           Düzenle
                         </button>
-                        {status !== 'paid' && (
+                        {isOwner && status !== 'paid' && (
                           <>
                             <button
                               className="btn btn-sm"
@@ -1205,13 +1107,15 @@ export const VehicleSearchScreen: React.FC<VehicleSearchScreenProps> = ({
                             </button>
                           </>
                         )}
-                        <button
-                          className="btn btn-sm"
-                          type="button"
-                          onClick={() => exportWithFreshSettings([o], v)}
-                        >
-                          PDF döküm
-                        </button>
+                        {isOwner && (
+                          <button
+                            className="btn btn-sm"
+                            type="button"
+                            onClick={() => exportWithFreshSettings([o], v)}
+                          >
+                            PDF döküm
+                          </button>
+                        )}
                         {isOwner && (
                           <button
                             className={`btn btn-sm btn-danger ${armedDeleteId === o.id ? 'armed' : ''}`}
@@ -1223,36 +1127,38 @@ export const VehicleSearchScreen: React.FC<VehicleSearchScreenProps> = ({
                         )}
                       </div>
 
-                      <dl className="totals">
-                        {disc > 0 && (
-                          <>
-                            <dt>Kalemler toplamı ({priceNote})</dt>
-                            <dd>{money(itemsTotal, false)}</dd>
-                            <dt>İskonto</dt>
-                            <dd>-{money(disc, false)}</dd>
-                          </>
-                        )}
-                        <dt>Ara toplam (KDV hariç)</dt>
-                        <dd>{money(net, false)}</dd>
-                        <dt>KDV %{numfmt(o.kdv_orani ?? 20)}</dt>
-                        <dd>{money(vat, false)}</dd>
-                        <dt className="grand">KDV dahil toplam</dt>
-                        <dd className="grand">{money(gross, false)}</dd>
-                        <dt className="cash">Peşin fiyat</dt>
-                        <dd className="cash">{money(cash, false)}</dd>
-                        {paid > 0 && (
-                          <>
-                            <dt>Ödenen</dt>
-                            <dd>{money(paid, false)}</dd>
-                          </>
-                        )}
-                        {remaining > 0 && (
-                          <>
-                            <dt className="rest">Kalan</dt>
-                            <dd className="rest">{money(remaining, false)}</dd>
-                          </>
-                        )}
-                      </dl>
+                      {isOwner && (
+                        <dl className="totals">
+                          {disc > 0 && (
+                            <>
+                              <dt>Kalemler toplamı ({priceNote})</dt>
+                              <dd>{money(itemsTotal, false)}</dd>
+                              <dt>İskonto</dt>
+                              <dd>-{money(disc, false)}</dd>
+                            </>
+                          )}
+                          <dt>Ara toplam (KDV hariç)</dt>
+                          <dd>{money(net, false)}</dd>
+                          <dt>KDV %{numfmt(o.kdv_orani ?? 20)}</dt>
+                          <dd>{money(vat, false)}</dd>
+                          <dt className="grand">KDV dahil toplam</dt>
+                          <dd className="grand">{money(gross, false)}</dd>
+                          <dt className="cash">Peşin fiyat</dt>
+                          <dd className="cash">{money(cash, false)}</dd>
+                          {paid > 0 && (
+                            <>
+                              <dt>Ödenen</dt>
+                              <dd>{money(paid, false)}</dd>
+                            </>
+                          )}
+                          {remaining > 0 && (
+                            <>
+                              <dt className="rest">Kalan</dt>
+                              <dd className="rest">{money(remaining, false)}</dd>
+                            </>
+                          )}
+                        </dl>
+                      )}
                     </div>
                   </article>
                 );
@@ -1260,8 +1166,8 @@ export const VehicleSearchScreen: React.FC<VehicleSearchScreenProps> = ({
             </div>
           )}
 
-          {/* Sticky Bottom Summary Bar */}
-          {orders.length > 0 && (
+          {/* Sticky Bottom Summary Bar — personel görünümünde render edilmez. */}
+          {isOwner && orders.length > 0 && (
             <div className="sumbar" aria-label="Toplamlar">
               <div className="ttl">
                 Toplam
@@ -1288,8 +1194,8 @@ export const VehicleSearchScreen: React.FC<VehicleSearchScreenProps> = ({
         </div>
       )}
 
-      {/* QUICK PAYMENT / CASH CLOSE MODAL */}
-      {payModal.open && (
+      {/* QUICK PAYMENT / CASH CLOSE MODAL — yalnızca finansal yetkili roller. */}
+      {isOwner && payModal.open && (
         <div className="overlay" role="dialog" aria-modal="true">
           <div className="sheet">
             <div className="sheet-head">

@@ -131,7 +131,7 @@ test.describe('12) Premium masaüstü katmanı (splash · kilit · güvenli kapa
     await expect(page.getByTestId('splash')).toHaveCount(0);
   });
 
-  test('hareketsizlik kilidi: buzlu cam iner, ilk harekette oturum güvenle kapanır', async ({ page }) => {
+  test('hareketsizlik kilidi: buzlu cam iner, yanlış parola reddedilir, doğru parolayla kilit açılır', async ({ page }) => {
     // Üretimde 180.000 ms; ölçüm için kısaltılır
     await page.addInitScript(() => {
       (window as any).__OTO_IDLE_MS = 700;
@@ -148,20 +148,24 @@ test.describe('12) Premium masaüstü katmanı (splash · kilit · güvenli kapa
     expect(blur).toContain('blur');
     // Kabuk hâlâ DOM'da (kilit onun üzerinde)
     await expect(page.locator('.topbar')).toHaveCount(1);
+    expect(await page.evaluate(() => localStorage.getItem('auth_token'))).not.toBeNull();
 
-    // Yerleşme süresi (600 ms) geçmeli: kilit yeni inmişken gelen hareket yok sayılır
+    // Yerleşme süresi geçmeli: kilit yeni inmişken gelen hareket yok sayılır
     await page.waitForTimeout(750);
 
-    // İlk fare hareketi → kilit kalkar, token/session sıfırlanır, giriş ekranı
-    await page.mouse.move(420, 320);
-    await expect(page.getByTestId('login-screen')).toBeVisible({ timeout: 10_000 });
-    await expect(page.getByTestId('idle-lock')).toHaveCount(0);
-    await expect(page.locator('.topbar')).toHaveCount(0);
-    await expect(page.getByTestId('login-notice')).toContainText(
-      'Güvenliğiniz için oturumunuz otomatik kapatıldı'
-    );
+    // Yanlış parola → reddedilir, oturum hâlâ kilitli
+    await page.getByTestId('idle-password').fill('yanlis-parola');
+    await page.getByTestId('idle-unlock').click();
+    await expect(page.getByTestId('idle-error')).toContainText('Parola hatalı');
+    await expect(page.getByTestId('idle-lock')).toBeVisible();
+    expect(await page.evaluate(() => localStorage.getItem('auth_token'))).not.toBeNull();
 
-    expect(await page.evaluate(() => localStorage.getItem('auth_token'))).toBeNull();
+    // Doğru parola → kilit açılır, oturum devam eder
+    await page.getByTestId('idle-password').fill(OWNER.password);
+    await page.getByTestId('idle-unlock').click();
+    await expect(page.getByTestId('idle-lock')).toHaveCount(0, { timeout: 10_000 });
+    await expect(page.locator('.topbar')).toHaveCount(1);
+    expect(await page.evaluate(() => localStorage.getItem('auth_token'))).not.toBeNull();
   });
 
   test('elle kilit: "Ekranı kilitle" düğmesi 3 dakika beklemeden katmanı indirir', async ({ page }) => {
@@ -203,17 +207,19 @@ test.describe('12) Premium masaüstü katmanı (splash · kilit · güvenli kapa
     await page.waitForTimeout(150);
     await expect(lock).toBeVisible();
 
-    // Yerleşme süresi geçtikten sonraki ilk hareket → hareketsizlik kilidiyle
-    // AYNI davranış: token/session sıfırlanır, giriş ekranı + güvenlik bildirimi
-    await page.waitForTimeout(650);
-    await page.mouse.move(460, 300);
-    await expect(page.getByTestId('login-screen')).toBeVisible({ timeout: 10_000 });
-    await expect(page.getByTestId('idle-lock')).toHaveCount(0);
-    await expect(page.locator('.topbar')).toHaveCount(0);
-    await expect(page.getByTestId('login-notice')).toContainText(
-      'Güvenliğiniz için oturumunuz otomatik kapatıldı'
-    );
-    expect(await page.evaluate(() => localStorage.getItem('auth_token'))).toBeNull();
+    // Yanlış parola → reddedilir
+    await page.getByTestId('idle-password').fill('yanlis-parola');
+    await page.getByTestId('idle-unlock').click();
+    await expect(page.getByTestId('idle-error')).toContainText('Parola hatalı');
+    await expect(page.getByTestId('idle-lock')).toBeVisible();
+    expect(await page.evaluate(() => localStorage.getItem('auth_token'))).not.toBeNull();
+
+    // Doğru parola → kilit açılır, oturum devam eder
+    await page.getByTestId('idle-password').fill(OWNER.password);
+    await page.getByTestId('idle-unlock').click();
+    await expect(page.getByTestId('idle-lock')).toHaveCount(0, { timeout: 10_000 });
+    await expect(page.locator('.topbar')).toHaveCount(1);
+    expect(await page.evaluate(() => localStorage.getItem('auth_token'))).not.toBeNull();
   });
 
   test('elle kilit (sol panel): menüdeki "Ekranı kilitle" de 3 dakika beklemeden katmanı indirir', async ({ page }) => {
@@ -229,6 +235,13 @@ test.describe('12) Premium masaüstü katmanı (splash · kilit · güvenli kapa
     await expect(page.getByTestId('idle-title')).toHaveText('İyi çalışmalar');
     await expect(page.getByTestId('idle-sub')).toHaveText('Oturumunuz güvenliğe alındı.');
     // Kilit indiği anda oturum hâlâ ayakta (açılınca kapanacak)
+    expect(await page.evaluate(() => localStorage.getItem('auth_token'))).not.toBeNull();
+
+    // Doğru parola ile kilit açılır, oturum devam eder
+    await page.getByTestId('idle-password').fill(OWNER.password);
+    await page.getByTestId('idle-unlock').click();
+    await expect(page.getByTestId('idle-lock')).toHaveCount(0, { timeout: 10_000 });
+    await expect(page.locator('.topbar')).toHaveCount(1);
     expect(await page.evaluate(() => localStorage.getItem('auth_token'))).not.toBeNull();
   });
 

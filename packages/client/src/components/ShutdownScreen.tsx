@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { APP_BRAND_NAME, farewellGreeting } from '@oto-servis/shared';
+import { APP_BRAND_NAME, CORPORATE, farewellGreeting } from '@oto-servis/shared';
 
 /**
  * Güvenli kapanış (veda) ekranı.
@@ -32,6 +32,7 @@ export const ShutdownScreen: React.FC<ShutdownScreenProps> = ({ brand = APP_BRAN
     >
       <div className="shutdown-inner">
         <div className="splash-brand" aria-hidden="true">{brand}</div>
+        <div className="splash-legal" aria-hidden="true">{CORPORATE.legalName}</div>
         <div className="holo holo-md">
           <span className="holo-glow" aria-hidden="true">{message}</span>
           <h1 className="holo-text shutdown-text" data-testid="shutdown-text">{message}</h1>

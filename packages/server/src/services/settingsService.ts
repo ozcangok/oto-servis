@@ -1,18 +1,21 @@
 import { eq } from 'drizzle-orm';
 import { getDb, settings } from '../db/index.js';
-import type { AppSettings } from '@oto-servis/shared';
+import { CORPORATE, type AppSettings } from '@oto-servis/shared';
 
 const DEFAULT_SETTINGS: AppSettings = {
-  shop_name: 'Örnek Oto Servis & Bakım',
-  shop_phone: '0532 000 00 00',
-  shop_address: 'Oto Sanayi Sitesi B Blok No: 12',
-  shop_tax_number: '',
-  shop_tax_office: '',
+  shop_name: CORPORATE.legalName,
+  shop_phone: CORPORATE.phone,
+  shop_address: CORPORATE.address,
+  shop_email: CORPORATE.email,
+  shop_owner: CORPORATE.owner,
+  working_hours: CORPORATE.workingHours,
+  shop_tax_number: CORPORATE.taxNumber,
+  shop_tax_office: CORPORATE.taxOffice,
   default_kdv_rate: 20,
   default_cash_discount_rate: 5,
   backup_dir: '',
   lan_sharing_enabled: false,
-  theme: 'light',
+  theme: 'dark',
   font_size: 'normal',
   allow_negative_stock: false
 };
@@ -34,13 +37,16 @@ export async function getSettings(): Promise<AppSettings> {
     shop_name: map.shop_name ?? DEFAULT_SETTINGS.shop_name,
     shop_phone: map.shop_phone ?? DEFAULT_SETTINGS.shop_phone,
     shop_address: map.shop_address ?? DEFAULT_SETTINGS.shop_address,
+    shop_email: map.shop_email ?? DEFAULT_SETTINGS.shop_email,
+    shop_owner: map.shop_owner ?? DEFAULT_SETTINGS.shop_owner,
+    working_hours: map.working_hours ?? DEFAULT_SETTINGS.working_hours,
     shop_tax_number: map.shop_tax_number ?? DEFAULT_SETTINGS.shop_tax_number,
     shop_tax_office: map.shop_tax_office ?? DEFAULT_SETTINGS.shop_tax_office,
     default_kdv_rate: typeof map.default_kdv_rate === 'number' ? map.default_kdv_rate : DEFAULT_SETTINGS.default_kdv_rate,
     default_cash_discount_rate: typeof map.default_cash_discount_rate === 'number' ? map.default_cash_discount_rate : DEFAULT_SETTINGS.default_cash_discount_rate,
     backup_dir: map.backup_dir ?? DEFAULT_SETTINGS.backup_dir,
     lan_sharing_enabled: Boolean(map.lan_sharing_enabled ?? DEFAULT_SETTINGS.lan_sharing_enabled),
-    theme: map.theme === 'dark' ? 'dark' : 'light',
+    theme: map.theme === 'light' ? 'light' : 'dark',
     font_size: map.font_size === 'large' ? 'large' : 'normal',
     allow_negative_stock: Boolean(map.allow_negative_stock ?? DEFAULT_SETTINGS.allow_negative_stock)
   };

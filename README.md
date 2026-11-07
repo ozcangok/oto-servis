@@ -1,4 +1,4 @@
-# 🚗 Oto Servis Yönetim Sistemi
+# 🚗 Çınar Otomotiv — Oto Servis Yönetim Sistemi
 
 Oto tamir ve bakım servisleri için özel olarak geliştirilmiş; gerçek SQLite (WAL modunda) veritabanına sahip, kuruş hassasiyetinde hesaplama motoru barındıran, Türkçe arayüzlü, hem masaüstünde (Electron Windows .exe / Web) hem mobil cihazlarda (PWA) çalışan tam kapsamlı servis yönetim programı.
 
@@ -24,9 +24,9 @@ Oto tamir ve bakım servisleri için özel olarak geliştirilmiş; gerçek SQLit
    - Gerçek Türk plakası görünümünde mavi `TR` şeritli görsel plaka bileşeni.
 
 4. **Rol ve Yetkilendirme (RBAC):**
-   - **Yönetici (Admin):** Tüm yetkiler, kullanıcı ekleme/silme, parola sıfırlama, yedekleme, KVKK silme/anonimleştirme.
-   - **Kasiyer (Cashier):** İş emri, tahsilat alma, cari hesap ve kasa gün sonu raporları.
-   - **Usta (Mechanic):** İş emri ve durum güncelleme, parça ekleme; fiyatları, kasayı ve cari hesapları **kesinlikle göremez**.
+   - **Patron (Admin / Owner):** Tüm yetkiler; finans, kasa, cari hesap, giderler, kurumsal belge merkezi, ayarlar ve hesap güvenliği. Yönetici kullanıcı adı/parolası yalnızca mevcut parola doğrulanarak değiştirilebilir.
+   - **Servis Personeli (Staff):** İş emri, araç/müşteri/parça operasyonları ve durum güncelleme. Finansal göstergeler, kasa, cari bakiye, giderler, ayarlar ve yönetici hesabı bilgileri **DOM'da dahi görünmez**.
+   - Alternatif istemci rol adları (`admin`, `patron`, `employee`, `calisan`, `usta` vb.) güvenli biçimde iki role normalize edilir; finansal görünürlük yalnızca patrondadır.
    - Brute-force saldırılarına karşı 5 hatalı giriş sonrası 15 dakika hesap kilitleme koruması.
    - **Hareketsizlik (idle) güvenlik kilidi:** 3 dakika boyunca fare/klavye hareketi olmazsa ekran buzlu camla kapanır; ilk harekette oturum hem sunucuda hem cihazda kapatılır. Aynı katman sol menüdeki **Ekranı kilitle** düğmesiyle beklemeden de indirilebilir.
    - İlk kurulumda otomatik Yönetici Oluşturma Sihirbazı.

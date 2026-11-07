@@ -57,7 +57,7 @@ test.describe('14) Arayüz mahremiyeti, XSS ve ekran görüntüleri', () => {
 
     const text = (await page.locator('body').innerText()).replace(/\s+/g, ' ');
     const html = await page.content();
-    const forbidden = ['Bu ay (KDV dahil)', 'Toplam işçilik', 'Açık cari'];
+    const forbidden = ['Aylık Toplam Ciro', 'İşçilik / Yedek Parça', 'Açık Cari Hesap'];
     const found = forbidden.filter((f) => text.includes(f) || html.includes(f));
 
     if (found.length) {
@@ -149,9 +149,9 @@ test.describe('14) Arayüz mahremiyeti, XSS ve ekran görüntüleri', () => {
     await expect(page.getByRole('tab', { name: 'Cari hesap' })).toHaveCount(0);
     // KPI mahremiyeti Araç sorgu panosunda doğrulanır.
     await page.getByRole('tab', { name: 'Araç sorgu' }).click();
-    await expect(page.locator('.kpi-label', { hasText: 'Bu ay (KDV dahil)' })).toHaveCount(0);
-    await expect(page.locator('.kpi-label', { hasText: 'Toplam işçilik' })).toHaveCount(0);
-    await expect(page.locator('.kpi-label', { hasText: 'Açık cari' })).toHaveCount(0);
+    await expect(page.locator('.kpi-label', { hasText: 'Aylık Toplam Ciro' })).toHaveCount(0);
+    await expect(page.locator('.kpi-label', { hasText: 'İşçilik / Yedek Parça' })).toHaveCount(0);
+    await expect(page.locator('.kpi-label', { hasText: 'Açık Cari Hesap' })).toHaveCount(0);
 
     // STAFF çıkışı
     await logout(page);
@@ -161,9 +161,9 @@ test.describe('14) Arayüz mahremiyeti, XSS ve ekran görüntüleri', () => {
     await login(page, OWNER);
     await expect(page.getByRole('tab', { name: 'Cari hesap' })).toBeVisible();
     await page.getByRole('tab', { name: 'Araç sorgu' }).click();
-    await expect(page.locator('.kpi-label', { hasText: 'Bu ay (KDV dahil)' })).toBeVisible();
-    await expect(page.locator('.kpi-label', { hasText: 'Toplam işçilik' })).toBeVisible();
-    await expect(page.locator('.kpi-label', { hasText: 'Açık cari' })).toBeVisible();
+    await expect(page.locator('.kpi-label', { hasText: 'Aylık Toplam Ciro' })).toBeVisible();
+    await expect(page.locator('.kpi-label', { hasText: 'İşçilik / Yedek Parça' })).toBeVisible();
+    await expect(page.locator('.kpi-label', { hasText: 'Açık Cari Hesap' })).toBeVisible();
 
     // OWNER çıkışı
     await logout(page);

@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { apiRequest } from '../services/api.js';
 import { money, toast, todayISO } from '../services/ui.js';
 import { EXPENSE_CATEGORIES, STAFF_EXPENSE_CATEGORIES, OWNER_ONLY_EXPENSE_CATEGORIES } from '@oto-servis/shared';
+import { isPrivileged } from '../services/roles.js';
 
 type Period = 'today' | 'month' | 'year' | 'all';
 
@@ -38,7 +39,7 @@ function fdateLocal(d?: string | null): string {
 
 export const ExpensesScreen: React.FC<ExpensesScreenProps> = ({ currentUser }) => {
   // Gelir/kâr özeti ve hassas kategoriler yalnızca dükkan sahibine açıktır.
-  const isOwner = currentUser?.role === 'owner';
+  const isOwner = isPrivileged(currentUser);
   const categories = isOwner ? EXPENSE_CATEGORIES : STAFF_EXPENSE_CATEGORIES;
 
   const [period, setPeriod] = useState<Period>('month');

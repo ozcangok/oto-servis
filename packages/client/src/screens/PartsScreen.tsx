@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { apiRequest } from '../services/api.js';
 import { Spinner } from '../components/Spinner.js';
 import { money, numfmt, toast } from '../services/ui.js';
+import { isPrivileged } from '../services/roles.js';
 
 interface PartsScreenProps {
   initialFilter?: 'all' | 'low';
@@ -13,7 +14,7 @@ const UNITS = ['adet', 'litre', 'takım', 'metre', 'kg'];
 
 export const PartsScreen: React.FC<PartsScreenProps> = ({ initialFilter = 'all', currentUser }) => {
   // Alış (maliyet) fiyatı ve silme yalnızca dükkan sahibine açıktır.
-  const isOwner = currentUser?.role === 'owner';
+  const isOwner = isPrivileged(currentUser);
   const [parts, setParts] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
   const [filter, setFilter] = useState<'all' | 'low'>(initialFilter);
@@ -361,7 +362,7 @@ export const PartsScreen: React.FC<PartsScreenProps> = ({ initialFilter = 'all',
                   <th>Parça</th>
                   <th className="num">Stok</th>
                   {isOwner && <th className="num">Alış</th>}
-                  <th className="num">Satış</th>
+                  {isOwner && <th className="num">Satış</th>}
                   <th></th>
                 </tr>
               </thead>
@@ -400,10 +401,12 @@ export const PartsScreen: React.FC<PartsScreenProps> = ({ initialFilter = 'all',
                           )}
                         </td>
                         {isOwner && <td className="num">{money(buyKurus)}</td>}
-                        <td className="num">
-                          {money(sellKurus)}
-                          {margin !== null && <div className="subtxt">%{margin}</div>}
-                        </td>
+                        {isOwner && (
+                          <td className="num">
+                            {money(sellKurus)}
+                            {margin !== null && <div className="subtxt">%{margin}</div>}
+                          </td>
+                        )}
                         <td className="num">
                           <button
                             className="btn btn-sm"
@@ -426,7 +429,7 @@ export const PartsScreen: React.FC<PartsScreenProps> = ({ initialFilter = 'all',
                   })
                 ) : (
                   <tr>
-                    <td colSpan={6} className="muted" style={{ padding: '24px 16px', textAlign: 'center' }}>
+                    <td colSpan={isOwner ? 6 : 4} className="muted" style={{ padding: '24px 16px', textAlign: 'center' }}>
                       Eşleşen parça yok.
                     </td>
                   </tr>
@@ -558,28 +561,32 @@ export const PartsScreen: React.FC<PartsScreenProps> = ({ initialFilter = 'all',
               </div>
 
               <div className="grid g3">
-                <div className="field">
-                  <label htmlFor="pf-buy">Alış fiyatı (isteğe bağlı ₺)</label>
-                  <input
-                    id="pf-buy"
-                    type="number"
-                    min="0"
-                    step="any"
-                    value={partModal.buy}
-                    onChange={(e) => setPartModal({ ...partModal, buy: e.target.value })}
-                  />
-                </div>
-                <div className="field">
-                  <label htmlFor="pf-sell">Satış fiyatı (isteğe bağlı ₺)</label>
-                  <input
-                    id="pf-sell"
-                    type="number"
-                    min="0"
-                    step="any"
-                    value={partModal.sell}
-                    onChange={(e) => setPartModal({ ...partModal, sell: e.target.value })}
-                  />
-                </div>
+                {isOwner && (
+                  <div className="field">
+                    <label htmlFor="pf-buy">Alış fiyatı (isteğe bağlı ₺)</label>
+                    <input
+                      id="pf-buy"
+                      type="number"
+                      min="0"
+                      step="any"
+                      value={partModal.buy}
+                      onChange={(e) => setPartModal({ ...partModal, buy: e.target.value })}
+                    />
+                  </div>
+                )}
+                {isOwner && (
+                  <div className="field">
+                    <label htmlFor="pf-sell">Satış fiyatı (isteğe bağlı ₺)</label>
+                    <input
+                      id="pf-sell"
+                      type="number"
+                      min="0"
+                      step="any"
+                      value={partModal.sell}
+                      onChange={(e) => setPartModal({ ...partModal, sell: e.target.value })}
+                    />
+                  </div>
+                )}
                 <div className="field">
                   <label htmlFor="pf-shelf">Raf / yer</label>
                   <input
@@ -595,7 +602,7 @@ export const PartsScreen: React.FC<PartsScreenProps> = ({ initialFilter = 'all',
               {partModalError && <div className="form-error">{partModalError}</div>}
             </div>
             <div className="sheet-foot">
-              {partModal.id && (
+              {isOwner && partModal.id && (
                 <button
                   className={`btn btn-danger ${armedDeleteId === partModal.id ? 'armed' : ''}`}
                   type="button"
@@ -661,18 +668,20 @@ export const PartsScreen: React.FC<PartsScreenProps> = ({ initialFilter = 'all',
                     onChange={(e) => setStockInModal({ ...stockInModal, addQty: e.target.value })}
                   />
                 </div>
-                <div className="field">
-                  <label htmlFor="si-buy">Yeni alış fiyatı (isteğe bağlı ₺)</label>
-                  <input
-                    id="si-buy"
-                    type="number"
-                    min="0"
-                    step="any"
-                    placeholder="0,00"
-                    value={stockInModal.newBuyPrice}
-                    onChange={(e) => setStockInModal({ ...stockInModal, newBuyPrice: e.target.value })}
-                  />
-                </div>
+                {isOwner && (
+                  <div className="field">
+                    <label htmlFor="si-buy">Yeni alış fiyatı (isteğe bağlı ₺)</label>
+                    <input
+                      id="si-buy"
+                      type="number"
+                      min="0"
+                      step="any"
+                      placeholder="0,00"
+                      value={stockInModal.newBuyPrice}
+                      onChange={(e) => setStockInModal({ ...stockInModal, newBuyPrice: e.target.value })}
+                    />
+                  </div>
+                )}
               </div>
               {stockInError && <div className="form-error">{stockInError}</div>}
             </div>

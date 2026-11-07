@@ -8,7 +8,9 @@ import {
   createUser,
   deleteUser,
   resetUserPassword,
-  listUsers
+  listUsers,
+  updateOwnCredentials,
+  verifyOwnPassword
 } from '../services/authService.js';
 import type { UserRole } from '@oto-servis/shared';
 
@@ -32,6 +34,16 @@ const createUserSchema = z.object({
 
 const resetPasswordSchema = z.object({
   new_password: z.string().min(6, 'Yeni parola en az 6 karakter olmalıdır.')
+});
+
+const credentialsSchema = z.object({
+  current_password: z.string().min(1, 'Mevcut parola gereklidir.'),
+  username: z.string().min(3, 'Kullanıcı adı en az 3 karakter olmalıdır.').optional(),
+  new_password: z.string().min(6, 'Yeni parola en az 6 karakter olmalıdır.').optional()
+});
+
+const verifyPasswordSchema = z.object({
+  password: z.string().min(1, 'Parola gereklidir.')
 });
 
 export const authRoutes: FastifyPluginAsync = async (fastify) => {
@@ -140,6 +152,65 @@ export const authRoutes: FastifyPluginAsync = async (fastify) => {
       return reply.status(401).send({ success: false, error: 'Oturum açılmamış.' });
     }
     return { success: true, user: request.user };
+  });
+
+  // Kilit ekranı: mevcut oturumun parolasını doğrula (yeni oturum açmaz).
+  fastify.post('/verify-password', {
+    schema: {
+      tags: ['Kimlik Doğrulama'],
+      summary: 'Kilit ekranı için mevcut kullanıcı parolasını doğrula'
+    }
+  }, async (request, reply) => {
+    if (!request.user) {
+      return reply.status(401).send({ success: false, error: 'Oturum açmanız gerekmektedir.' });
+    }
+
+    const parse = verifyPasswordSchema.safeParse(request.body);
+    if (!parse.success) {
+      return reply.status(400).send({
+        success: false,
+        error: parse.error.issues[0]?.message || 'Parola gereklidir.'
+      });
+    }
+
+    const ok = await verifyOwnPassword(request.user, parse.data.password);
+    if (!ok) {
+      return reply.status(401).send({ success: false, error: 'Parola hatalı.' });
+    }
+
+    return { success: true, message: 'Kilit açıldı.' };
+  });
+
+  // Update own admin credentials (Admin only; current password required)
+  fastify.put('/credentials', {
+    schema: {
+      tags: ['Kullanıcı Yönetimi'],
+      summary: 'Yönetici kendi kullanıcı adı/parolasını güncelle (Mevcut parola doğrulamalı)'
+    }
+  }, async (request, reply) => {
+    if (!request.user || request.user.role !== 'owner') {
+      return reply.status(403).send({ success: false, error: 'Bu işlem için dükkan sahibi yetkisi gereklidir.' });
+    }
+
+    const parse = credentialsSchema.safeParse(request.body);
+    if (!parse.success) {
+      return reply.status(400).send({
+        success: false,
+        error: parse.error.issues[0]?.message || 'Geçersiz hesap bilgisi.'
+      });
+    }
+
+    const token =
+      (request.cookies as any)?.session_token ||
+      request.headers.authorization?.replace('Bearer ', '') ||
+      '';
+
+    try {
+      const user = await updateOwnCredentials(request.user, token, parse.data);
+      return { success: true, message: 'Hesap bilgileri güncellendi.', user };
+    } catch (err: any) {
+      return reply.status(400).send({ success: false, error: err.message });
+    }
   });
 
   // List all users (Admin only)

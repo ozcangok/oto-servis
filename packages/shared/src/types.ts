@@ -65,6 +65,7 @@ export type AuditAction =
   | 'user_create'
   | 'user_delete'
   | 'user_password_reset'
+  | 'user_credentials_update'
   | 'settings_update'
   | 'expense_create'
   | 'expense_update'
@@ -286,6 +287,9 @@ export interface AppSettings {
   shop_name: string;
   shop_phone: string;
   shop_address: string;
+  shop_email?: string;
+  shop_owner?: string;
+  working_hours?: string;
   shop_tax_number?: string;
   shop_tax_office?: string;
   default_kdv_rate: number;

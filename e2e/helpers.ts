@@ -9,9 +9,9 @@ import { expect, type Page, type APIRequestContext } from '@playwright/test';
  */
 export const API_URL = process.env.E2E_API_URL || 'http://127.0.0.1:3101';
 
-// İzole test veritabanında seed ile oluşturulan hesaplar
-export const OWNER = { username: 'admin', password: 'admin123' };
-export const STAFF = { username: 'kasiyer', password: 'kasiyer123' };
+// İzole test veritabanında seed ile oluşturulan kurumsal hesaplar
+export const OWNER = { username: 'sezer çınar', password: 'sezer34602026' };
+export const STAFF = { username: 'kullanıcı', password: 'servis 2026' };
 
 export interface Creds {
   username: string;

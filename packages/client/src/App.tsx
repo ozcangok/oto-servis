@@ -1,12 +1,16 @@
 import React, { useState, useEffect, useRef } from 'react';
 import {
-  Moon, Sun, LogOut, Search, Car, Users, Package, Wallet, Banknote, Receipt, Bell, Settings, Lock
+  Moon, Sun, LogOut, Search, Car, Users, Package, Wallet, Banknote, Receipt, Bell, Settings, Lock,
+  FileText, ShieldCheck
 } from 'lucide-react';
 import { apiRequest, setAuthToken, setUnauthorizedHandler } from './services/api.js';
 import { LoginScreen } from './components/LoginScreen.js';
 import { SplashScreen } from './components/SplashScreen.js';
 import { IdleLock } from './components/IdleLock.js';
 import { ShutdownScreen } from './components/ShutdownScreen.js';
+import { DocumentCenterModal } from './components/DocumentCenterModal.js';
+import { isPrivileged, roleLabel } from './services/roles.js';
+import { useSettings } from './contexts/SettingsContext.js';
 import { clearOfflineQueue } from './services/offlineQueue.js';
 import { VehicleSearchScreen } from './screens/VehicleSearchScreen.js';
 import { CustomersScreen } from './screens/CustomersScreen.js';
@@ -58,6 +62,7 @@ function normalizePathRoute() {
 }
 
 export function App() {
+  const { companyProfile, refresh: refreshSettings } = useSettings();
   const [currentUser, setCurrentUser] = useState<any | null>(null);
   const [authChecked, setAuthChecked] = useState(false);
   const [activeTab, setActiveTab] = useState<TabKey>('sorgu');
@@ -73,14 +78,16 @@ export function App() {
 
   // Settings modal state
   const [showSettings, setShowSettings] = useState(false);
-  const [shopName, setShopName] = useState('GÜVEN OTO');
+
+  // Kurumsal belge merkezi (Teklif & PDF Döküm)
+  const [showDocumentCenter, setShowDocumentCenter] = useState(false);
 
   // Reminders badge counter
   const [remindersCount, setRemindersCount] = useState(0);
 
-  // Appearance
+  // Appearance — kurumsal koyu lacivert varsayılan.
   const [theme, setTheme] = useState<'light' | 'dark'>(() => {
-    return (localStorage.getItem('oto_theme') as 'light' | 'dark') || 'light';
+    return (localStorage.getItem('oto_theme') as 'light' | 'dark') || 'dark';
   });
 
   // Oturum kimliği: her giriş/çıkışta uygulama kabuğunu sıfırdan mount eder
@@ -114,7 +121,6 @@ export function App() {
 
   useEffect(() => {
     checkCurrentUser();
-    loadSettings();
     loadRemindersBadge();
   }, []);
 
@@ -131,6 +137,8 @@ export function App() {
         if (workOrderModalOpen) {
           setWorkOrderModalOpen(false);
           setActiveWorkOrderId(null);
+        } else if (showDocumentCenter) {
+          setShowDocumentCenter(false);
         } else if (showSettings) {
           setShowSettings(false);
         }
@@ -138,28 +146,21 @@ export function App() {
     };
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [workOrderModalOpen, showSettings]);
+  }, [workOrderModalOpen, showSettings, showDocumentCenter]);
 
   const checkCurrentUser = async () => {
     try {
       const res = await apiRequest('/auth/me');
       if (res.success && res.user) {
         setCurrentUser(res.user);
+        // Oturum hazır olduğunda şirket profilini tek kaynaktan tazele.
+        void refreshSettings();
       }
     } catch {
       setCurrentUser(null);
     } finally {
       setAuthChecked(true);
     }
-  };
-
-  const loadSettings = async () => {
-    try {
-      const res = await apiRequest('/settings');
-      if (res.success && res.settings?.shop_name) {
-        setShopName(res.settings.shop_name);
-      }
-    } catch {}
   };
 
   const loadRemindersBadge = async () => {
@@ -174,7 +175,7 @@ export function App() {
   const handleAuthSuccess = (user: any) => {
     setCurrentUser(user);
     loadRemindersBadge();
-    loadSettings();
+    void refreshSettings();
   };
 
   /**
@@ -191,14 +192,17 @@ export function App() {
     setWorkOrderPlate('');
     setSelectedPlate('');
     setShowSettings(false);
+    setShowDocumentCenter(false);
     setRemindersCount(0);
     setLocked(false); // kilit ekranı (varsa) kalıcı kalmasın
     setSessionNonce((n) => n + 1); // uygulama kabuğunu sıfırdan mount et
   };
 
-  // Kasa yalnızca dükkan sahibine (owner) açıktır. Personel (staff) için sekme
-  // gizlenir; aktif sekme kasa ise başka bölüme alınır. (Giderler herkese açıktır.)
-  const isOwner = currentUser?.role === 'owner';
+  // Finansal görünürlük: owner/admin/patron rolleri. Personel (staff/employee/
+  // calisan) yalnızca operasyonel ekranları görür; finans sekmeleri DOM'a hiç
+  // basılmaz. Sunucu tarafındaki kalıcı rol adı `owner` olsa da eski istemci
+  // adları da güvenli biçimde normalize edilir.
+  const isOwner = isPrivileged(currentUser);
 
   /**
    * Oturumu YEREL olarak kapatır. Hassas tüm veri/state silinir.
@@ -271,7 +275,8 @@ export function App() {
    * köşede 4 saniyelik güvenlik bildirimi gösterilir.
    */
   const handleIdleUnlock = () => {
-    setSecurityNotice('Güvenliğiniz için oturumunuz otomatik kapatıldı');
+    setLocked(false);
+    setSecurityNotice('Güvenliğiniz için oturumunuz kapatıldı');
     try {
       apiRequest('/auth/logout', { method: 'POST' }).catch(() => {});
     } catch {}
@@ -280,8 +285,9 @@ export function App() {
 
   /**
    * Elle güvenlik kilidi ("Ekranı kilitle"): 3 dakika beklenmeden buzlu cam
-   * katmanı ANINDA iner. Açılma davranışı hareketsizlik kilidiyle birebir
-   * aynıdır → oturum güvenle kapanır ve giriş ekranına dönülür.
+   * katmanı ANINDA iner. Kilit, oturumdaki kullanıcının kendi parolasıyla
+   * açılır; yanlış parola reddedilir. "Oturumu kapat" seçeneği güvenli çıkış
+   * yapar. Böylece kilitli ekranda tek tıkla oturum açılmaz.
    */
   const handleLockNow = () => setLocked(true);
 
@@ -296,6 +302,9 @@ export function App() {
       if (!currentUser) return; // Oturum yok: her rotada izole giriş ekranı geçerli.
       normalizePathRoute();
       const name = readRoute();
+
+      // Rota değiştiğinde belge merkezi gibi modal katmanları açık kalmasın.
+      setShowDocumentCenter(false);
 
       if (name === 'ayarlar') {
         if (isOwner) {
@@ -318,6 +327,12 @@ export function App() {
       // Cari hesap (bakiyeler/alacaklar) ticari mahremiyet kapsamındadır:
       // personel doğrudan adresle de açamaz.
       if (name === 'cari' && !isOwner) {
+        window.history.replaceState(null, '', '#/sorgu');
+        setActiveTab('sorgu');
+        return;
+      }
+      // Giderler de FİNANS grubundadır; personel görünümünde yer almaz.
+      if (name === 'giderler' && !isOwner) {
         window.history.replaceState(null, '', '#/sorgu');
         setActiveTab('sorgu');
         return;
@@ -411,10 +426,12 @@ export function App() {
       <div className="app-shell topbar">
         <aside className="sidebar">
           <div className="sidebar-brand">
-            <div className="brand-logo" aria-hidden="true">Ç</div>
+            <div className="brand-logo" aria-hidden="true">
+              {companyProfile.name.trim().charAt(0).toLocaleUpperCase('tr') || 'Ç'}
+            </div>
             <div className="brand-text">
-              <div className="brand-name" id="brand" lang="tr">{shopName}</div>
-              <div className="brand-sub">Servis yönetimi</div>
+              <div className="brand-name" id="brand" lang="tr">{companyProfile.name}</div>
+              <div className="brand-sub">Özel Servis & Bakım</div>
             </div>
           </div>
 
@@ -463,9 +480,9 @@ export function App() {
               </a>
             </div>
 
-            <div className="menu-group">
-              <div className="menu-label">Finans</div>
-              {isOwner && (
+            {isOwner && (
+              <div className="menu-group">
+                <div className="menu-label">Finans</div>
                 <a
                   className="menu-item"
                   href="#/cari"
@@ -476,8 +493,6 @@ export function App() {
                   <Wallet size={18} strokeWidth={1.75} aria-hidden="true" />
                   Cari hesap
                 </a>
-              )}
-              {isOwner && (
                 <a
                   className="menu-item"
                   href="#/kasa"
@@ -488,21 +503,21 @@ export function App() {
                   <Banknote size={18} strokeWidth={1.75} aria-hidden="true" />
                   Kasa
                 </a>
-              )}
-              <a
-                className="menu-item"
-                href="#/giderler"
-                role="tab"
-                aria-selected={activeTab === 'gider'}
-                aria-current={activeTab === 'gider' ? 'page' : undefined}
-              >
-                <Receipt size={18} strokeWidth={1.75} aria-hidden="true" />
-                Giderler
-              </a>
-            </div>
+                <a
+                  className="menu-item"
+                  href="#/giderler"
+                  role="tab"
+                  aria-selected={activeTab === 'gider'}
+                  aria-current={activeTab === 'gider' ? 'page' : undefined}
+                >
+                  <Receipt size={18} strokeWidth={1.75} aria-hidden="true" />
+                  Giderler
+                </a>
+              </div>
+            )}
 
             <div className="menu-group">
-              <div className="menu-label">Takip</div>
+              <div className="menu-label">{isOwner ? 'Takip & Ayarlar' : 'Takip'}</div>
               <a
                 className="menu-item"
                 href="#/hatirlaticilar"
@@ -514,8 +529,6 @@ export function App() {
                 Hatırlatıcılar
                 {remindersCount > 0 && <span className="cnt">{remindersCount}</span>}
               </a>
-              {/* Elle güvenlik kilidi: 3 dakika beklemeden buzlu cam iner.
-                  (Sağ üstteki zil ikonunun yanında aynı görevin kısayol ikonu da var.) */}
               <button
                 className="menu-item"
                 type="button"
@@ -526,19 +539,48 @@ export function App() {
                 <Lock size={18} strokeWidth={1.75} aria-hidden="true" />
                 Ekranı kilitle
               </button>
+              {isOwner && (
+                <button className="menu-item" type="button" onClick={() => setShowSettings(true)}>
+                  <Settings size={18} strokeWidth={1.75} aria-hidden="true" />
+                  Ayarlar
+                </button>
+              )}
             </div>
           </nav>
 
           <div className="menu-foot">
-            {/* Ayarlar (dükkan bilgileri, KDV/iskonto, yedek) yalnızca dükkan sahibine
-                açıktır. Personel (staff) için hem düğme gizlenir hem de modal
-                render edilmez (bkz. SettingsScreen bloğu → `showSettings && isOwner`). */}
             {isOwner && (
-              <button className="menu-item" type="button" onClick={() => setShowSettings(true)}>
-                <Settings size={18} strokeWidth={1.75} aria-hidden="true" />
-                Ayarlar
+              <button
+                className="sidebar-cta"
+                type="button"
+                onClick={() => setShowDocumentCenter(true)}
+                data-testid="document-center-trigger"
+              >
+                <span className="sidebar-cta-icon">
+                  <FileText size={17} strokeWidth={1.9} aria-hidden="true" />
+                </span>
+                <span>
+                  <b>Teklif & PDF Döküm</b>
+                  <small>Kurumsal A4 belge merkezi</small>
+                </span>
               </button>
             )}
+
+            <div className="sidebar-profile">
+              <span className="sidebar-avatar" aria-hidden="true">
+                {(currentUser?.full_name || currentUser?.username || 'K')
+                  .toString()
+                  .trim()
+                  .charAt(0)
+                  .toLocaleUpperCase('tr')}
+              </span>
+              <span className="sidebar-profile-text">
+                <b>{currentUser?.full_name || currentUser?.username || 'Kullanıcı'}</b>
+                <small>{roleLabel(currentUser)}</small>
+              </span>
+              <ShieldCheck size={16} strokeWidth={1.8} aria-hidden="true" />
+            </div>
+
             <button
               className="menu-item"
               type="button"
@@ -595,7 +637,7 @@ export function App() {
 
         {isOwner && activeTab === 'kasa' && <CashDeskScreen />}
 
-        {activeTab === 'gider' && <ExpensesScreen currentUser={currentUser} />}
+        {isOwner && activeTab === 'gider' && <ExpensesScreen currentUser={currentUser} />}
 
         {activeTab === 'hatir' && <RemindersScreen />}
       </main>
@@ -607,6 +649,7 @@ export function App() {
           workOrderId={activeWorkOrderId}
           initialPlate={workOrderPlate}
           initialDate={workOrderDate}
+          currentUser={currentUser}
           onClose={() => {
             setWorkOrderModalOpen(false);
             setActiveWorkOrderId(null);
@@ -624,18 +667,30 @@ export function App() {
       {/* Settings Modal (yalnızca dükkan sahibi: rota koruması + düğme gizleme + bu koşul) */}
       {showSettings && isOwner && (
         <SettingsScreen
+          currentUser={currentUser}
+          onUserUpdated={(user) => setCurrentUser(user)}
           onClose={() => setShowSettings(false)}
-          onSettingsSaved={(newSettings) => {
-            if (newSettings?.shop_name) {
-              setShopName(newSettings.shop_name);
-            }
-          }}
+        />
+      )}
+
+      {/* Teklif & PDF Döküm: kurumsal A4 belge merkezi (yalnızca finansal yetki). */}
+      {showDocumentCenter && isOwner && (
+        <DocumentCenterModal
+          open={showDocumentCenter}
+          onClose={() => setShowDocumentCenter(false)}
         />
       )}
 
       {/* Hareketsizlik (idle) güvenlik kilidi: 3 dk hareketsizlikte buzlu cam.
-          "Ekranı kilitle" düğmesi aynı katmanı anında indirir. */}
-      <IdleLock locked={locked} onLock={() => setLocked(true)} onUnlock={handleIdleUnlock} />
+          "Ekranı kilitle" düğmesi aynı katmanı anında indirir. Kilit, oturumdaki
+          kullanıcının kendi parolasıyla açılır; 5 hatalı denemede oturum kapanır. */}
+      <IdleLock
+        locked={locked}
+        currentUser={currentUser}
+        onLock={() => setLocked(true)}
+        onResume={() => setLocked(false)}
+        onLogout={handleIdleUnlock}
+      />
 
       {/* Toast Element */}
       <div id="toast" role="status" aria-live="polite"></div>

@@ -268,6 +268,12 @@ export async function deleteUser(adminUser: User, targetUserId: number) {
     throw new Error('Kullanıcı bulunamadı.');
   }
 
+  // Yönetici hesapları kullanıcı yönetimi ekranından silinemez; bu, tek dükkân
+  // modelinde yanlışlıkla kilitlenmeyi ve yetki devrini engeller.
+  if (target.role === 'owner') {
+    throw new Error('Yönetici hesabı kullanıcı yönetiminden silinemez.');
+  }
+
   // Delete sessions first
   db.delete(sessions).where(eq(sessions.user_id, targetUserId)).run();
   db.delete(users).where(eq(users.id, targetUserId)).run();
@@ -292,6 +298,13 @@ export async function resetUserPassword(
   const target = db.select().from(users).where(eq(users.id, targetUserId)).get();
   if (!target) {
     throw new Error('Kullanıcı bulunamadı.');
+  }
+
+  // Yönetici hesabı için mevcut parola doğrulaması şarttır. Bu endpoint parola
+  // doğrulaması almadığı için yönetici hedeflerinde kullanılmaz; bunun yerine
+  // /auth/credentials (Hesap Güvenliği) kullanılır.
+  if (target.role === 'owner') {
+    throw new Error('Yönetici parolası yalnızca mevcut parola doğrulanarak Hesap Güvenliği bölümünden değiştirilebilir.');
   }
 
   const salt = await bcrypt.genSalt(10);
@@ -319,6 +332,110 @@ export async function resetUserPassword(
     hedef_id: targetUserId,
     detay: `Kullanıcı parolası sıfırlandı: ${target.username}`
   });
+}
+
+/**
+ * Kilit ekranından mevcut oturumun parolasını doğrular.
+ *
+ * Yeni oturum açmaz; yalnızca kilitli ekranı açmak için mevcut kullanıcının
+ * parolasını bcrypt ile karşılaştırır. Kullanıcı adı/parola sızdırmamak için
+ * kayıt bulunamasa bile sabit hash üzerinden karşılaştırma yapılır.
+ */
+export async function verifyOwnPassword(currentUser: User, password: string): Promise<boolean> {
+  const db = getDb();
+  const user = db.select().from(users).where(eq(users.id, currentUser.id)).get();
+  if (!user || !user.is_active) {
+    await bcrypt.compare(password, DUMMY_HASH);
+    return false;
+  }
+  return bcrypt.compare(password, user.password_hash);
+}
+
+/**
+ * Yöneticinin kendi kullanıcı adını/parolasını değiştirmesi.
+ *
+ * Güvenlik kuralları:
+ *  - Yalnızca owner/admin/patron rolü çağırabilir.
+ *  - Mevcut parola her zaman doğrulanır.
+ *  - Rol yükseltme alanı yoktur; yalnızca username ve password değişir.
+ *  - Parola değişirse bu oturum dışındaki tüm oturumlar iptal edilir.
+ */
+export async function updateOwnCredentials(
+  currentUser: User,
+  currentToken: string,
+  data: { current_password: string; username?: string; new_password?: string }
+): Promise<User> {
+  if (currentUser.role !== 'owner') {
+    throw new Error('Bu işlem için dükkan sahibi yetkisi gereklidir.');
+  }
+
+  const db = getDb();
+  const user = db.select().from(users).where(eq(users.id, currentUser.id)).get();
+  if (!user) {
+    throw new Error('Kullanıcı bulunamadı.');
+  }
+
+  const passwordOk = await bcrypt.compare(data.current_password, user.password_hash);
+  if (!passwordOk) {
+    throw new Error('Mevcut parola hatalı.');
+  }
+
+  const updates: Record<string, any> = {};
+  let nextUsername = user.username;
+
+  if (data.username !== undefined) {
+    const normalized = data.username.trim().toLowerCase();
+    if (normalized.length < 3) {
+      throw new Error('Kullanıcı adı en az 3 karakter olmalıdır.');
+    }
+    if (normalized !== user.username) {
+      const taken = db.select().from(users).where(eq(users.username, normalized)).get();
+      if (taken) {
+        throw new Error('Bu kullanıcı adı zaten kullanılmaktadır.');
+      }
+      updates.username = normalized;
+      nextUsername = normalized;
+    }
+  }
+
+  if (data.new_password) {
+    if (data.new_password.length < 6) {
+      throw new Error('Yeni parola en az 6 karakter olmalıdır.');
+    }
+    updates.password_hash = await bcrypt.hash(data.new_password, 10);
+    updates.failed_login_attempts = 0;
+    updates.locked_until = null;
+  }
+
+  if (Object.keys(updates).length === 0) {
+    const { password_hash, ...safeUser } = user;
+    return safeUser as User;
+  }
+
+  updates.updated_at = new Date().toISOString();
+  db.update(users).set(updates).where(eq(users.id, user.id)).run();
+
+  if (updates.password_hash) {
+    // Mevcut oturumu koru; diğer cihazlardaki oturumları düşür.
+    db.delete(sessions)
+      .where(and(eq(sessions.user_id, user.id), sql`${sessions.id} <> ${currentToken}`))
+      .run();
+  }
+
+  await logAudit({
+    kullanici_id: user.id,
+    kullanici_adi: nextUsername,
+    islem: 'user_credentials_update',
+    hedef_tablo: 'users',
+    hedef_id: user.id,
+    eski_deger: { username: user.username },
+    yeni_deger: { username: nextUsername, password_changed: Boolean(updates.password_hash) },
+    detay: 'Yönetici hesap bilgileri mevcut parola doğrulanarak güncellendi'
+  });
+
+  const updated = db.select().from(users).where(eq(users.id, user.id)).get()!;
+  const { password_hash, ...safeUser } = updated;
+  return safeUser as User;
 }
 
 export async function listUsers(): Promise<User[]> {

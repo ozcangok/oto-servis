@@ -4,6 +4,7 @@ import { Spinner } from '../components/Spinner.js';
 import { fdate, toast } from '../services/ui.js';
 import { PlateBadge } from '../components/PlateInput.js';
 import { normalizePlate } from '@oto-servis/shared';
+import { isPrivileged } from '../services/roles.js';
 
 interface VehiclesScreenProps {
   onNewWorkOrder?: (plate: string) => void;
@@ -45,7 +46,7 @@ const PAGE_SIZE = 50;
 
 export const VehiclesScreen: React.FC<VehiclesScreenProps> = ({ onNewWorkOrder, currentUser }) => {
   // Silme yalnızca dükkan sahibine açıktır (silme, kasa/stok kayıtlarını geri döndürür).
-  const isOwner = currentUser?.role === 'owner';
+  const isOwner = isPrivileged(currentUser);
   const [searchTerm, setSearchTerm] = useState('');
   const [debouncedSearch, setDebouncedSearch] = useState('');
   const [loading, setLoading] = useState(false);

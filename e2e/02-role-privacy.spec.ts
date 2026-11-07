@@ -53,7 +53,7 @@ test.describe('2) Rol, yetki ve ticari mahremiyet', () => {
     await expect(page.getByRole('dialog')).toBeVisible();
   });
 
-  test('staff Giderler: kâr özeti ve hassas kayıtlar DOM\'da yok', async ({ page, request }) => {
+  test('staff Giderler sekmesini görmez, doğrudan erişemez; hassas kayıtlar DOM\'da yok', async ({ page, request }) => {
     // Owner, hassas + gündelik giderler eklesin
     const ownerToken = await apiLogin(request, OWNER);
     const t = todayOnly();
@@ -62,28 +62,24 @@ test.describe('2) Rol, yetki ve ticari mahremiyet', () => {
     await createExpense(request, ownerToken, { tarih: t, kategori: 'Sarf Malzeme', aciklama: 'E2E sarf', tutar_kurus: 11111 });
 
     await login(page, STAFF);
-    await page.getByRole('tab', { name: 'Giderler' }).click();
-    await expect(page.locator('.tbl')).toBeVisible();
 
-    // Kâr/gelir özeti personele görünmez
+    // Personel Giderler sekmesini görmez.
+    await expect(page.getByRole('tab', { name: 'Giderler' })).toHaveCount(0);
+
+    // Doğrudan adresle erişim ana sayfaya yönlendirilir; gider tablosu/özeti DOM'a basılmaz.
+    await page.goto('/#/giderler');
+    await expect(page).toHaveURL(/#\/sorgu/);
+    await expect(page.locator('.tbl')).toHaveCount(0);
     await expect(page.locator('.gsum')).toHaveCount(0);
     await expect(page.locator('body')).not.toContainText('Net Kâr');
     await expect(page.locator('body')).not.toContainText('Toplam Servis Geliri');
     await expect(page.locator('body')).not.toContainText('Toplam Dükkan Gideri');
+    await expect(page.locator('body')).not.toContainText('E2E maaş');
+    await expect(page.locator('body')).not.toContainText('E2E kira');
+    await expect(page.locator('body')).not.toContainText('E2E sarf');
 
-    // Hassas kategoriler listeden filtrelenir
-    const tbody = page.locator('.tbl tbody');
-    await expect(tbody).not.toContainText('Personel');
-    await expect(tbody).not.toContainText('Fatura & Kira');
-    await expect(tbody).toContainText('Sarf Malzeme');
-
-    // Kategori menüsü kısıtlaması
-    const options = (await page.locator('#gx-kategori option').allInnerTexts()).map((o) => o.trim());
-    expect(options).not.toContain('Personel');
-    expect(options).not.toContain('Fatura & Kira');
-    expect(options).toContain('Sarf Malzeme');
-    expect(options).toContain('Ekipman Bakım');
-    expect(options).toContain('Mutfak & Temizlik');
+    // Kategori menüsü hiç DOM'a basılmaz.
+    await expect(page.locator('#gx-kategori')).toHaveCount(0);
   });
 
   test('owner Giderler: kâr özeti ve tüm kategoriler görünür', async ({ page }) => {

@@ -67,10 +67,10 @@ test.describe('13) Arayüz tutarlılığı (bayat önbellek / SW koruması)', ()
 
     const ilk = await gorunumParmakIzi(page);
 
-    // Güncel tasarımın kimliği: başlık büyük harfe ÇEVRİLMEZ, ana düğme bordodur.
+    // Güncel tasarımın kimliği: başlık büyük harfe ÇEVRİLMEZ, ana düğme aksan kırmızısıdır.
     expect(ilk.baslikMetni).toBe('Servis Girişi');
     expect(ilk.baslikDonusum).toBe('none');
-    expect(ilk.butonArka.replace(/\s/g, '')).toBe('rgb(185,28,28)');
+    expect(ilk.butonArka.replace(/\s/g, '')).toBe('rgb(230,57,70)');
     expect(ilk.butonYazi).toBe('Giriş Yap');
 
     for (let i = 0; i < 2; i++) {

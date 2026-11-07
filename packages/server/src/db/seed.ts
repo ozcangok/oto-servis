@@ -1,5 +1,6 @@
 import { getDb, getSqlite, users, customers, vehicles, parts, workOrders, workOrderLines, payments, stockMovements } from './index.js';
 import { normalizePlate, formatPlateDisplay } from '@oto-servis/shared';
+import { CORPORATE_ADMIN, CORPORATE_STAFF } from '../services/corporateBootstrap.js';
 import bcrypt from 'bcryptjs';
 import { eq } from 'drizzle-orm';
 
@@ -11,44 +12,30 @@ export async function seedDatabase() {
   console.log('[SEED] Başlangıç ve örnek veriler yükleniyor...');
 
   // 1. Users — yalnızca sistemde HİÇ kullanıcı yokken (gerçek ilk kurulum)
-  // varsayılan hesaplar oluşturulur. Böylece silinen hesaplar (admin, kasiyer,
-  // usta...) sunucu her yeniden başlatıldığında geri gelmez.
+  // kurumsal hesaplar oluşturulur. Böylece silinen hesaplar sunucu her yeniden
+  // başlatıldığında geri gelmez.
   const anyUser = db.select({ id: users.id }).from(users).limit(1).get();
   let adminId = anyUser?.id || 1;
 
   if (!anyUser) {
-    const salt = await bcrypt.genSalt(10);
-    const passHash = await bcrypt.hash('admin123', salt);
+    const adminHash = await bcrypt.hash(CORPORATE_ADMIN.password, 10);
     const newAdmin = db.insert(users).values({
-      username: 'admin',
-      password_hash: passHash,
-      full_name: 'Ahmet Usta (Yönetici)',
-      role: 'owner',
+      username: CORPORATE_ADMIN.username,
+      password_hash: adminHash,
+      full_name: CORPORATE_ADMIN.full_name,
+      role: CORPORATE_ADMIN.role,
       is_active: true,
       created_at: now,
       updated_at: now
     }).returning().get();
     adminId = newAdmin.id;
 
-    // Cashier
-    const cashierHash = await bcrypt.hash('kasiyer123', salt);
+    const staffHash = await bcrypt.hash(CORPORATE_STAFF.password, 10);
     db.insert(users).values({
-      username: 'kasiyer',
-      password_hash: cashierHash,
-      full_name: 'Selin Kasiyer',
-      role: 'staff',
-      is_active: true,
-      created_at: now,
-      updated_at: now
-    }).run();
-
-    // Mechanic
-    const mechanicHash = await bcrypt.hash('usta123', salt);
-    db.insert(users).values({
-      username: 'usta',
-      password_hash: mechanicHash,
-      full_name: 'Kemal Usta',
-      role: 'staff',
+      username: CORPORATE_STAFF.username,
+      password_hash: staffHash,
+      full_name: CORPORATE_STAFF.full_name,
+      role: CORPORATE_STAFF.role,
       is_active: true,
       created_at: now,
       updated_at: now

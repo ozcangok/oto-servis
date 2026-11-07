@@ -43,9 +43,14 @@ const SAMPLE_VEHICLE = {
 };
 
 const SAMPLE_SETTINGS = {
-  shop_name: 'Çınar Otomotiv',
-  shop_phone: '0532 000 00 00',
-  shop_address: 'Oto Sanayi Sitesi B Blok No: 12, İstanbul'
+  shop_name: 'Çınar Otomotiv - Özel Servis & Bakım Hizmetleri',
+  shop_owner: 'Sezer Çınar',
+  shop_phone: '0530 766 52 60',
+  shop_address: 'Esenşehir, Muradiye Sk. No:42 D:B, 34776 Ümraniye/İstanbul',
+  shop_email: 'info@cinarotomotiv.com',
+  shop_tax_office: 'Ümraniye V.D.',
+  shop_tax_number: '1234567890',
+  default_kdv_rate: 20
 };
 
 /** Döküm şablonunu gerçek uygulama modülünden üretip sayfaya yerleştirir. */
@@ -94,7 +99,7 @@ test.describe('AI 4) Servis dökümü (PDF) okunabilirlik', () => {
     await renderStatement(page, 'light');
 
     await agent.aiAssert(
-      'Dökümde "SERVİS DÖKÜMÜ" başlığı, müşteri/araç bilgi kutuları ve tutar tablosu net ve okunur biçimde görünüyor'
+      'Dökümde "SERVİS İŞ EMRİ VE TEKLİF FORMU" başlığı, müşteri/araç bilgi kutuları ve tutar tablosu net ve okunur biçimde görünüyor'
     );
   });
 
@@ -106,7 +111,7 @@ test.describe('AI 4) Servis dökümü (PDF) okunabilirlik', () => {
     await renderStatement(page, 'dark');
 
     const data = await agent.aiQuery<{ musteri: string; plaka: string; kdvDahil: string }>(
-      '{musteri: string, plaka: string, kdvDahil: string}, dökümdeki müşteri adını, plakayı ve "KDV Dahil Toplam" satırındaki tutarı çıkar'
+      '{musteri: string, plaka: string, kdvDahil: string}, dökümdeki müşteri adını, plakayı ve "KDV Dahil Genel Toplam" satırındaki tutarı çıkar'
     );
 
     expect(data.plaka).toContain('34 ABC 123');

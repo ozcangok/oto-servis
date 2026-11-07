@@ -25,9 +25,9 @@ export const AuthModal: React.FC<AuthModalProps> = ({ onSuccess }) => {
       const res = await apiRequest('/auth/setup-status');
       if (res.needed) {
         setIsSetup(true);
-        setUsername('admin');
+        setUsername('sezer çınar');
         setPassword('');
-        setFullName('Servis Yöneticisi');
+        setFullName('Sezer Çınar');
       }
     } catch (err) {
       console.error(err);
@@ -96,7 +96,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({ onSuccess }) => {
                   required
                   value={fullName}
                   onChange={(e) => setFullName(e.target.value)}
-                  placeholder="Ahmet Usta"
+                  placeholder="Sezer Çınar"
                 />
               </div>
             )}
@@ -112,7 +112,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({ onSuccess }) => {
                 onFocus={() => setUnlocked(true)}
                 value={username}
                 onChange={(e) => setUsername(e.target.value)}
-                placeholder="admin"
+                placeholder="sezer çınar"
                 autoFocus
               />
             </div>

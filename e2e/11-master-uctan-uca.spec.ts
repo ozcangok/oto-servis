@@ -71,7 +71,9 @@ test.describe('11) Uçtan uca master zincir', () => {
   }) => {
     const token = await apiLogin(request, OWNER);
     // Kurumsal başlık (PDF) için dükkan adını sabitle
-    const setRes = await apiJson(request, 'PUT', '/api/settings', token, { shop_name: 'Çınar Otomotiv' });
+    const setRes = await apiJson(request, 'PUT', '/api/settings', token, {
+      shop_name: 'Çınar Otomotiv - Özel Servis & Bakım Hizmetleri'
+    });
     expect(setRes.status, JSON.stringify(setRes.body)).toBe(200);
 
     const plate = uniqPlate();
@@ -177,7 +179,7 @@ test.describe('11) Uçtan uca master zincir', () => {
     // 4) Yeni şablonla PDF dökümü hatasız üretilir
     const [download] = await Promise.all([
       page.waitForEvent('download', { timeout: 30_000 }),
-      page.getByRole('button', { name: 'PDF döküm' }).first().click()
+      page.getByRole('button', { name: 'PDF döküm', exact: true }).first().click()
     ]);
     expect(download.suggestedFilename()).toMatch(/\.pdf$/i);
     const dlPath = await download.path();
@@ -189,8 +191,8 @@ test.describe('11) Uçtan uca master zincir', () => {
     const captured = (await page.evaluate(() => (window as any).__pdfCaptured.slice())) as string[];
     expect(captured.length, 'PDF üretim fonksiyonu tetiklenmedi').toBeGreaterThan(0);
     const html = captured[0];
-    expect(html).toContain('SERVİS DÖKÜMÜ');
-    expect(html).toContain('ÇINAR OTOMOTİV');
+    expect(html).toContain('SERVİS İŞ EMRİ VE TEKLİF FORMU');
+    expect(html).toContain('Çınar Otomotiv');
     expect(html).toContain(custName);
     expect(html).toContain(plaka);
     expect(html).toContain('1.000,00 ₺'); // işçilik (KDV hariç)
@@ -332,18 +334,17 @@ test.describe('11) Uçtan uca master zincir', () => {
     });
     expect(forbidden.status, JSON.stringify(forbidden.body)).toBe(403);
 
-    // Arayüz: personel girişinde gizli giderler ve kâr özeti DOM'da YOK
+    // Arayüz: personel girişinde Giderler sekmesi ve finansal özet DOM'da YOK
     await login(page, STAFF);
-    await page.getByRole('tab', { name: 'Giderler' }).click();
+    await expect(page.getByRole('tab', { name: 'Giderler' })).toHaveCount(0);
+    await page.goto('/#/giderler');
+    await expect(page).toHaveURL(/#\/sorgu/);
+    await expect(page.locator('.tbl')).toHaveCount(0);
     await expect(page.getByText(kira)).toHaveCount(0);
     await expect(page.getByText(maas)).toHaveCount(0);
     await expect(page.getByText('Net Kâr')).toHaveCount(0);
     await expect(page.getByText('Toplam Servis Geliri')).toHaveCount(0);
-    // Gündelik gider personel için görünür
-    await expect(page.getByText(sarf).first()).toBeVisible();
-    // Gizli kategoriler form seçeneği olarak da sunulmaz
-    await expect(page.locator('#gx-kategori option', { hasText: 'Fatura & Kira' })).toHaveCount(0);
-    await expect(page.locator('#gx-kategori option', { hasText: 'Personel' })).toHaveCount(0);
+    await expect(page.locator('#gx-kategori')).toHaveCount(0);
   });
 
   // -------------------------------------------------------------------- 4
@@ -434,13 +435,13 @@ test.describe('11) Uçtan uca master zincir', () => {
   });
 
   // -------------------------------------------------------------------- 5
-  test('kokpit (tek ekran): pencere kaymaz; uzun servis listesi yalnızca kartın içinde kayar', async ({
+  test('3 sütunlu pano: pencere kaymaz; içerik .wrap içinde kayar; servis listesi ve takvim erişilebilir', async ({
     page,
     request
   }) => {
     const token = await apiLogin(request, OWNER);
 
-    // Servis listesini doldur (pano en fazla 8 satır gösterir)
+    // Servis listesini doldur (pano uzun listeyi kart içinde gösterir)
     for (let i = 0; i < 9; i++) {
       const plate = uniqPlate();
       const veh = await createVehicle(request, token, { plaka: plate });
@@ -457,25 +458,27 @@ test.describe('11) Uçtan uca master zincir', () => {
 
     await login(page, OWNER);
     await page.getByRole('tab', { name: 'Araç sorgu' }).click();
-    await expect(page.locator('.screen.cockpit')).toBeVisible();
-    await expect(page.locator('.svc-scroll')).toBeVisible();
+    await expect(page.locator('.dashboard-layout')).toBeVisible();
+    await expect(page.locator('.service-table-card')).toBeVisible();
+    await expect(page.locator('.dashboard-calendar')).toBeVisible();
+    await expect(page.locator('.svc')).toBeVisible();
 
     // 1) Pencere (sayfa) hiç kaymaz: doküman yüksekliği pencere yüksekliğini aşmaz
-    const geo = await page.evaluate(() => ({
-      winH: window.innerHeight,
-      docH: document.documentElement.scrollHeight,
-      bodyH: document.body.scrollHeight,
-      svc: (() => {
-        const el = document.querySelector('.svc-scroll') as HTMLElement;
-        return {
-          scrollH: el.scrollHeight,
-          clientH: el.clientHeight,
-          overflowY: getComputedStyle(el).overflowY
-        };
-      })()
-    }));
+    const geo = await page.evaluate(() => {
+      const wrap = document.querySelector('.wrap') as HTMLElement;
+      return {
+        winH: window.innerHeight,
+        docH: document.documentElement.scrollHeight,
+        bodyH: document.body.scrollHeight,
+        wrapOverflowY: getComputedStyle(wrap).overflowY,
+        wrapScrollH: wrap.scrollHeight,
+        wrapClientH: wrap.clientHeight
+      };
+    });
     expect(geo.docH, 'sayfa yüksekliği pencereyi aşmamalı').toBeLessThanOrEqual(geo.winH + 2);
     expect(geo.bodyH).toBeLessThanOrEqual(geo.winH + 2);
+    expect(geo.wrapOverflowY, 'kaydırma .wrap içinde olmalı').toBe('auto');
+    expect(geo.wrapScrollH, 'pano içeriği .wrap içinde taşmalı').toBeGreaterThan(geo.wrapClientH);
 
     // 2) Pencereyi kaydırmaya çalışmak işe yaramaz
     const scrollTry = await page.evaluate(() => {
@@ -484,29 +487,32 @@ test.describe('11) Uçtan uca master zincir', () => {
     });
     expect(scrollTry).toBe(0);
 
-    // 3) Uzun liste kartın içinde kalır ve KENDİ İÇİNDE kayar
-    expect(geo.svc.overflowY).toBe('auto');
-    expect(geo.svc.scrollH, 'liste taşmalı (kendi içi kaymalı)').toBeGreaterThan(geo.svc.clientH);
+    // 3) İçerik .wrap içinde kayar
     const scrolledTop = await page.evaluate(() => {
-      const el = document.querySelector('.svc-scroll') as HTMLElement;
-      el.scrollTop = 400;
-      return el.scrollTop;
+      const wrap = document.querySelector('.wrap') as HTMLElement;
+      wrap.scrollTop = 400;
+      return wrap.scrollTop;
     });
-    expect(scrolledTop, 'liste kendi içinde kayabilmeli').toBeGreaterThan(0);
+    expect(scrolledTop, 'içerik .wrap içinde kayabilmeli').toBeGreaterThan(0);
 
-    // 4) Takvim kartı sessizce kırpılmaz: en alttaki gün hücresine erişilebilir
+    // 4) Servis tablosu dar ekranda kartın içinde yatay kayabilir
+    const svcScroll = await page.evaluate(() => {
+      const el = document.querySelector('.service-table-scroll') as HTMLElement;
+      return { overflowX: getComputedStyle(el).overflowX };
+    });
+    expect(svcScroll.overflowX).toBe('auto');
+
+    // 5) Takvimin son gün hücresi DOM'da ve kaydırılarak erişilebilir
     const dayReachable = await page.evaluate(() => {
-      const ds = document.querySelector('.dash-side') as HTMLElement;
       const days = document.querySelectorAll('.cal-grid .day');
       const last = days[days.length - 1] as HTMLElement;
-      ds.scrollTop = ds.scrollHeight;
-      const dr = last.getBoundingClientRect();
-      const sr = ds.getBoundingClientRect();
-      return dr.bottom <= sr.bottom + 2;
+      last.scrollIntoView({ block: 'center' });
+      const r = last.getBoundingClientRect();
+      return r.width > 0 && r.height > 0 && r.top >= 0 && r.bottom <= window.innerHeight + 2;
     });
     expect(dayReachable, 'takvimin son gün satırı erişilebilir olmalı').toBe(true);
 
-    // 5) Diğer ekranlarda da pencere kaymaz; kaydırma içerik sütununda olur
+    // 6) Diğer ekranlarda da pencere kaymaz; kaydırma içerik sütununda olur
     await page.getByRole('tab', { name: 'Araçlar' }).click();
     const other = await page.evaluate(() => ({
       winScrollable: document.documentElement.scrollHeight > window.innerHeight + 1,

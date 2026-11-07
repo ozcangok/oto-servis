@@ -44,17 +44,19 @@ test.describe('1) Oturum, görsel gizlilik ve veri sızıntısı', () => {
   test('staff çıkışında hiçbir rakam ve liste kalmaz', async ({ page }) => {
     await login(page, STAFF);
 
+    // Personel finans sekmelerini görmez; Giderler DOM'a hiç basılmaz.
     await expect(page.getByRole('tab', { name: 'Kasa' })).toHaveCount(0);
-    await page.getByRole('tab', { name: 'Giderler' }).click();
-    await expect(page.locator('.tbl')).toBeVisible();
-
-    const amounts = await page.locator('.tbl td.num').allInnerTexts();
+    await expect(page.getByRole('tab', { name: 'Giderler' })).toHaveCount(0);
+    await expect(page.locator('.tbl')).toHaveCount(0);
+    await expect(page.locator('.gsum')).toHaveCount(0);
+    await expect(page.locator('body')).not.toContainText('Net Kâr');
+    await expect(page.locator('body')).not.toContainText('Toplam Servis Geliri');
 
     await logout(page);
 
     await expectIsolatedLogin(page);
     await expect(page.locator('.tbl')).toHaveCount(0);
-    await expectAmountsGone(page, amounts);
+    await expect(page.locator('.gsum')).toHaveCount(0);
   });
 
   test('giriş ekranı tam opak ve izole (arkadaki sayfa görünmez)', async ({ page }) => {

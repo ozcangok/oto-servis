@@ -42,6 +42,16 @@ async function main() {
     }
   }
 
+  // Kurumsal kimlik/hesap migrasyonu: mevcut kurulumlarda demo hesaplarını
+  // güvenli biçimde kurumsal hesaplara taşır ve resmi ayar varsayılanlarını
+  // tamamlar. Hiç kullanıcı yoksa ilk kurulum ekranına dokunmaz.
+  const { ensureCorporateBootstrap } = await import('./services/corporateBootstrap.js');
+  try {
+    await ensureCorporateBootstrap();
+  } catch (err) {
+    console.error('[CORPORATE BOOTSTRAP ERROR]', err);
+  }
+
   // Test ortamında (E2E) hız sınırı kapatılır; canlı/geliştirme ortamında açık kalır.
   const app = await buildApp({ enableRateLimit: process.env.NODE_ENV !== 'test' });
 

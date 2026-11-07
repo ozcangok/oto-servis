@@ -44,9 +44,13 @@ export function fdate(iso?: string | null): string {
   return String(iso);
 }
 
-export function todayISO(): string {
-  const d = new Date();
+/** Yerel saat diliminde YYYY-AA-GG üretir (UTC'ye kaymaz). */
+export function dateISO(d: Date = new Date()): string {
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+}
+
+export function todayISO(): string {
+  return dateISO(new Date());
 }
 
 export function money(kurusOrLira: number, isKurus = true): string {

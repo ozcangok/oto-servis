@@ -15,6 +15,7 @@ import {
   calculateWorkOrderTotals,
   parseCurrencyToKurus
 } from '@oto-servis/shared';
+import { isPrivileged } from '../services/roles.js';
 
 interface WorkOrderScreenProps {
   initialVehicle?: any;
@@ -22,6 +23,8 @@ interface WorkOrderScreenProps {
   initialPlate?: string;
   /** Takvimden "bu güne araç ekle" için isteğe bağlı tarih (YYYY-MM-DD). */
   initialDate?: string;
+  /** Oturumdaki kullanıcı: personel için mali alanlar DOM'a basılmaz. */
+  currentUser?: any;
   onClose: () => void;
   onSaved?: (plate: string) => void;
 }
@@ -41,10 +44,14 @@ export const WorkOrderScreen: React.FC<WorkOrderScreenProps> = ({
   workOrderId,
   initialPlate = '',
   initialDate = '',
+  currentUser,
   onClose,
   onSaved
 }) => {
   const isEditing = Boolean(workOrderId);
+  // Personel (staff/employee/calisan) mali alanları görmez; yalnızca operasyonel
+  // parça/işçilik adı, adet ve stok bilgisi görünür.
+  const canViewFinancials = isPrivileged(currentUser);
 
   // Form State
   const [plate, setPlate] = useState(
@@ -634,7 +641,9 @@ export const WorkOrderScreen: React.FC<WorkOrderScreenProps> = ({
           <datalist id="partlist">
             {catalogParts.map((p) => (
               <option key={p.id} value={p.ad}>
-                Stok {p.stok_miktari} · {money(p.satis_kurus || 0)}
+                {canViewFinancials
+                  ? `Stok ${p.stok_miktari} · ${money(p.satis_kurus || 0)}`
+                  : `Stok ${p.stok_miktari}`}
               </option>
             ))}
           </datalist>
@@ -746,22 +755,26 @@ export const WorkOrderScreen: React.FC<WorkOrderScreenProps> = ({
                     />
                   </label>
 
-                  <label className="lf">
-                    <span>Birim fiyat</span>
-                    <input
-                      type="number"
-                      min="0"
-                      step="any"
-                      placeholder="0,00"
-                      value={l.price}
-                      onChange={(e) => handleLineChange(i, 'price', e.target.value)}
-                    />
-                  </label>
+                  {canViewFinancials && (
+                    <label className="lf">
+                      <span>Birim fiyat</span>
+                      <input
+                        type="number"
+                        min="0"
+                        step="any"
+                        placeholder="0,00"
+                        value={l.price}
+                        onChange={(e) => handleLineChange(i, 'price', e.target.value)}
+                      />
+                    </label>
+                  )}
 
-                  <div className="lf ltotal">
-                    <span>Tutar</span>
-                    <output>{money(rowTotal, false)}</output>
-                  </div>
+                  {canViewFinancials && (
+                    <div className="lf ltotal">
+                      <span>Tutar</span>
+                      <output>{money(rowTotal, false)}</output>
+                    </div>
+                  )}
 
                   <button
                     className="icon-btn"
@@ -786,85 +799,89 @@ export const WorkOrderScreen: React.FC<WorkOrderScreenProps> = ({
             </button>
           </div>
 
-          {/* Financial Adjustments Grid 4 */}
-          <div className="grid g4">
-            <div className="field">
-              <label htmlFor="of-dpct">İskonto (%)</label>
-              <input
-                id="of-dpct"
-                type="number"
-                min="0"
-                max="100"
-                step="any"
-                placeholder="0"
-                value={discountPct}
-                onChange={(e) => setDiscountPct(e.target.value)}
-              />
-            </div>
+          {/* Financial Adjustments Grid 4 — yalnızca finansal yetkili roller. */}
+          {canViewFinancials && (
+            <div className="grid g4">
+              <div className="field">
+                <label htmlFor="of-dpct">İskonto (%)</label>
+                <input
+                  id="of-dpct"
+                  type="number"
+                  min="0"
+                  max="100"
+                  step="any"
+                  placeholder="0"
+                  value={discountPct}
+                  onChange={(e) => setDiscountPct(e.target.value)}
+                />
+              </div>
 
-            <div className="field">
-              <label htmlFor="of-damt">İskonto (₺)</label>
-              <input
-                id="of-damt"
-                type="number"
-                min="0"
-                step="any"
-                placeholder="0,00"
-                value={discountAmt}
-                onChange={(e) => setDiscountAmt(e.target.value)}
-              />
-            </div>
+              <div className="field">
+                <label htmlFor="of-damt">İskonto (₺)</label>
+                <input
+                  id="of-damt"
+                  type="number"
+                  min="0"
+                  step="any"
+                  placeholder="0,00"
+                  value={discountAmt}
+                  onChange={(e) => setDiscountAmt(e.target.value)}
+                />
+              </div>
 
-            <div className="field">
-              <label htmlFor="of-vat">KDV oranı (%)</label>
-              <input
-                id="of-vat"
-                type="number"
-                min="0"
-                step="any"
-                value={vatRate}
-                onChange={(e) => setVatRate(parseFloat(e.target.value) || 0)}
-              />
-            </div>
+              <div className="field">
+                <label htmlFor="of-vat">KDV oranı (%)</label>
+                <input
+                  id="of-vat"
+                  type="number"
+                  min="0"
+                  step="any"
+                  value={vatRate}
+                  onChange={(e) => setVatRate(parseFloat(e.target.value) || 0)}
+                />
+              </div>
 
-            <div className="field">
-              <label htmlFor="of-cash">Peşin fiyat (elle)</label>
-              <input
-                id="of-cash"
-                type="number"
-                min="0"
-                step="any"
-                placeholder="boşsa otomatik"
-                value={cashOverride}
-                onChange={(e) => setCashOverride(e.target.value)}
-              />
+              <div className="field">
+                <label htmlFor="of-cash">Peşin fiyat (elle)</label>
+                <input
+                  id="of-cash"
+                  type="number"
+                  min="0"
+                  step="any"
+                  placeholder="boşsa otomatik"
+                  value={cashOverride}
+                  onChange={(e) => setCashOverride(e.target.value)}
+                />
+              </div>
             </div>
-          </div>
+          )}
 
-          {/* Totals Box */}
-          <div className="totals-box">
-            <dl className="totals">
-              {calcResult.iskonto_kurus > 0 && (
-                <>
-                  <dt>Kalemler toplamı (KDV hariç)</dt>
-                  <dd>{money(calcResult.toplam_kurus)}</dd>
-                  <dt>İskonto</dt>
-                  <dd>-{money(calcResult.iskonto_kurus)}</dd>
-                </>
-              )}
-              <dt>Ara toplam (KDV hariç)</dt>
-              <dd>{money(calcResult.net_kurus)}</dd>
-              <dt>KDV %{numfmt(vatRate)}</dt>
-              <dd>{money(calcResult.kdv_tutar_kurus)}</dd>
-              <dt className="grand">KDV dahil toplam</dt>
-              <dd className="grand">{money(calcResult.brut_kurus)}</dd>
-              <dt className="cash">
-                Peşin fiyat
-                {!cashOverride && cashDiscRate > 0 && <small> (%{cashDiscRate} iskonto)</small>}
-              </dt>
-              <dd className="cash">{money(calcResult.pesin_fiyat_kurus)}</dd>
-            </dl>
-          </div>
+          {/* Totals Box — personel görünümünde render edilmez. */}
+          {canViewFinancials && (
+            <div className="totals-box">
+              <dl className="totals">
+                {calcResult.iskonto_kurus > 0 && (
+                  <>
+                    <dt>Kalemler toplamı (KDV hariç)</dt>
+                    <dd>{money(calcResult.toplam_kurus)}</dd>
+                    <dt>İskonto</dt>
+                    <dd>-{money(calcResult.iskonto_kurus)}</dd>
+                  </>
+                )}
+                <dt>Ara toplam (KDV hariç)</dt>
+                <dd>{money(calcResult.net_kurus)}</dd>
+                <dt>KDV %{numfmt(vatRate)}</dt>
+                <dd>{money(calcResult.kdv_tutar_kurus)}</dd>
+                <dt className="grand">KDV dahil toplam</dt>
+                <dd className="grand">{money(calcResult.brut_kurus)}</dd>
+                <dt className="cash">
+                  Peşin fiyat
+                  {!cashOverride && cashDiscRate > 0 && <small> (%{cashDiscRate} iskonto)</small>}
+                </dt>
+                <dd className="cash">{money(calcResult.pesin_fiyat_kurus)}</dd>
+              </dl>
+            </div>
+          )}
 
           {/* Next Service Reminder */}
           <h3>Sonraki bakım (hatırlatıcı için)</h3>
@@ -892,8 +909,8 @@ export const WorkOrderScreen: React.FC<WorkOrderScreenProps> = ({
             </div>
           </div>
 
-          {/* Initial Payment for new order */}
-          {!isEditing && (
+          {/* Initial Payment for new order — yalnızca finansal yetkili roller. */}
+          {!isEditing && canViewFinancials && (
             <div className="grid g2">
               <div className="field">
                 <label htmlFor="of-pay">Şimdi alınan ödeme (isteğe bağlı)</label>
