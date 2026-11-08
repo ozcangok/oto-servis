@@ -536,6 +536,32 @@ export async function exportStatementPDF(
 
       pdf.save(`${baseName}.pdf`);
       toast('PDF döküm hazır');
+
+      // Dijital arşive de kopyala (yalnızca masaüstü ortamında; tarayıcıda no-op).
+      try {
+        const out = pdf.output('arraybuffer');
+        let base64 = '';
+        if (out) {
+          const bytes = new Uint8Array(out);
+          let binary = '';
+          for (let i = 0; i < bytes.byteLength; i++) binary += String.fromCharCode(bytes[i]);
+          base64 = btoa(binary);
+        }
+        const bridge = (window as any).otoDesktop;
+        if (bridge?.archiveSave && base64) {
+          void bridge.archiveSave({
+            type: 'pdf',
+            fileName: `${baseName}.pdf`,
+            contentBase64: base64,
+            customerName: vehicle?.musteri?.ad_soyad || vehicle?.musteri_ad || settings?.shop_name || 'Müşteri',
+            plate: vehicle?.plaka || '',
+            date: new Date().toISOString()
+          });
+        }
+      } catch (archiveErr) {
+        console.error('[ARŞİV] PDF kopyalama hatası:', archiveErr);
+      }
+
       return;
     } catch (err) {
       console.error('PDF error', err);

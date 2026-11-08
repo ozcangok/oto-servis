@@ -18,6 +18,7 @@ const fs = require('fs');
 const { fork, spawn } = require('child_process');
 const http = require('http');
 const { createDatabaseBackup, backupStamp } = require('./backup.cjs');
+const { saveToArchive } = require('./archive.cjs');
 
 // Geliştirme ve paketlenmiş sürüm AYNI veri klasörünü kullansın diye ad
 // burada sabitlenir (electron-builder `productName` ile birebir aynı).
@@ -28,6 +29,9 @@ const SERVER_PORT = parseInt(process.env.OTO_SERVER_PORT || '3001', 10);
 const SHUTDOWN_MIN_MS = 10_000;
 /** Gömülü sunucunun kapanmasını bekleme sınırı (ms). */
 const SERVER_STOP_TIMEOUT_MS = 5_000;
+
+/** Kurumsal logo (pdfExport.ts ile aynı kaynağa bağlanır: public/logo.png). */
+const LOGO_PATH = path.join(__dirname, '../../client/public/logo.png');
 
 /**
  * Yerel duman testi (smoke test) — YALNIZCA geliştirme/doğrulama içindir:
@@ -598,6 +602,7 @@ function createWindow() {
     minHeight: 600,
     title: 'Oto Servis Yönetim Sistemi',
     show: !SMOKE_TEST,
+    icon: LOGO_PATH,
     webPreferences,
     autoHideMenuBar: false
   });
@@ -729,6 +734,9 @@ ipcMain.handle('update:open-release', async () => {
     return { ok: false, error: String((err && err.message) || err) };
   }
 });
+
+/** Dijital arşiv: PDF / iş emri dosyasını masaüstündeki Çınar_Otomotiv_Arsiv'e yazar. */
+ipcMain.handle('archive:save', async (_event, payload) => saveToArchive(payload));
 
 app.whenReady().then(() => {
   buildApplicationMenu();

@@ -422,6 +422,32 @@ export const WorkOrderScreen: React.FC<WorkOrderScreenProps> = ({
       }
 
       toast('İş emri kaydedildi');
+
+      // Dijital arşive iş emri kaydı kopyala (yalnızca masaüstü ortamında; tarayıcıda no-op).
+      try {
+        const bridge = (window as any).otoDesktop;
+        if (bridge?.archiveSave && savedOrderId) {
+          const customerName = existingVehicle?.customer?.ad_soyad || existingVehicle?.musteri?.ad_soyad || newVehicle.customer || 'Müşteri';
+          void bridge.archiveSave({
+            type: 'work-order',
+            fileName: `is-emri-${savedOrderId}.json`,
+            json: {
+              id: savedOrderId,
+              plaka: norm,
+              customerName,
+              giris_tarihi: date || todayISO(),
+              durum: dbStatus,
+              savedAt: new Date().toISOString()
+            },
+            customerName,
+            plate: norm,
+            date: new Date().toISOString()
+          });
+        }
+      } catch (archiveErr) {
+        console.error('[ARŞİV] İş emri kopyalama hatası:', archiveErr);
+      }
+
       if (onSaved) onSaved(norm);
       onClose();
     } catch (err: any) {

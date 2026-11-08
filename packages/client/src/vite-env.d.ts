@@ -33,6 +33,27 @@ interface OtoUpdateResult {
   message?: string;
 }
 
+/** Dijital arşive kaydedilecek belge yükü. */
+interface ArchivePayload {
+  type: 'pdf' | 'work-order';
+  fileName: string;
+  /** PDF için base64 içerik. */
+  contentBase64?: string;
+  /** İş emri için JSON nesnesi. */
+  json?: any;
+  customerName?: string;
+  plate?: string;
+  date?: string;
+}
+
+interface ArchiveResult {
+  ok: boolean;
+  path?: string;
+  type?: string;
+  fileName?: string;
+  error?: string;
+}
+
 /** Masaüstü (Electron) köprüsü — tarayıcıda tanımsızdır. */
 interface OtoDesktopBridge {
   isElectron: boolean;
@@ -49,6 +70,9 @@ interface OtoDesktopBridge {
   installUpdate: () => Promise<OtoUpdateResult>;
   openReleasePage: () => Promise<OtoUpdateResult>;
   onUpdateStatus: (callback: (status: OtoUpdateStatus) => void) => (() => void) | void;
+
+  /** Dijital arşiv köprüsü. */
+  archiveSave: (payload: ArchivePayload) => Promise<ArchiveResult>;
 }
 
 interface Window {

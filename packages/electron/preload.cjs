@@ -54,7 +54,10 @@ contextBridge.exposeInMainWorld('otoDesktop', {
     };
     ipcRenderer.on(UPDATE_STATUS_CHANNEL, listener);
     return () => ipcRenderer.removeListener(UPDATE_STATUS_CHANNEL, listener);
-  }
+  },
+
+  // --- Dijital arşiv köprüsü ----------------------------------------------
+  archiveSave: (payload) => ipcRenderer.invoke('archive:save', payload)
 });
 
 // Arayüz tek bir dinleyici kullansın diye DOM olayı da yayınlanır.
