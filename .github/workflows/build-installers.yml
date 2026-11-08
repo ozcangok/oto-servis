@@ -83,6 +83,9 @@ jobs:
         run: npm run build --workspace=@oto-servis/client
 
       # build:desktop + izole staging + electron-builder (arm64 & x64)
+      - name: Önceki build çıktılarını temizle (macOS)
+        run: rm -rf packages/electron/dist-electron
+
       - name: Kurulum dosyaları üret (macOS)
         run: npm run dist:mac
         env:
@@ -136,6 +139,9 @@ jobs:
 
       - name: client workspace'ı derle
         run: npm run build --workspace=@oto-servis/client
+
+      - name: Önceki build çıktılarını temizle (Windows)
+        run: rm -rf packages/electron/dist-electron
 
       # build:desktop + izole staging + electron-builder (NSIS .exe)
       - name: Kurulum dosyası üret (Windows)
