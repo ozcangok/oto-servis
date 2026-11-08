@@ -65,16 +65,14 @@ jobs:
       - name: Node.js kur
         uses: actions/setup-node@v4
         with:
-          node-version: '22.x'
+          node-version: '20'
           cache: 'npm'
 
-      - name: Corepack etkinleştir
-        run: corepack enable
-
-      - name: Bağımlılıkları kur (kök)
+      - name: Bağımlılıkları kur
         run: npm install
 
-      - name: Tüm workspace'ları derle (shared + server + client)
+      # Tüm workspace'ları derle (shared + server + client)
+      - name: Workspace'ları derle
         run: npm run build --workspaces --if-present
 
       # build:desktop + izole staging + electron-builder (arm64 & x64)
@@ -107,27 +105,26 @@ jobs:
       - name: Node.js kur
         uses: actions/setup-node@v4
         with:
-          node-version: '22.x'
+          node-version: '20'
           cache: 'npm'
-
-      - name: Corepack etkinleştir
-        run: corepack enable
 
       # Windows'ta native modül (better-sqlite3) ve NSIS derlemesi için
       # uzun yol desteğini etkinleştir.
       - name: Windows derleme ortamını hazırla
-        if: runner.os == 'Windows'
+        shell: bash
         run: |
           git config --system core.longpaths true
 
-      - name: Bağımlılıkları kur (kök)
+      - name: Bağımlılıkları kur
         run: npm install
 
-      - name: Tüm workspace'ları derle (shared + server + client)
+      # Tüm workspace'ları derle (shared + server + client)
+      - name: Workspace'ları derle
         run: npm run build --workspaces --if-present
 
       # build:desktop + izole staging + electron-builder (NSIS .exe)
       - name: Kurulum dosyası üret (Windows)
+        shell: bash
         run: npm run dist:win
         env:
           CSC_IDENTITY_AUTO_DISCOVERY: 'false'
