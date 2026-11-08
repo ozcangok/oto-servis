@@ -27,6 +27,16 @@ const LOGO_SVG = `
   </g>
 </svg>`;
 
+/** Kurumsal arka filigran SVG'i (PDF sayfalarının arkasında, saydam). */
+const WATERMARK_SVG = `
+<svg class="pdf-watermark" viewBox="0 0 600 400" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+  <text x="50%" y="50%" dominant-baseline="middle" text-anchor="middle"
+        font-family="'IBM Plex Sans', Arial, sans-serif" font-size="42" font-weight="900"
+        fill="#0f2a5c" opacity="0.06" letter-spacing="4px">
+    ÇINAR OTOMOTİV
+  </text>
+</svg>`;
+
 /** Kullanıcı verisini HTML'e güvenli biçimde basar (düzeni bozmasın). */
 function esc(s?: any): string {
   return String(s ?? '')
@@ -149,7 +159,7 @@ export function statementHTML(orders: any[], v: any, settings: any = {}, options
 
   const css = `
     @page{size:A4;margin:0}
-    #stmt{width:794px;min-height:1123px;box-sizing:border-box;background:#fff;color:#111827;font-family:"IBM Plex Sans",Arial,sans-serif;font-size:11.5px;line-height:1.4;display:flex;flex-direction:column;color-scheme:light}
+    #stmt{width:794px;min-height:1123px;box-sizing:border-box;background:#fff;color:#111827;font-family:"IBM Plex Sans",Arial,sans-serif;font-size:11.5px;line-height:1.4;display:flex;flex-direction:column;color-scheme:light;position:relative;overflow:hidden}
     #stmt *{box-sizing:border-box}
     #stmt .hd{display:grid;grid-template-columns:1.15fr .85fr;gap:24px;padding:26px 38px 18px;border-bottom:3px solid #0f2a5c}
     #stmt .hd-l{min-width:0;display:flex;flex-direction:column;justify-content:center}
@@ -206,12 +216,14 @@ export function statementHTML(orders: any[], v: any, settings: any = {}, options
     #stmt .sign-line{flex:1;border-bottom:1px dashed #9ca3af;margin:12px 0 5px;min-height:18px}
     #stmt .sign-box b{font-size:10.5px;color:#111827}
     #stmt .legal{margin-top:12px;padding-top:8px;border-top:1px solid #e5e7eb;text-align:center;font-style:italic;font-size:9px;color:#6b7280;line-height:1.4}
+    #stmt .pdf-watermark{position:absolute;top:50%;left:50%;transform:translate(-50%,-50%) rotate(-14deg);font-size:72px;font-weight:900;color:#0f2a5c;opacity:0.06;pointer-events:none;z-index:0;white-space:nowrap;mix-blend-mode:multiply}
     @media print{#stmt{width:210mm;min-height:297mm}}
   `;
 
   return `
     <style>${css}</style>
     <div id="stmt">
+      <div class="pdf-watermark">${esc('ÇINAR OTOMOTİV')}</div>
       <header class="hd">
         <div class="hd-l">
           <div class="doc-title">${esc(docTitle)}</div>
@@ -370,6 +382,18 @@ export async function exportStatementPDF(
         cx.fillStyle = '#fff';
         cx.fillRect(0, 0, c.width, c.height);
         cx.drawImage(canvas, 0, y, canvas.width, h, 0, 0, canvas.width, h);
+
+        // Kurumsal filigran her sayfada ortada, saydam
+        cx.save();
+        cx.globalAlpha = 0.06;
+        cx.fillStyle = '#0f2a5c';
+        cx.font = 'bold 64px sans-serif';
+        cx.textAlign = 'center';
+        cx.textBaseline = 'middle';
+        cx.translate(canvas.width / 2, h / 2);
+        cx.rotate(-0.25);
+        cx.fillText('ÇINAR OTOMOTİV', 0, 0);
+        cx.restore();
 
         if (!first) pdf.addPage();
         pdf.addImage(c.toDataURL('image/jpeg', 0.92), 'JPEG', 0, 0, pw, h * k);

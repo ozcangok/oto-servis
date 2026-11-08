@@ -10,11 +10,11 @@ export interface ProfileSwitcherProps {
 }
 
 /**
- * SAAS-grade hızlı profil geçişi.
+ * Kurumsal yetki geçiş bileşeni.
  *
  * Sol altta kullanıcı profil bölümü; tıklayıca popover açılır.
- * - Personel → Admin: "👑 Patron Moduna Geç" → şifre modalı → doğrulandıysa anlık geçiş
- * - Admin → Personel: "👤 Personel Moduna Geç" → anlık düşürme, finansal veriler temizlenir
+ * - Operasyonel → Yönetici: "Yönetici Yetkilendirmesi" → şifre modalı → doğrulandıysa anlık geçiş
+ * - Yönetici → Operasyonel: "Operasyonel Görünüm" → anlık düşürme, hassas veriler temizlenir
  * - Her iki durumda da sayfa yenilenmez.
  */
 export const ProfileSwitcher: React.FC<ProfileSwitcherProps> = ({ theme, setTheme }) => {
@@ -33,10 +33,10 @@ export const ProfileSwitcher: React.FC<ProfileSwitcherProps> = ({ theme, setThem
         setPopoverOpen(false);
         setPasswordModalOpen(false);
       } else {
-        setSwitchError('Hatalı patron şifresi. Lütfen tekrar deneyin.');
+        setSwitchError('Hatalı yönetici şifresi. Lütfen tekrar deneyin.');
       }
     } catch {
-      setSwitchError('Patron moda geçiş sırasında hata oluştu.');
+      setSwitchError('Yönetici yetkilendirme işlemi sırasında hata oluştu.');
     } finally {
       setSwitching(false);
     }
@@ -50,10 +50,10 @@ export const ProfileSwitcher: React.FC<ProfileSwitcherProps> = ({ theme, setThem
       if (ok) {
         setPopoverOpen(false);
       } else {
-        setSwitchError('Personel moda geçiş sırasında hata oluştu.');
+        setSwitchError('Operasyonel görünüm geçişi sırasında hata oluştu.');
       }
     } catch {
-      setSwitchError('Personel moda geçiş sırasında hata oluştu.');
+      setSwitchError('Operasyonel görünüm geçişi sırasında hata oluştu.');
     } finally {
       setSwitching(false);
     }
@@ -108,12 +108,12 @@ export const ProfileSwitcher: React.FC<ProfileSwitcherProps> = ({ theme, setThem
                 setPasswordModalOpen(true);
               }} style={{ cursor: 'pointer' }}>
                 <Lock size={16} strokeWidth={1.75} aria-hidden="true" />
-                <span>👑 Patron Moduna Geç</span>
+                <span>Yönetici Yetkilendirmesi (Admin Authorization)</span>
               </div>
             ) : (
               <div className="popover-row btn-row warn" onClick={handleSwitchToStaff} style={{ cursor: 'pointer' }}>
                 <User size={16} strokeWidth={1.75} aria-hidden="true" />
-                <span>👤 Personel Moduna Geç</span>
+                <span>Operasyonel Görünüm (Staff Terminal)</span>
               </div>
             )}
             <div className="popover-divider" />
@@ -136,24 +136,24 @@ export const ProfileSwitcher: React.FC<ProfileSwitcherProps> = ({ theme, setThem
         </div>
       )}
 
-      {/* Patron şifre modalı (Staff → Admin) */}
+      {/* Kurumsal yönetici doğrulama modalı (Operasyonel → Yönetici) */}
       {passwordModalOpen && (
         <div className="profile-popover backdrop">
           <div className="popover-section modal-card">
             <div className="modal-header">
               <Lock size={20} strokeWidth={2} aria-hidden="true" />
-              <span>Patron Modu Şifresi</span>
+              <span>Kurumsal Yönetici Doğrulaması</span>
             </div>
             <p className="modal-hint">
-              Şu anki personel oturumundan patron (admin) moda geçmek için patron şifresini girin.
+              Yetkili servis yönetim paneline geçiş yapmak için yönetici şifrenizi girin.
             </p>
             <div className="modal-field">
-              <label>Patron Şifresi</label>
+              <label>Yönetici Şifresi</label>
               <input
                 id="admin-password-input"
                 type="password"
                 autoComplete="current-password"
-                placeholder="Patron şifresi"
+                placeholder="Yönetici şifresi"
                 className={switchError ? 'input-error' : ''}
                 onKeyDown={(e) => {
                   if (e.key === 'Enter') {
@@ -176,7 +176,7 @@ export const ProfileSwitcher: React.FC<ProfileSwitcherProps> = ({ theme, setThem
                 }}
                 disabled={switching}
               >
-                {switching ? 'Doğrulanıyor...' : 'Geçiş Yap'}
+                {switching ? 'Doğrulanıyor...' : 'Yetkilendirmeyi Onayla'}
               </button>
             </div>
           </div>
