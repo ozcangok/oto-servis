@@ -1267,13 +1267,19 @@ button.li:hover{background:var(--surface-subtle)}
 }
 .profile-popover.backdrop .modal-card{
   position:relative;
-  width:min(340px,85vw);
+  width:min(340px,92vw);
+  max-height:min(90vh,520px);
+  overflow-y:auto;
   background:var(--surface);
   border:1px solid var(--border-card);
   border-radius:14px;
   padding:20px;
   box-shadow:0 24px 80px -16px rgba(0,0,0,.5);
   animation:popIn .22s ease;
+  /* Explicitly center within the fixed backdrop flex container */
+  align-self:center;
+  justify-self:center;
+  text-align:center;
 }
 
 .popover-section{display:flex;flex-direction:column;gap:2px}
