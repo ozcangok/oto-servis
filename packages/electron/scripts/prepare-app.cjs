@@ -128,8 +128,21 @@ copy(path.join(sharedDir, 'package.json'), path.join(staging, 'packages', 'share
 // ---------------------------------------------------------------------------
 const sharedInModules = path.join(staging, 'node_modules', WORKSPACE_SCOPE, 'shared');
 fs.mkdirSync(sharedInModules, { recursive: true });
-copy(path.join(sharedDir, 'dist'), path.join(sharedInModules, 'dist'));
+
+const sharedDist = path.join(sharedDir, 'dist');
+if (!fs.existsSync(sharedDist)) {
+  fail(`shared dist klasörü bulunamadı: ${sharedDist}. Önce "npm run build --workspace=@oto-servis/shared" çalıştırın.`);
+}
+
+copy(path.join(sharedDist), path.join(sharedInModules, 'dist'));
 copy(path.join(sharedDir, 'package.json'), path.join(sharedInModules, 'package.json'));
+
+// Kopyalama doğrulaması
+const sharedMain = path.join(sharedInModules, 'dist', 'index.js');
+if (!fs.existsSync(sharedMain)) {
+  fail(`shared main dosyası kopyalanamadı: ${sharedMain}`);
+}
+log(`@oto-servis/shared kopyalandı: ${sharedInModules}`);
 
 // ---------------------------------------------------------------------------
 // 4) Sunucunun üretim bağımlılık kapanışı → dist-app/node_modules
