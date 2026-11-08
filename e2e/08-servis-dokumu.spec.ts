@@ -134,8 +134,8 @@ test.describe('7) Kurumsal Servis Dökümü (PDF) — şablon & tasarım', () =>
 
     // Sağa hizalı özet paneli
     expect(html).toContain('summary');
-    expect(html).toContain('Ara Toplam (KDV Hariç)');
-    expect(html).toContain('KDV (%20)');
+    expect(html).toContain('Ara Toplam');
+    expect(html).toContain('%20 KDV');
     expect(html).toContain('GENEL TOPLAM');
 
     // Yasal uyarı + çift imza/kaşe bloğu

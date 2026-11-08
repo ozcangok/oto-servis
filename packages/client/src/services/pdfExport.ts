@@ -6,11 +6,11 @@ import { dateISO, fdate, money, numfmt, formatPlateDisplay, toast, todayISO } fr
  *
  * Lüks yetkili servis (Mercedes/BMW) referans şablonu:
  *  - Sol üstte dairesel, metalik kırmızı kurumsal amblem + ÇINAR OTOMOTİV
- *  - Sağ üstte koyu lacivert "İŞ EMRİ / TEKLİF FORMU" bandı, belge no ve tarih
- *  - Üç sütunlu üst gövde: MÜŞTERİ | ARAÇ | vektörel inceleme şeması
+ *  - Sağ üstte sade siyah "İŞ EMRİ / TEKLİF FORMU" başlığı, belge no ve tarih
+ *  - Üç sütunlu üst gövde: MÜŞTERİ | ARAÇ | üç görünümlü teknik kroki
  *  - KOD | AÇIKLAMA | TÜR | MİKTAR | BİRİM FİYAT | TUTAR matrisi (yatay çizgiler)
- *  - Sağa hizalı Ara Toplam / KDV / GENEL TOPLAM (lacivert blok)
- *  - Garanti beyanı + simetrik çift imza/kaşe blokları
+ *  - Sağa hizalı Ara Toplam / KDV / GENEL TOPLAM (siyah blok)
+ *  - Garanti beyanı solda + simetrik çift imza/kaşe blokları sağda
  *  - Tüm sayfada %6 opaklık "ÇINAR OTOMOTİV" filigranı
  *
  * Tüm şirket kimliği `settings` parametresinden gelir.
@@ -52,51 +52,76 @@ const LOGO_SVG = `
 </svg>`;
 
 /**
- * Vektörel araç inceleme şeması — üstten görünüm.
- * İnce, koyu-slate çizgiler (stroke #334155, 1px) ile resmi servis ızgarası.
+ * Referans şablondaki teknik kroki dili: ince siyah çizgiler, beyaz gövde,
+ * gri detay çizgileri ve köşe ölçü noktaları. Üç ayrı görünüm kullanılır.
  */
 const BLUEPRINT_PLAN_SVG = `
 <svg class="inspect-svg" viewBox="0 0 300 110" width="300" height="110" preserveAspectRatio="xMidYMid meet" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
-  <g stroke="#e2e8f0" stroke-width="0.75" fill="none">
-    <line x1="0" y1="55" x2="300" y2="55" stroke-dasharray="3 4"/>
-    <line x1="150" y1="0" x2="150" y2="110" stroke-dasharray="3 4"/>
+  <g stroke="#111827" stroke-width="0.9" fill="#ffffff" stroke-linejoin="round" stroke-linecap="round">
+    <path d="M58 55 C58 42 65 33 80 30 L204 30 C234 32 264 42 276 55 C264 68 234 78 204 80 L80 80 C65 77 58 68 58 55 Z"/>
+    <path d="M118 31 C108 43 108 67 118 79" fill="none" stroke="#6b7280"/>
+    <path d="M220 31 C230 43 230 67 220 79" fill="none" stroke="#6b7280"/>
+    <rect x="142" y="38" width="54" height="34" rx="4" fill="none" stroke="#6b7280"/>
+    <rect x="106" y="24" width="12" height="6" rx="2"/>
+    <rect x="106" y="80" width="12" height="6" rx="2"/>
+    <rect x="84" y="23" width="20" height="7" rx="2"/>
+    <rect x="84" y="80" width="20" height="7" rx="2"/>
+    <rect x="194" y="23" width="20" height="7" rx="2"/>
+    <rect x="194" y="80" width="20" height="7" rx="2"/>
+    <path d="M262 48 L274 51 M262 62 L274 59" fill="none" stroke="#9ca3af"/>
+    <path d="M270 55 L280 55" fill="none" stroke="#9ca3af"/>
+    <path d="M64 44 L72 44 M64 66 L72 66" fill="none" stroke="#9ca3af"/>
   </g>
-  <g stroke="#334155" stroke-width="1" fill="none" stroke-linejoin="round" stroke-linecap="round">
-    <path d="M 60 55 C 60 42 66 34 80 31 L 206 31 C 236 33 266 42 276 55 C 266 68 236 77 206 79 L 80 79 C 66 76 60 68 60 55 Z" fill="#ffffff"/>
-    <path d="M 222 33 C 232 44 232 66 222 77" stroke="#94a3b8"/>
-    <path d="M 118 33 C 108 44 108 66 118 77" stroke="#94a3b8"/>
-    <path d="M 118 33 L 222 33" stroke="#cbd5e1"/>
-    <path d="M 118 77 L 222 77" stroke="#cbd5e1"/>
-    <rect x="150" y="43" width="40" height="24" rx="3" stroke="#cbd5e1"/>
-    <rect x="222" y="25" width="14" height="6" rx="2"/>
-    <rect x="222" y="79" width="14" height="6" rx="2"/>
+  <g fill="#111827">
+    <circle cx="18" cy="18" r="1.4"/><circle cx="282" cy="18" r="1.4"/>
+    <circle cx="18" cy="92" r="1.4"/><circle cx="282" cy="92" r="1.4"/>
   </g>
 </svg>`;
 
-/**
- * Vektörel araç inceleme şeması — yandan görünüm.
- * Modern sedan silueti; tekerlek boşlukları gövde dolgusundan oyulmuştur.
- */
 const BLUEPRINT_SIDE_SVG = `
 <svg class="inspect-svg" viewBox="0 0 300 110" width="300" height="110" preserveAspectRatio="xMidYMid meet" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
-  <g stroke="#e2e8f0" stroke-width="0.75" fill="none">
-    <line x1="0" y1="86" x2="300" y2="86" stroke-dasharray="3 4"/>
-    <line x1="150" y1="0" x2="150" y2="110" stroke-dasharray="3 4"/>
+  <g stroke="#111827" stroke-width="0.9" fill="#ffffff" stroke-linejoin="round" stroke-linecap="round">
+    <circle cx="92" cy="84" r="16"/>
+    <circle cx="92" cy="84" r="7" fill="none"/>
+    <circle cx="226" cy="84" r="16"/>
+    <circle cx="226" cy="84" r="7" fill="none"/>
+    <path d="M22 84 L22 72 Q22 64 34 62 L70 57 L104 36 Q110 31 120 31 L190 31 Q200 31 206 38 L238 60 L278 64 Q292 66 292 76 L292 84 L242 84 C242 74 234 68 226 68 C218 68 210 74 210 84 L108 84 C108 74 100 68 92 68 C84 68 76 74 76 84 Z"/>
+    <path d="M110 37 L146 37 L146 56 L110 56 Z" fill="none" stroke="#6b7280"/>
+    <path d="M152 37 L188 37 L208 56 L152 56 Z" fill="none" stroke="#6b7280"/>
+    <path d="M146 56 L146 82" fill="none" stroke="#9ca3af"/>
+    <path d="M208 56 L208 82" fill="none" stroke="#9ca3af"/>
+    <path d="M124 62 L136 62 M164 62 L176 62" fill="none" stroke="#9ca3af"/>
+    <path d="M28 72 L44 72 M282 72 L292 72" fill="none" stroke="#9ca3af"/>
+    <path d="M236 64 L246 64" fill="none" stroke="#9ca3af"/>
   </g>
-  <g stroke="#334155" stroke-width="1" fill="#ffffff">
-    <circle cx="92" cy="86" r="15"/>
-    <circle cx="92" cy="86" r="6"/>
-    <circle cx="226" cy="86" r="15"/>
-    <circle cx="226" cy="86" r="6"/>
+  <g fill="#111827">
+    <circle cx="18" cy="18" r="1.4"/><circle cx="282" cy="18" r="1.4"/>
+    <circle cx="18" cy="98" r="1.4"/><circle cx="282" cy="98" r="1.4"/>
   </g>
-  <g stroke="#334155" stroke-width="1" fill="none" stroke-linejoin="round" stroke-linecap="round">
-    <path d="M 22 86 L 22 74 Q 22 66 34 64 L 70 59 L 104 38 Q 110 33 120 33 L 190 33 Q 200 33 206 40 L 238 62 L 278 66 Q 292 68 292 78 L 292 86 L 242 86 C 242 76 234 70 226 70 C 218 70 210 76 210 86 L 108 86 C 108 76 100 70 92 70 C 84 70 76 76 76 86 Z" fill="#ffffff"/>
-    <path d="M 110 39 L 146 39 L 146 58 L 110 58 Z" stroke="#94a3b8"/>
-    <path d="M 152 39 L 188 39 L 208 58 L 152 58 Z" stroke="#94a3b8"/>
-    <path d="M 146 58 L 146 84" stroke="#94a3b8"/>
-    <path d="M 208 58 L 208 84" stroke="#94a3b8"/>
-    <path d="M 124 64 L 136 64" stroke="#94a3b8"/>
-    <path d="M 164 64 L 176 64" stroke="#94a3b8"/>
+</svg>`;
+
+const BLUEPRINT_PLAN_LARGE_SVG = `
+<svg class="inspect-svg" viewBox="0 0 300 110" width="300" height="110" preserveAspectRatio="xMidYMid meet" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+  <g stroke="#111827" stroke-width="0.9" fill="#ffffff" stroke-linejoin="round" stroke-linecap="round">
+    <path d="M52 55 C52 40 60 30 76 27 L208 27 C240 30 270 40 282 55 C270 70 240 80 208 83 L76 83 C60 80 52 70 52 55 Z"/>
+    <path d="M220 30 C230 42 230 68 220 80" fill="none" stroke="#6b7280"/>
+    <path d="M232 32 L258 36 M232 78 L258 74" fill="none" stroke="#9ca3af"/>
+    <path d="M116 28 C106 41 106 69 116 82" fill="none" stroke="#6b7280"/>
+    <rect x="140" y="36" width="62" height="38" rx="5" fill="none" stroke="#6b7280"/>
+    <path d="M208 28 C218 41 218 69 208 82" fill="none" stroke="#6b7280"/>
+    <rect x="102" y="20" width="14" height="7" rx="2"/>
+    <rect x="102" y="83" width="14" height="7" rx="2"/>
+    <rect x="78" y="19" width="22" height="8" rx="2"/>
+    <rect x="78" y="83" width="22" height="8" rx="2"/>
+    <rect x="194" y="19" width="22" height="8" rx="2"/>
+    <rect x="194" y="83" width="22" height="8" rx="2"/>
+    <path d="M266 46 L280 49 M266 64 L280 61" fill="none" stroke="#9ca3af"/>
+    <path d="M274 55 L286 55" fill="none" stroke="#9ca3af"/>
+    <path d="M42 18 L42 92 M38 18 L46 18 M38 92 L46 92" fill="none" stroke="#d1d5db" stroke-dasharray="2 3"/>
+  </g>
+  <g fill="#111827">
+    <circle cx="14" cy="14" r="1.4"/><circle cx="286" cy="14" r="1.4"/>
+    <circle cx="14" cy="96" r="1.4"/><circle cx="286" cy="96" r="1.4"/>
   </g>
 </svg>`;
 
@@ -228,24 +253,24 @@ export function statementHTML(orders: any[], v: any, settings: any = {}, options
     #stmt *{box-sizing:border-box}
 
     /* Filigran — %6, ortada, içeriğin arkasında (baskı/HTML için) */
-    #stmt .watermark{position:absolute;top:50%;left:50%;transform:translate(-50%,-50%) rotate(-15deg);font-size:62px;letter-spacing:6px;font-weight:900;color:#0f2a5c;opacity:0.06;pointer-events:none;z-index:0;white-space:nowrap;mix-blend-mode:multiply}
+    #stmt .watermark{position:absolute;top:50%;left:50%;transform:translate(-50%,-50%) rotate(-15deg);font-size:62px;letter-spacing:6px;font-weight:900;color:#111827;opacity:0.06;pointer-events:none;z-index:0;white-space:nowrap;mix-blend-mode:multiply}
 
-    /* Başlık */
-    #stmt .header{position:relative;z-index:1;padding:20px 30px 16px;border-bottom:3px solid #0f2a5c;margin-bottom:14px}
+    /* Başlık — referans: sade, siyah, kondanse tipografi */
+    #stmt .header{position:relative;z-index:1;padding:20px 30px 16px;border-bottom:2px solid #111827;margin-bottom:14px}
     #stmt .header-top{display:table;width:100%}
     #stmt .header-left{display:table-cell;vertical-align:middle;width:58%}
     #stmt .header-right{display:table-cell;vertical-align:middle;width:42%;text-align:right}
     #stmt .logo-lockup{display:table;width:100%}
     #stmt .logo-cell{display:table-cell;width:70px;vertical-align:middle}
     #stmt .brand-cell{display:table-cell;vertical-align:middle;padding-left:12px}
-    #stmt .logo-company{font-size:20px;font-weight:900;color:#0f2a5c;letter-spacing:1.2px;text-transform:uppercase;line-height:1.15}
+    #stmt .logo-company{font-family:"IBM Plex Sans Condensed","Arial Narrow",sans-serif;font-size:23px;font-weight:700;color:#111827;letter-spacing:.01em;text-transform:uppercase;line-height:1.05}
     #stmt .company-sub{font-size:10px;color:#4b5563;margin-top:2px;letter-spacing:.02em}
-    #stmt .company-addr{font-size:9.5px;color:#4b5563;margin-top:4px}
-    #stmt .doc-banner{display:block;width:100%;background:#0f2a5c;color:#fff;border-radius:6px;padding:12px 16px;text-align:right;border-bottom:3px solid #d42127}
-    #stmt .doc-title{font-size:15px;font-weight:900;color:#fff;text-transform:uppercase;letter-spacing:1px;line-height:1.2}
-    #stmt .doc-meta{font-size:9px;color:#cbd5e1;margin-top:6px}
+    #stmt .company-addr{font-size:9.5px;color:#4b5563;margin-top:3px}
+    #stmt .doc-banner{display:block;width:100%;text-align:right;padding:0}
+    #stmt .doc-title{font-family:"IBM Plex Sans Condensed","Arial Narrow",sans-serif;font-size:21px;font-weight:700;color:#111827;text-transform:uppercase;letter-spacing:.03em;line-height:1.1}
+    #stmt .doc-meta{font-size:9px;color:#374151;margin-top:6px}
     #stmt .doc-meta div{margin-bottom:2px}
-    #stmt .doc-meta strong{color:#e2e8f0}
+    #stmt .doc-meta strong{color:#111827;font-weight:700}
 
     /* Üç sütunlu bilgi ızgarası: Müşteri | Araç | İnceleme şeması */
     #stmt .info-grid{display:table;width:100%;margin-bottom:14px;border-collapse:separate;border-spacing:8px 0}
@@ -253,62 +278,64 @@ export function statementHTML(orders: any[], v: any, settings: any = {}, options
     #stmt .info-col.customer{width:31%}
     #stmt .info-col.vehicle{width:35%}
     #stmt .info-col.blueprint-col{width:34%}
-    #stmt .info-box{min-height:200px;border:1px solid #d1d5db;border-radius:6px;overflow:hidden;background:#F4F6F8}
-    #stmt .info-head{background:#e6edf5;color:#1e3a5c;font-size:8.5px;font-weight:800;letter-spacing:.08em;text-transform:uppercase;padding:8px 12px;border-bottom:1px solid #cfd8e3}
+    #stmt .info-box{min-height:200px;border:1px solid #c9d0d8;border-radius:5px;overflow:hidden;background:#F4F6F8}
+    #stmt .info-head{background:#E9EDF2;color:#111827;font-family:"IBM Plex Sans Condensed","Arial Narrow",sans-serif;font-size:9px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;padding:8px 12px;border-bottom:1px solid #c9d0d8}
     #stmt .info-body{padding:11px 12px;font-size:10px;background:#F4F6F8}
     #stmt .info-row{display:table;width:100%;margin-bottom:6px;border-bottom:1px solid #e2e8f0}
     #stmt .info-row:last-child{border-bottom:none}
-    #stmt .info-label{display:table-cell;width:42%;font-size:8px;font-weight:700;color:#64748b;text-transform:uppercase;letter-spacing:.05em;padding-top:1px}
-    #stmt .info-value{display:table-cell;width:58%;font-size:9.5px;color:#0f172a;font-weight:600}
+    #stmt .info-label{display:table-cell;width:42%;font-size:8px;font-weight:700;color:#6b7280;text-transform:uppercase;letter-spacing:.05em;padding-top:1px}
+    #stmt .info-value{display:table-cell;width:58%;font-size:9.5px;color:#111827;font-weight:600}
     #stmt .blueprint-box{background:#ffffff}
-    #stmt .blueprint-body{padding:8px 8px 6px;background:#ffffff}
-    #stmt .blueprint-view{text-align:center;margin-bottom:4px}
-    #stmt .blueprint-view:last-child{margin-bottom:0}
-    #stmt .inspect-svg{display:block;width:190px;height:65px;margin:0 auto}
-    #stmt .inspect-cap{font-size:7px;font-weight:700;color:#64748b;text-transform:uppercase;letter-spacing:.08em;margin-top:1px}
+    #stmt .blueprint-body{padding:10px 8px 8px;background:#ffffff}
+    #stmt .bp-row{display:table;width:100%;table-layout:fixed;margin-bottom:2px}
+    #stmt .bp-cell{display:table-cell;width:50%;text-align:center;vertical-align:top;padding:0 2px}
+    #stmt .bp-large{text-align:center;margin-top:2px}
+    #stmt .inspect-svg{display:block;margin:0 auto}
+    #stmt .bp-cell .inspect-svg{width:112px;height:52px}
+    #stmt .bp-large .inspect-svg{width:220px;height:70px}
+    #stmt .inspect-cap{font-family:"IBM Plex Sans Condensed","Arial Narrow",sans-serif;font-size:7px;font-weight:700;color:#6b7280;text-transform:uppercase;letter-spacing:.08em;margin-top:1px}
 
-    /* Ürün/işlem matrisi — yalnızca yatay çizgiler + zebra satırlar */
+    /* Ürün/işlem matrisi — yalnızca yatay çizgiler */
     #stmt .items-table{width:100%;border-collapse:collapse;margin-bottom:14px}
-    #stmt .items-table th{background:#e6edf5;color:#1e3a5c;font-size:8px;font-weight:800;text-transform:uppercase;letter-spacing:.07em;padding:8px 10px;border-bottom:1px solid #cbd5e1;text-align:left}
+    #stmt .items-table th{background:#F4F6F8;color:#111827;font-family:"IBM Plex Sans Condensed","Arial Narrow",sans-serif;font-size:8.5px;font-weight:700;text-transform:uppercase;letter-spacing:.07em;padding:8px 10px;border-top:1px solid #111827;border-bottom:1px solid #111827;text-align:left}
     #stmt .items-table th.num{text-align:right}
-    #stmt .items-table td{padding:8px 10px;border-bottom:1px solid #e5e7eb;vertical-align:top;font-size:9.5px}
+    #stmt .items-table td{padding:8px 10px;border-bottom:1px solid #d1d5db;vertical-align:top;font-size:9.5px}
     #stmt .items-table td.num{text-align:right;font-variant-numeric:tabular-nums}
-    #stmt .items-table tr:nth-child(even) td{background:#f8fafc}
-    #stmt .items-table td.code{font-size:8.5px;color:#64748b;font-weight:700;font-variant-numeric:tabular-nums}
-    #stmt .rtag{display:inline-block;font-size:7.5px;font-weight:800;padding:1.5px 6px;border-radius:3px;text-transform:uppercase;letter-spacing:.03em}
-    #stmt .tag-part{background:#e8eefc;color:#1e3a8a}
-    #stmt .tag-labor{background:#e7f6ec;color:#166534}
+    #stmt .items-table td.code{font-size:8.5px;color:#4b5563;font-weight:700;font-variant-numeric:tabular-nums}
+    #stmt .rtag{display:inline-block;font-size:7.5px;font-weight:700;padding:1.5px 6px;border-radius:3px;text-transform:uppercase;letter-spacing:.03em;background:#f3f4f6;color:#111827;border:1px solid #e5e7eb}
+    #stmt .tag-part{background:#f3f4f6;color:#111827}
+    #stmt .tag-labor{background:#f3f4f6;color:#111827}
     #stmt .item{font-weight:600;color:#111827}
     #stmt .item-meta{font-size:8px;color:#6b7280;margin-top:2px;line-height:1.3}
 
     /* Finansal toplamlar — sağa hizalı blok */
     #stmt .totals-wrap{display:table;width:100%;margin-bottom:14px}
-    #stmt .totals-left{display:table-cell;width:56%;vertical-align:bottom}
-    #stmt .totals-summary{display:table-cell;width:44%;vertical-align:bottom}
-    #stmt .pay-box{display:block;width:220px;border:1px solid #e2e8f0;border-radius:6px;padding:8px 12px;background:#f8fafc;text-align:left}
-    #stmt .pay-title{font-size:7.5px;font-weight:800;color:#64748b;text-transform:uppercase;letter-spacing:.08em;margin-bottom:4px}
-    #stmt .pay-row{display:table;width:100%;font-size:9px;color:#475569;margin-top:2px}
+    #stmt .totals-left{display:table-cell;width:60%;vertical-align:bottom}
+    #stmt .totals-summary{display:table-cell;width:40%;vertical-align:bottom}
+    #stmt .pay-box{display:block;width:220px;border:1px solid #e5e7eb;border-radius:5px;padding:8px 12px;background:#f9fafb;text-align:left}
+    #stmt .pay-title{font-family:"IBM Plex Sans Condensed","Arial Narrow",sans-serif;font-size:7.5px;font-weight:700;color:#6b7280;text-transform:uppercase;letter-spacing:.08em;margin-bottom:4px}
+    #stmt .pay-row{display:table;width:100%;font-size:9px;color:#4b5563;margin-top:2px}
     #stmt .pay-row span{display:table-cell}
-    #stmt .pay-row b{display:table-cell;text-align:right;color:#0f172a}
+    #stmt .pay-row b{display:table-cell;text-align:right;color:#111827}
     #stmt .total-row{display:table;width:100%;border-bottom:1px solid #e5e7eb}
-    #stmt .total-label{display:table-cell;padding:6px 12px;font-size:9.5px;color:#4b5563}
+    #stmt .total-label{display:table-cell;padding:6px 12px;font-size:9.5px;color:#374151}
     #stmt .total-value{display:table-cell;padding:6px 12px;text-align:right;font-size:10.5px;font-weight:700;color:#111827;font-variant-numeric:tabular-nums}
-    #stmt .grand-row{background:#0f2a5c;color:#fff;border-radius:6px;margin-top:6px}
+    #stmt .grand-row{background:#111827;color:#fff;border-radius:4px;margin-top:6px}
     #stmt .grand-inner{display:table;width:100%}
-    #stmt .grand-label{display:table-cell;padding:11px 12px;vertical-align:middle;color:#dbe4f5;font-size:9.5px;text-transform:uppercase;letter-spacing:.06em;font-weight:800}
-    #stmt .grand-value{display:table-cell;padding:11px 12px;vertical-align:middle;text-align:right;color:#fff;font-size:16px;font-weight:900;font-variant-numeric:tabular-nums}
+    #stmt .grand-label{display:table-cell;padding:11px 12px;vertical-align:middle;color:#e5e7eb;font-family:"IBM Plex Sans Condensed","Arial Narrow",sans-serif;font-size:9.5px;text-transform:uppercase;letter-spacing:.06em;font-weight:700}
+    #stmt .grand-value{display:table-cell;padding:11px 12px;vertical-align:middle;text-align:right;color:#fff;font-size:16px;font-weight:700;font-variant-numeric:tabular-nums}
 
-    /* Alt kısım */
-    #stmt .warranty{font-size:9px;color:#4b5563;margin-bottom:16px;line-height:1.5;font-style:italic}
-    #stmt .signature-wrap{display:table;width:100%}
-    #stmt .sig-col{display:table-cell;width:50%;vertical-align:top}
-    #stmt .sig-col.left{padding-right:6px}
-    #stmt .sig-col.right{padding-left:6px}
-    #stmt .sig-box{border:1px solid #d1d5db;border-radius:6px;padding:12px;min-height:76px;display:flex;flex-direction:column;justify-content:flex-end}
-    #stmt .sig-label{font-size:8px;font-weight:700;color:#64748b;text-transform:uppercase;letter-spacing:.06em;margin-bottom:14px;line-height:1.35}
-    #stmt .sig-line{flex:1;border-bottom:1px dashed #9ca3af;margin-bottom:7px}
-    #stmt .sig-name{font-size:10px;color:#111827;font-weight:600}
-    #stmt .legal{margin-top:20px;padding-top:12px;border-top:1px solid #e5e7eb;text-align:center;font-style:italic;font-size:9px;color:#6b7280;line-height:1.4}
+    /* Alt kısım — garanti metni solda, imza blokları sağda */
+    #stmt .footer-grid{display:table;width:100%;margin-top:16px}
+    #stmt .warranty-col{display:table-cell;width:42%;vertical-align:top;padding-right:14px}
+    #stmt .warranty{font-size:8.5px;color:#4b5563;line-height:1.5;font-style:italic}
+    #stmt .sig-col{display:table-cell;width:29%;vertical-align:top;padding-left:6px}
+    #stmt .sig-col.right{padding-left:12px}
+    #stmt .sig-box{border:1px solid #c9d0d8;border-radius:4px;padding:10px;min-height:72px;display:flex;flex-direction:column;justify-content:flex-end}
+    #stmt .sig-label{font-family:"IBM Plex Sans Condensed","Arial Narrow",sans-serif;font-size:8px;font-weight:700;color:#4b5563;text-transform:uppercase;letter-spacing:.05em;margin-bottom:14px;line-height:1.35}
+    #stmt .sig-line{flex:1;border-bottom:1px dashed #9ca3af;margin-bottom:6px}
+    #stmt .sig-name{font-size:9.5px;color:#111827;font-weight:600}
+    #stmt .legal{margin-top:14px;padding-top:10px;border-top:1px solid #e5e7eb;text-align:center;font-style:italic;font-size:8.5px;color:#6b7280;line-height:1.4}
     #stmt .page-footer{position:absolute;left:0;right:0;bottom:0;border-top:1px solid #e5e7eb;padding:9px 30px 14px}
     #stmt .pf-inner{display:table;width:100%;font-size:7.5px;color:#6b7280}
     #stmt .pf-left{display:table-cell;font-weight:700;color:#374151}
@@ -377,8 +404,11 @@ export function statementHTML(orders: any[], v: any, settings: any = {}, options
           <div class="info-box blueprint-box">
             <div class="info-head">ARAÇ İNCELEME ŞEMASI</div>
             <div class="blueprint-body">
-              <div class="blueprint-view">${BLUEPRINT_PLAN_SVG}<div class="inspect-cap">Üstten Görünüm</div></div>
-              <div class="blueprint-view">${BLUEPRINT_SIDE_SVG}<div class="inspect-cap">Yandan Görünüm</div></div>
+              <div class="bp-row">
+                <div class="bp-cell">${BLUEPRINT_PLAN_SVG}<div class="inspect-cap">Üstten Görünüm</div></div>
+                <div class="bp-cell">${BLUEPRINT_SIDE_SVG}<div class="inspect-cap">Yandan Görünüm</div></div>
+              </div>
+              <div class="bp-large">${BLUEPRINT_PLAN_LARGE_SVG}<div class="inspect-cap">Detaylı Görünüm</div></div>
             </div>
           </div>
         </div>
@@ -407,15 +437,16 @@ export function statementHTML(orders: any[], v: any, settings: any = {}, options
           </div>` : ''}
         </div>
         <div class="totals-summary">
-          <div class="total-row"><div class="total-inner"><span class="total-label">Ara Toplam (KDV Hariç)</span><span class="total-value">${money(tnet, false)}</span></div></div>
-          <div class="total-row"><div class="total-inner"><span class="total-label">KDV (%${numfmt(vatRateLabel)})</span><span class="total-value">${money(vatTotal, false)}</span></div></div>
-          <div class="grand-row"><div class="grand-inner"><span class="grand-label">GENEL TOPLAM</span><span class="grand-value">${money(grandTotal, false)}</span></div></div>
+          <div class="total-row"><div class="total-inner"><span class="total-label">Ara Toplam:</span><span class="total-value">${money(tnet, false)}</span></div></div>
+          <div class="total-row"><div class="total-inner"><span class="total-label">%${numfmt(vatRateLabel)} KDV:</span><span class="total-value">${money(vatTotal, false)}</span></div></div>
+          <div class="grand-row"><div class="grand-inner"><span class="grand-label">GENEL TOPLAM:</span><span class="grand-value">${money(grandTotal, false)}</span></div></div>
         </div>
       </div>
 
-      <div class="warranty">${esc(warrantyNote)}</div>
-
-      <div class="signature-wrap">
+      <div class="footer-grid">
+        <div class="warranty-col">
+          <div class="warranty">${esc(warrantyNote)}</div>
+        </div>
         <div class="sig-col left">
           <div class="sig-box">
             <span class="sig-label">Müşteri Teslim Onayı / İmza</span>
@@ -520,7 +551,7 @@ export async function exportStatementPDF(
         cx.save();
         cx.globalCompositeOperation = 'multiply';
         cx.globalAlpha = 0.06;
-        cx.fillStyle = '#0f2a5c';
+        cx.fillStyle = '#111827';
         cx.font = 'bold 64px sans-serif';
         (cx as any).letterSpacing = '6px';
         cx.textAlign = 'center';
