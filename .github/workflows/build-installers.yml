@@ -84,7 +84,10 @@ jobs:
 
       # build:desktop + izole staging + electron-builder (arm64 & x64)
       - name: Önceki build çıktılarını temizle (macOS)
-        run: rm -rf packages/electron/dist-electron
+        run: |
+          rm -rf packages/electron/dist-electron || true
+          rm -rf packages/electron/dist || true
+          find packages/electron -name "dist-electron" -type d -exec rm -rf {} + 2>/dev/null || true
 
       - name: Kurulum dosyaları üret (macOS)
         run: npm run dist:mac
@@ -141,7 +144,10 @@ jobs:
         run: npm run build --workspace=@oto-servis/client
 
       - name: Önceki build çıktılarını temizle (Windows)
-        run: rm -rf packages/electron/dist-electron
+        shell: bash
+        run: |
+          rm -rf packages/electron/dist-electron || true
+          rm -rf packages/electron/dist || true
 
       # build:desktop + izole staging + electron-builder (NSIS .exe)
       - name: Kurulum dosyası üret (Windows)
