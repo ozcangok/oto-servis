@@ -71,11 +71,14 @@ jobs:
       - name: Corepack etkinleştir
         run: corepack enable
 
-      - name: Bağımlılıkları kur
+      - name: Bağımlılıkları kur (kök)
         run: npm install
 
-      # build:desktop (shared + server + client) + izole staging + electron-builder
-      - name: Kurulum dosyaları üret
+      - name: Tüm workspace'ları derle (shared + server + client)
+        run: npm run build --workspaces --if-present
+
+      # build:desktop + izole staging + electron-builder (arm64 & x64)
+      - name: Kurulum dosyaları üret (macOS)
         run: npm run dist:mac
         env:
           CSC_IDENTITY_AUTO_DISCOVERY: 'false'
@@ -117,11 +120,14 @@ jobs:
         run: |
           git config --system core.longpaths true
 
-      - name: Bağımlılıkları kur
+      - name: Bağımlılıkları kur (kök)
         run: npm install
 
+      - name: Tüm workspace'ları derle (shared + server + client)
+        run: npm run build --workspaces --if-present
+
       # build:desktop + izole staging + electron-builder (NSIS .exe)
-      - name: Kurulum dosyası üret
+      - name: Kurulum dosyası üret (Windows)
         run: npm run dist:win
         env:
           CSC_IDENTITY_AUTO_DISCOVERY: 'false'
