@@ -65,18 +65,22 @@ jobs:
       - name: Node.js kur
         uses: actions/setup-node@v4
         with:
-          node-version: '20'
+          node-version: '20.x'
           cache: 'npm'
 
-      - name: Bağımlılıkları kur
-        run: npm ci
+      - name: Corepack etkinleştir
+        run: corepack enable
 
-      # build:desktop + izole staging + electron-builder (arm64 & x64)
+      - name: Bağımlılıkları kur
+        run: npm install
+
+      # build:desktop (shared + server + client) + izole staging + electron-builder
       - name: Kurulum dosyaları üret
         run: npm run dist:mac
         env:
           CSC_IDENTITY_AUTO_DISCOVERY: 'false'
           OTO_APP_VERSION: ${{ needs.prep.outputs.version }}
+          NODE_OPTIONS: --max-old-space-size=4096
 
       - name: Yükle (macOS)
         uses: actions/upload-artifact@v4
@@ -100,9 +104,14 @@ jobs:
       - name: Node.js kur
         uses: actions/setup-node@v4
         with:
-          node-version: '20'
+          node-version: '20.x'
           cache: 'npm'
 
+      - name: Corepack etkinleştir
+        run: corepack enable
+
+      # Windows'ta native modül (better-sqlite3) ve NSIS derlemesi için
+      # uzun yol desteği ve derleme ortamını etkinleştir.
       - name: Windows derleme ortamını hazırla
         if: runner.os == 'Windows'
         run: |
@@ -110,7 +119,7 @@ jobs:
           npm config set scripts-prepend-node-path true
 
       - name: Bağımlılıkları kur
-        run: npm ci
+        run: npm install
 
       # build:desktop + izole staging + electron-builder (NSIS .exe)
       - name: Kurulum dosyası üret
@@ -118,6 +127,7 @@ jobs:
         env:
           CSC_IDENTITY_AUTO_DISCOVERY: 'false'
           OTO_APP_VERSION: ${{ needs.prep.outputs.version }}
+          NODE_OPTIONS: --max-old-space-size=4096
 
       - name: Yükle (Windows)
         uses: actions/upload-artifact@v4
