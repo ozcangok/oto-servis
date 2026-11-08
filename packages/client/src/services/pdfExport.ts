@@ -49,13 +49,6 @@ const LOGO_SVG = `
   <ellipse cx="50" cy="30" rx="34" ry="20" fill="url(#cinarShine)"/>
 </svg>`;
 
-/**
- * Araç inceleme şeması artık AI tarafından çizilen SVG geometrisi yerine
- * harici `public/blueprint.png` görselinden gelir. Kullanıcı yüksek
- * çözünürlüklü, kurumsal krokiyi bu dizine bırakır; PDF motoru görseli
- * `max-height:180px` ve `object-fit:contain` ile ölçekler.
- */
-
 /** Kullanıcı verisini HTML'e güvenli biçimde basar. */
 function esc(s?: any): string {
   return String(s ?? '')
@@ -217,10 +210,9 @@ export function statementHTML(orders: any[], v: any, settings: any = {}, options
   // üretilir; uzun adlarda taşmayı önlemek için punto uzunluğa göre ölçeklenir.
   const watermarkText = (shopName || 'ÇINAR OTOMOTİV').toLocaleUpperCase('tr').trim();
   const watermarkFontSize = Math.max(22, Math.min(62, Math.floor(980 / Math.max(6, watermarkText.length))));
-  // Gerçek kurumsal logo ve araç krokisi. Dosyalar `public/` içine konur;
-  // Electron derlemesinde göreli yol kullanıldığı için BASE_URL ile birleştirilir.
+  // Gerçek kurumsal logo. Dosya `public/` içine konur; Electron
+  // derlemesinde göreli yol kullanıldığı için BASE_URL ile birleştirilir.
   const logoUrl = `${import.meta.env.BASE_URL}logo.png`;
-  const blueprintUrl = `${import.meta.env.BASE_URL}blueprint.png`;
 
   const css = `
     @page{size:A4;margin:0}
@@ -249,12 +241,11 @@ export function statementHTML(orders: any[], v: any, settings: any = {}, options
     #stmt .doc-meta div{margin-bottom:2px}
     #stmt .doc-meta strong{color:#1E293B;font-weight:700}
 
-    /* Üç sütunlu bilgi ızgarası: Müşteri | Araç | 3 görünümlü kroki */
+    /* İki sütunlu bilgi ızgarası: Müşteri | Araç */
     #stmt .info-grid{display:table;width:100%;margin-bottom:16px;border-collapse:separate;border-spacing:8px 0}
     #stmt .info-col{display:table-cell;vertical-align:top}
-    #stmt .info-col.customer{width:33%}
-    #stmt .info-col.vehicle{width:33%}
-    #stmt .info-col.blueprint-col{width:34%}
+    #stmt .info-col.customer{width:50%}
+    #stmt .info-col.vehicle{width:50%}
     #stmt .info-box{min-height:215px;border:1px solid #CBD5E1;border-radius:12px;overflow:hidden;background:#F4F6F8}
     #stmt .info-head{background:#E2E8F0;color:#334155;font-family:"Inter","Segoe UI",system-ui,-apple-system,sans-serif;font-size:9px;font-weight:500;letter-spacing:.05em;text-transform:uppercase;padding:10px 16px;border-bottom:1px solid #CBD5E1}
     #stmt .info-body{padding:16px;font-size:10px;background:#F4F6F8}
@@ -262,15 +253,6 @@ export function statementHTML(orders: any[], v: any, settings: any = {}, options
     #stmt .info-row:last-child{border-bottom:none}
     #stmt .info-label{display:table-cell;width:42%;font-size:8px;font-weight:500;color:#64748B;text-transform:uppercase;letter-spacing:.05em;padding-top:1px}
     #stmt .info-value{display:table-cell;width:58%;font-size:9.5px;color:#1E293B;font-weight:400}
-
-    /* Araç inceleme şeması — harici blueprint.png görseli.
-       AI tarafından çizilen SVG geometrisi kaldırıldı; zemin beyaz,
-       metinler koyu slate. Görsel yoksa temiz bir yer tutucu gösterilir. */
-    #stmt .blueprint-box{background:#FFFFFF;border-color:#CBD5E1}
-    #stmt .blueprint-box .info-head{background:#FFFFFF;color:#1E293B;border-bottom-color:#CBD5E1}
-    #stmt .blueprint-body{padding:10px 8px 8px;background:#FFFFFF;display:flex;align-items:center;justify-content:center;min-height:148px}
-    #stmt .blueprint-image-wrap{width:100%;text-align:center}
-    #stmt .blueprint-missing{display:none;width:100%;min-height:140px;align-items:center;justify-content:center;border:1px dashed #CBD5E1;border-radius:8px;color:#475569;font-size:9px;line-height:1.5;text-align:center;padding:12px}
 
     /* Ürün/işlem matrisi — yalnızca yatay çizgiler */
     #stmt .items-table{width:100%;border-collapse:collapse;margin-bottom:16px}
@@ -376,17 +358,6 @@ export function statementHTML(orders: any[], v: any, settings: any = {}, options
               <div class="info-row"><span class="info-label">Şasi No (VIN)</span><span class="info-value">${esc(chassis)}</span></div>
               <div class="info-row"><span class="info-label">Motor No</span><span class="info-value">${esc(engine)}</span></div>
               <div class="info-row"><span class="info-label">Kilometre</span><span class="info-value">${esc(km)}</span></div>
-            </div>
-          </div>
-        </div>
-        <div class="info-col blueprint-col">
-          <div class="info-box blueprint-box">
-            <div class="info-head">ARAÇ İNCELEME ŞEMASI</div>
-            <div class="blueprint-body">
-              <div class="blueprint-image-wrap">
-                <img src="${blueprintUrl}" alt="Araç Krokisi" style="width: 100%; height: auto; max-height: 180px; object-fit: contain;" onerror="this.style.display='none';this.nextElementSibling.style.display='flex'" />
-                <div class="blueprint-missing"><div>Araç krokisi görseli<br /><b>public/blueprint.png</b><br />eklendiğinde burada görünecek.</div></div>
-              </div>
             </div>
           </div>
         </div>

@@ -99,21 +99,15 @@ test.describe('7) Kurumsal Servis Dökümü (PDF) — şablon & tasarım', () =>
     expect(html).toContain('MÜŞTERİ BİLGİLERİ');
     expect(html).toContain('ARAÇ BİLGİLERİ');
 
-    // Araç inceleme şeması: harici görsel; eski amatör kutu ve SVG yok.
-    expect(html).toContain('ARAÇ İNCELEME ŞEMASI');
+    // Sağ taraftaki araç krokisi tamamen kaldırıldı; yalnızca iki bilgi
+    // kutusu (Müşteri | Araç) yan yana kalır. Hiçbir kroki/SVG izi yok.
+    expect(html).not.toContain('ARAÇ İNCELEME ŞEMASI');
     expect(html).not.toContain('ARAÇ GÖRÜNÜMÜ');
-    expect(html).not.toContain('class="blueprint"');
-
-    // STRICT PDF şartnamesi: araç krokisi artık harici `blueprint.png`
-    // görselinden gelir; AI tarafından çizilen SVG geometrisi kaldırıldı.
-    // Zemin beyaz, metinler koyu slate, filigran %6.
-    expect(html).toContain('src="/blueprint.png"');
-    expect(html).toContain('alt="Araç Krokisi"');
-    expect(html).toContain('max-height: 180px');
-    expect(html).toContain('object-fit: contain');
+    expect(html).not.toContain('blueprint');
+    expect(html).not.toContain('Araç Krokisi');
     expect(html).not.toContain('inspect-svg');
     expect(html).not.toContain('bp-row');
-    expect(html).toContain('background:#FFFFFF');
+    expect(html).toContain('background:#fff');
     expect(html).not.toContain('#1E40AF');
     expect(html).not.toContain('#1E3A8A');
     expect(html).not.toContain('stroke="#FFFFFF"');
