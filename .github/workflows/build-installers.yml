@@ -89,6 +89,7 @@ jobs:
           CSC_IDENTITY_AUTO_DISCOVERY: 'false'
           OTO_APP_VERSION: ${{ needs.prep.outputs.version }}
           NODE_OPTIONS: --max-old-space-size=4096
+          ELECTRON_BUILD: 1
 
       - name: Yükle (macOS)
         uses: actions/upload-artifact@v4
@@ -144,6 +145,7 @@ jobs:
           CSC_IDENTITY_AUTO_DISCOVERY: 'false'
           OTO_APP_VERSION: ${{ needs.prep.outputs.version }}
           NODE_OPTIONS: --max-old-space-size=4096
+          ELECTRON_BUILD: 1
 
       - name: Yükle (Windows)
         uses: actions/upload-artifact@v4
