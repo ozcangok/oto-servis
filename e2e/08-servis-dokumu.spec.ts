@@ -100,7 +100,7 @@ test.describe('7) Kurumsal Servis Dökümü (PDF) — şablon & tasarım', () =>
     expect(html).toContain('ARAÇ BİLGİLERİ');
 
     // Profesyonel SVG inceleme şeması; eski amatör kutu tamamen kaldırıldı
-    expect(html).toContain('inspect-panel');
+    expect(html).toContain('inspect-svg');
     expect(html).toContain('ARAÇ İNCELEME ŞEMASI');
     expect(html).toContain('Üstten Görünüm');
     expect(html).toContain('Yandan Görünüm');
@@ -119,23 +119,24 @@ test.describe('7) Kurumsal Servis Dökümü (PDF) — şablon & tasarım', () =>
     expect(html).toContain('Kilometre');
     expect(html).toContain('Belge No');
     expect(html).toContain('Vade Tarihi');
-    expect(html).toContain('CNR-');
+    expect(html).toContain('IS-');
 
-    // Profesyonel tablo başlıkları
-    expect(html).toContain('>Tür<');
-    expect(html).toContain('>Açıklama<');
-    expect(html).toContain('>Miktar<');
-    expect(html).toContain('Birim Fiyat');
-    expect(html).toContain('>Tutar<');
+    // Profesyonel tablo başlıkları (VIP matris)
+    expect(html).toContain('>KOD<');
+    expect(html).toContain('AÇIKLAMA / PARÇA / İŞLEM');
+    expect(html).toContain('>TÜR<');
+    expect(html).toContain('MİKTAR');
+    expect(html).toContain('BİRİM FİYAT');
+    expect(html).toContain('>TUTAR<');
     expect(html).toContain('Parça');
     expect(html).toContain('İşçilik');
-    expect(html).toMatch(/class="r amt"/); // tutarlar sağa hizalı
+    expect(html).toMatch(/class="num amt"/); // tutarlar sağa hizalı
 
-    // Sağ altta çerçeveli özet paneli
+    // Sağa hizalı özet paneli
     expect(html).toContain('summary');
     expect(html).toContain('Ara Toplam (KDV Hariç)');
     expect(html).toContain('KDV (%20)');
-    expect(html).toContain('KDV DAHİL GENEL TOPLAM');
+    expect(html).toContain('GENEL TOPLAM');
 
     // Yasal uyarı + çift imza/kaşe bloğu
     expect(html).toContain('Bu belge bilgi amaçlı servis dökümüdür, resmi fatura yerine geçmesi için faturaya dönüştürülmelidir.');
@@ -280,7 +281,7 @@ test.describe('7) Kurumsal Servis Dökümü (PDF) — uçtan uca üretim', () =>
     expect(html).toContain('1.000,00 ₺'); // Ara toplam (KDV hariç)
     expect(html).toContain('200,00 ₺'); // KDV %20
     expect(html).toContain('1.200,00 ₺'); // Genel toplam
-    expect(html).toContain('KDV DAHİL GENEL TOPLAM');
+    expect(html).toContain('GENEL TOPLAM');
 
     // 4) Görsel kontrol: logo alanı dolu ve render edilmiş (boş/kırık değil)
     expect(html).toContain('stmt-logo');

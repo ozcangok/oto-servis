@@ -24,7 +24,7 @@ interface DocumentCenterModalProps {
 
 type DocType = 'statement' | 'quote';
 
-const DOCUMENT_TITLE = 'SERVİS İŞ EMRİ VE TEKLİF FORMU';
+const DOCUMENT_TITLE = 'İŞ EMRİ / TEKLİF FORMU';
 
 export const DocumentCenterModal: React.FC<DocumentCenterModalProps> = ({ open, onClose }) => {
   const { settings, companyProfile } = useSettings();
@@ -104,7 +104,7 @@ export const DocumentCenterModal: React.FC<DocumentCenterModalProps> = ({ open, 
   const documentNo = useMemo(() => {
     const year = new Date().getFullYear();
     const baseId = documentOrders[0]?.id || selectedOrderId || 1;
-    return `CNR-${year}-${String(baseId).padStart(3, '0')}`;
+    return `IS-${year}-${String(baseId).padStart(4, '0')}`;
   }, [documentOrders, selectedOrderId]);
 
   const dueDate = useMemo(() => {
