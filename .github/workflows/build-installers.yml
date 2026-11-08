@@ -111,12 +111,11 @@ jobs:
         run: corepack enable
 
       # Windows'ta native modül (better-sqlite3) ve NSIS derlemesi için
-      # uzun yol desteği ve derleme ortamını etkinleştir.
+      # uzun yol desteğini etkinleştir.
       - name: Windows derleme ortamını hazırla
         if: runner.os == 'Windows'
         run: |
           git config --system core.longpaths true
-          npm config set scripts-prepend-node-path true
 
       - name: Bağımlılıkları kur
         run: npm install
