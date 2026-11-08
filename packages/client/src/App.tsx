@@ -1,13 +1,15 @@
 import React, { useState, useEffect, useRef } from 'react';
 import {
   Moon, Sun, LogOut, Search, Car, Users, Package, Wallet, Banknote, Receipt, Bell, Settings, Lock,
-  FileText, ShieldCheck
+  FileText, ShieldCheck, RefreshCw
 } from 'lucide-react';
 import { apiRequest, setAuthToken, setUnauthorizedHandler } from './services/api.js';
 import { LoginScreen } from './components/LoginScreen.js';
 import { SplashScreen } from './components/SplashScreen.js';
 import { IdleLock } from './components/IdleLock.js';
 import { ShutdownScreen } from './components/ShutdownScreen.js';
+import { UpdateBanner } from './components/UpdateBanner.js';
+import { UpdateScreen } from './components/UpdateScreen.js';
 import { DocumentCenterModal } from './components/DocumentCenterModal.js';
 import { ProfileSwitcher } from './components/ProfileSwitcher.js';
 import { isPrivileged, roleLabel } from './services/roles.js';
@@ -118,6 +120,9 @@ export function App() {
 
   // Güvenli kapanış (Electron): veda + zorunlu yedekleme ekranı.
   const [shuttingDown, setShuttingDown] = useState(false);
+
+  // Otomatik güncelleme kurulum ekranı (Electron).
+  const [updateInstalling, setUpdateInstalling] = useState(false);
 
   // Güvenlik bildirimi (hareketsizlik nedeniyle otomatik kapatılan oturum).
   const [securityNotice, setSecurityNotice] = useState<string | null>(null);
@@ -236,6 +241,33 @@ export function App() {
     };
   }, []);
 
+  // Otomatik güncelleme: ana süreç "installing" gönderdiğinde tam ekran
+  // güncelleme katmanını göster; hata/iptal durumunda normal ekrana dön.
+  useEffect(() => {
+    const onStatus = (status?: OtoUpdateStatus | null) => {
+      if (!status) return;
+      if (status.state === 'installing') {
+        setUpdateInstalling(true);
+      } else if (
+        status.state === 'error' ||
+        status.state === 'downloaded' ||
+        status.state === 'not-available' ||
+        status.state === 'cancelled'
+      ) {
+        setUpdateInstalling(false);
+      }
+    };
+
+    const off = window.otoDesktop?.onUpdateStatus?.(onStatus);
+    const onDom = (event: Event) => onStatus((event as CustomEvent<OtoUpdateStatus>).detail);
+    window.addEventListener('oto:update-status', onDom);
+
+    return () => {
+      if (typeof off === 'function') off();
+      window.removeEventListener('oto:update-status', onDom);
+    };
+  }, []);
+
   const handleLogout = async () => {
     try {
       await apiRequest('/auth/logout', { method: 'POST' });
@@ -278,6 +310,26 @@ export function App() {
    * yapar. Böylece kilitli ekranda tek tıkla oturum açılmaz.
    */
   const handleLockNow = () => setLocked(true);
+
+  /**
+   * "Güncellemeler" düğmesi: masaüstü köprüsü varsa kontrolü başlatır.
+   * İndirilmiş güncelleme varsa doğrudan güncelleme kartını öne çıkarır.
+   */
+  const handleCheckUpdates = async () => {
+    const bridge = window.otoDesktop;
+    if (!bridge?.checkForUpdates) return;
+    try {
+      const current = await bridge.getUpdateStatus?.();
+      if (current?.state === 'downloaded') {
+        window.dispatchEvent(new CustomEvent('oto:update-show'));
+        return;
+      }
+    } catch {}
+    window.dispatchEvent(new CustomEvent('oto:update-manual'));
+    try {
+      await bridge.checkForUpdates();
+    } catch {}
+  };
 
   // Rota → sekme eşlemesi + ROL KORUMASI. Personel (staff) `/kasa` veya
   // `/ayarlar` adreslerine doğrudan girse bile sayfa render edilmez; ana sayfaya
@@ -386,6 +438,11 @@ export function App() {
   // GÜVENLİK KAPANIŞI: veda + zorunlu yedekleme ekranı her şeyin üzerindedir.
   if (shuttingDown) {
     return <ShutdownScreen />;
+  }
+
+  // Güncelleme kurulumu: sunucu durdurulup yedek alınırken tam ekran katman.
+  if (updateInstalling) {
+    return <UpdateScreen />;
   }
 
   // AÇILIŞ: doğrudan ana ekran gelmez; önce saat/gün duyarlı splash ekranı.
@@ -560,6 +617,19 @@ export function App() {
               setTheme={setTheme}
             />
 
+            {window.otoDesktop?.isElectron && (
+              <button
+                className="menu-item"
+                type="button"
+                onClick={handleCheckUpdates}
+                title="Güncellemeleri kontrol et"
+                data-testid="check-updates"
+              >
+                <RefreshCw size={18} strokeWidth={1.75} aria-hidden="true" />
+                Güncellemeler
+              </button>
+            )}
+
             <button
               className="menu-item"
               type="button"
@@ -670,6 +740,9 @@ export function App() {
         onResume={() => setLocked(false)}
         onLogout={handleIdleUnlock}
       />
+
+      {/* Otomatik güncelleme bildirimi (yalnızca masaüstünde görünür). */}
+      <UpdateBanner />
 
       {/* Toast Element */}
       <div id="toast" role="status" aria-live="polite"></div>

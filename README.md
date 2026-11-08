@@ -214,6 +214,38 @@ packages/electron/dist-electron/mac-arm64/"Oto Servis Yonetimi.app"/Contents/Mac
 # örn: OTO_SMOKE_TEST=1 OTO_SERVER_PORT=3999 ... (3001 başka bir süreç tarafından kullanılıyorsa)
 ```
 
+## 🔄 Otomatik Güncelleme (Auto-Update)
+
+Masaüstü uygulaması, depoya yapılan her yeni push'ta (veya `v*` etiketle) GitHub Actions ile
+üretilen GitHub Release'i karşılar ve kendini günceller — programı silip yeniden yüklemek
+gerekmez.
+
+### Nasıl çalışır?
+
+1. **main'e push** → `build-installers.yml` çalışır, sürüm `1.0.<çalışma numarası>` olarak
+   belirlenir, Windows `.exe` ve macOS `.dmg`/`.zip` üretilir, tüm dosyalar
+   `https://github.com/ozcangok/oto-servis/releases` altında bir Release olarak yayınlanır.
+2. **Masaüstü uygulaması** açılışta ve her 4 saatte bir sessizce GitHub Releases'i kontrol
+   eder (`electron-updater`). Yeni sürüm varsa **arka planda indirir**.
+3. İndirme bittiğinde sağ alt köşede **"Yeni sürüm hazır"** kartı çıkar.
+   - **"Şimdi Güncelle"**: güvenli kapanış (veritabanı yedeklenir) + uygulama yeniden başlatılıp güncelleme kurulur.
+   - **"Daha Sonra"**: kart gizlenir; güncelleme, uygulama normal kapatıldığında otomatik olarak kurulur (`autoInstallOnAppQuit`).
+4. Ayrıca uygulama menüsünden (**Dosya → Güncellemeleri Kontrol Et…** / macOS: **Oto Servis Yonetimi → Güncellemeleri Kontrol Et…**) ve sidebardaki **"Güncellemeler"** düğmesiyle elle kontrol edilebilir.
+
+### Notlar
+
+- **Windows:** otomatik güncelleme imzasız kurulumla da çalışır (NSIS).
+- **macOS:** otomatik güncelleme için imzalı uygulama gerektirir. Bu depoda kod imzalama
+  sertifikası bulunmadığı için macOS'ta güncelleme yoksa **`.dmg` indirme yedeği** kullanılır
+  (Release sayfası açılır).
+- Kurulumlar imzasızdır; Windows SmartScreen / macOS Gatekeeper ilk açılışta uyarı
+  gösterir ("Yine de aç" ile çalıştırılır).
+
+### Geliştirici notu
+
+`OTO_APP_VERSION` ortam değişkeni sürümü geçersiz kılar (örn. `OTO_APP_VERSION=1.2.0 npm run dist:mac`).
+Yayınlama workflow’da `secrets.GITHUB_TOKEN` (varsayılan) kullanılır; ek bir secret gerektirmez.
+
 ---
 
 ## 🧪 Test Raporu Özeti

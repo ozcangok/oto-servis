@@ -28,18 +28,33 @@ directories:
   output: ../dist-electron
   buildResources: build
 
+# electron-updater'ın okuyacağı `app-update.yml` bu bilgilerle üretilir.
+# Yayınlama GitHub Actions'ta `softprops/action-gh-release` ile yapılır;
+# electron-builder yalnızca güncelleme meta dosyalarını (latest*.yml) üretir.
+publish:
+  provider: github
+  owner: ozcangok
+  repo: oto-servis
+  releaseType: release
+
 files:
   - "**/*"
 
 mac:
   category: public.app-category.business
   target:
+    # .dmg = elle kurulum; .zip = electron-updater (Squirrel.Mac) güncellemesi
     - target: dmg
       arch:
         - arm64
         - x64
+    - target: zip
+      arch:
+        - arm64
+        - x64
   artifactName: "Oto-Servis-${version}-${arch}.${ext}"
-  # İmzasız dağıtım
+  # İmzasız dağıtım. Not: macOS otomatik güncellemesi için imzalı uygulama
+  # gerekir; imzasız sürümde .dmg indirme yedeği kullanılır.
   identity: null
 
 dmg:

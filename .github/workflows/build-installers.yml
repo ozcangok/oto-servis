@@ -1,22 +1,62 @@
-name: Masaüstü Kurulumları
+name: Masaüstü Kurulumları ve Otomatik Güncelleme
 
-# Windows (.exe / NSIS) ve macOS (.dmg) kurulum dosyalarını üretir.
+# Windows (.exe / NSIS) ve macOS (.dmg + .zip) kurulum dosyalarını üretir,
+# GitHub Releases'e yükler. Masaüstü uygulaması bu release'i kontrol ederek
+# kendini günceller (electron-updater).
+#
+# Tetikleyiciler:
+#  - main'e push  → sürüm: 1.0.<çalışma numarası> (otomatik release)
+#  - v* etiketi    → sürüm: etiketin kendisi (örn. v1.2.0 → 1.2.0)
 #  - Elle: Actions sekmesinden "Run workflow"
-#  - Etiket (tag) ile:  git tag v1.0.0 && git push origin v1.0.0
-# Üretilen dosyalar, çalışma sonunda "Artifacts" bölümünden indirilebilir.
+#
+# Not: macOS otomatik güncellemesi imzalı uygulama gerektirir. Bu depoda
+# kod imzalama sertifikası olmadığı için macOS'ta .dmg indirme yedeği
+# kullanılır; Windows'ta otomatik güncelleme imzasız da çalışır.
 
 on:
   workflow_dispatch:
   push:
+    branches:
+      - main
     tags:
       - 'v*'
+    paths-ignore:
+      - 'test-raporu/**'
+      - 'e2e/**'
+      - 'e2e-ai/**'
+      - 'e2e-qa/**'
+      - 'midscene_run/**'
+      - '**/*.md'
 
 permissions:
   contents: read
 
+concurrency:
+  group: desktop-release
+  cancel-in-progress: false
+
 jobs:
+  prep:
+    name: Sürüm hazırla
+    runs-on: ubuntu-latest
+    outputs:
+      version: ${{ steps.version.outputs.version }}
+    steps:
+      - name: Sürüm belirle
+        id: version
+        shell: bash
+        run: |
+          if [[ "${GITHUB_REF}" == refs/tags/v* ]]; then
+            VERSION="${GITHUB_REF#refs/tags/v}"
+          else
+            VERSION="1.0.${GITHUB_RUN_NUMBER}"
+          fi
+          echo "version=${VERSION}" >> "$GITHUB_OUTPUT"
+          echo "Yayın sürümü: ${VERSION}"
+
   macos:
-    name: macOS (.dmg)
+    name: macOS (.dmg + .zip)
+    needs: prep
     runs-on: macos-14
     steps:
       - name: Depoyu çek
@@ -31,21 +71,27 @@ jobs:
       - name: Bağımlılıkları kur
         run: npm ci
 
-      # build:desktop + izole staging + electron-builder (arm64 & x64 .dmg)
-      - name: Kurulum dosyası üret
+      # build:desktop + izole staging + electron-builder (arm64 & x64)
+      - name: Kurulum dosyaları üret
         run: npm run dist:mac
         env:
           CSC_IDENTITY_AUTO_DISCOVERY: 'false'
+          OTO_APP_VERSION: ${{ needs.prep.outputs.version }}
 
       - name: Yükle (macOS)
         uses: actions/upload-artifact@v4
         with:
-          name: macos-dmg
-          path: packages/electron/dist-electron/*.dmg
+          name: macos-assets
+          path: |
+            packages/electron/dist-electron/*.dmg
+            packages/electron/dist-electron/*.zip
+            packages/electron/dist-electron/*.blockmap
+            packages/electron/dist-electron/latest-mac.yml
           if-no-files-found: error
 
   windows:
     name: Windows (.exe)
+    needs: prep
     runs-on: windows-latest
     steps:
       - name: Depoyu çek
@@ -65,10 +111,45 @@ jobs:
         run: npm run dist:win
         env:
           CSC_IDENTITY_AUTO_DISCOVERY: 'false'
+          OTO_APP_VERSION: ${{ needs.prep.outputs.version }}
 
       - name: Yükle (Windows)
         uses: actions/upload-artifact@v4
         with:
-          name: windows-exe
-          path: packages/electron/dist-electron/*.exe
+          name: windows-assets
+          path: |
+            packages/electron/dist-electron/*.exe
+            packages/electron/dist-electron/*.blockmap
+            packages/electron/dist-electron/latest.yml
           if-no-files-found: error
+
+  release:
+    name: GitHub Release yayınla
+    needs: [prep, macos, windows]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - name: Tüm kurulumları indir
+        uses: actions/download-artifact@v4
+        with:
+          pattern: '*-assets'
+          path: release-assets
+          merge-multiple: true
+
+      - name: Release oluştur / güncelle
+        uses: softprops/action-gh-release@v2
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          tag_name: v${{ needs.prep.outputs.version }}
+          name: Oto Servis v${{ needs.prep.outputs.version }}
+          body: |
+            Oto Servis Yönetimi masaüstü sürümü **v${{ needs.prep.outputs.version }}**.
+
+            - Windows: `.exe` kurulum dosyasını indirin.
+            - macOS: `.dmg` dosyasını indirin (imzasız sürüm).
+            - Otomatik güncelleme: Uygulama açılışta ve 4 saatte bir bu release'i kontrol eder.
+          files: release-assets/**
+          draft: false
+          prerelease: false

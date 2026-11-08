@@ -54,6 +54,33 @@ function copy(src, dest) {
   fs.cpSync(src, dest, { recursive: true, dereference: false, force: true });
 }
 
+/**
+ * Bir paketi ve üretim bağımlılık kapanışını staging `node_modules` içine
+ * kopyalar. `electron-updater` gibi Electron ana süreç bağımlılıkları sunucunun
+ * `npm ls` çıktısında görünmediği için ayrıca çağrılır.
+ */
+function copyDependencyClosure(pkgName, destModules, seen = new Set(), optional = false) {
+  if (seen.has(pkgName)) return;
+  const src = path.join(rootNodeModules, pkgName);
+  if (!fs.existsSync(src)) {
+    if (optional) return;
+    fail(`bağımlılık bulunamadı: ${pkgName} (${src}). "npm install" çalıştırın.`);
+  }
+
+  seen.add(pkgName);
+  const dest = path.join(destModules, pkgName);
+  fs.mkdirSync(path.dirname(dest), { recursive: true });
+  copy(src, dest);
+
+  const pkgJson = JSON.parse(fs.readFileSync(path.join(src, 'package.json'), 'utf8'));
+  for (const dep of Object.keys(pkgJson.dependencies || {})) {
+    copyDependencyClosure(dep, destModules, seen, false);
+  }
+  for (const dep of Object.keys(pkgJson.optionalDependencies || {})) {
+    copyDependencyClosure(dep, destModules, seen, true);
+  }
+}
+
 function requireDir(dir, label) {
   if (!fs.existsSync(dir)) {
     fail(`eksik derleme çıktısı: ${label} (${dir}). Önce "npm run build:desktop" çalıştırın.`);
@@ -68,6 +95,8 @@ requireDir(path.join(clientDir, 'dist'), 'packages/client/dist');
 requireDir(path.join(sharedDir, 'dist'), 'packages/shared/dist');
 
 const serverPkg = JSON.parse(fs.readFileSync(path.join(serverDir, 'package.json'), 'utf8'));
+const electronPkg = JSON.parse(fs.readFileSync(path.join(electronDir, 'package.json'), 'utf8'));
+const appVersion = process.env.OTO_APP_VERSION || serverPkg.version || '1.0.0';
 
 // ---------------------------------------------------------------------------
 // 1) Temiz staging
@@ -145,20 +174,29 @@ for (const pkg of roots) {
 log(`kopyalanan kök bağımlılık paketi: ${copiedCount}`);
 
 // ---------------------------------------------------------------------------
+// 4b) Electron ana süreç bağımlılıkları (electron-updater)
+// ---------------------------------------------------------------------------
+log('Electron ana süreç bağımlılıkları kopyalanıyor (electron-updater)...');
+copyDependencyClosure('electron-updater', path.join(staging, 'node_modules'));
+log('electron-updater ve bağımlılıkları kopyalandı.');
+
+// ---------------------------------------------------------------------------
 // 5) electron-builder'ın okuyacağı package.json
 // ---------------------------------------------------------------------------
 const stagingPkg = {
   name: 'oto-servis-desktop',
-  version: serverPkg.version || '1.0.0',
+  version: appVersion,
   description: 'Oto Servis Yönetimi — çevrimdışı masaüstü sürüm',
   author: 'Çınar Oto',
   main: 'packages/electron/main.cjs',
   dependencies: {
     ...(serverPkg.dependencies || {}),
+    'electron-updater': electronPkg.dependencies?.['electron-updater'] || '^6.8.11',
     [`${WORKSPACE_SCOPE}/shared`]: '1.0.0'
   }
 };
 fs.writeFileSync(path.join(staging, 'package.json'), JSON.stringify(stagingPkg, null, 2) + '\n');
+log(`uygulama sürümü: ${appVersion}`);
 
 // ---------------------------------------------------------------------------
 // 6) electron-builder yapılandırması

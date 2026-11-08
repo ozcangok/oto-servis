@@ -11,6 +11,7 @@
 const { contextBridge, ipcRenderer } = require('electron');
 
 const SHUTDOWN_CHANNEL = 'app:shutdown-start';
+const UPDATE_STATUS_CHANNEL = 'update:status';
 const API_BASE_ARG = '--oto-api-base=';
 
 /** Gömülü sunucunun adresi ana süreçten komut satırı argümanıyla gelir. */
@@ -33,6 +34,26 @@ contextBridge.exposeInMainWorld('otoDesktop', {
     };
     ipcRenderer.on(SHUTDOWN_CHANNEL, listener);
     return () => ipcRenderer.removeListener(SHUTDOWN_CHANNEL, listener);
+  },
+
+  // --- Otomatik güncelleme köprüsü ---------------------------------------
+  getAppVersion: () => ipcRenderer.invoke('update:get-version'),
+  getUpdateStatus: () => ipcRenderer.invoke('update:get-status'),
+  checkForUpdates: () => ipcRenderer.invoke('update:check'),
+  downloadUpdate: () => ipcRenderer.invoke('update:download'),
+  installUpdate: () => ipcRenderer.invoke('update:install'),
+  openReleasePage: () => ipcRenderer.invoke('update:open-release'),
+  onUpdateStatus: (callback) => {
+    if (typeof callback !== 'function') return () => {};
+    const listener = (_event, status) => {
+      try {
+        callback(status);
+      } catch (err) {
+        console.error('[PRELOAD] Güncelleme geri çağrısı hatası:', err);
+      }
+    };
+    ipcRenderer.on(UPDATE_STATUS_CHANNEL, listener);
+    return () => ipcRenderer.removeListener(UPDATE_STATUS_CHANNEL, listener);
   }
 });
 
@@ -42,5 +63,14 @@ ipcRenderer.on(SHUTDOWN_CHANNEL, () => {
     window.dispatchEvent(new CustomEvent('oto:shutdown'));
   } catch (err) {
     console.error('[PRELOAD] oto:shutdown olayı yayınlanamadı:', err);
+  }
+});
+
+// Güncelleme durumunu React dışı dinleyiciler ve E2E testleri için de yayınla.
+ipcRenderer.on(UPDATE_STATUS_CHANNEL, (_event, status) => {
+  try {
+    window.dispatchEvent(new CustomEvent('oto:update-status', { detail: status }));
+  } catch (err) {
+    console.error('[PRELOAD] oto:update-status olayı yayınlanamadı:', err);
   }
 });

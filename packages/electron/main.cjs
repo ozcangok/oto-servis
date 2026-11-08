@@ -12,7 +12,7 @@
  *    en az 10 saniye sonra uygulamayı kapatmak (`app.quit()`).
  */
 
-const { app, BrowserWindow, ipcMain, Menu, dialog } = require('electron');
+const { app, BrowserWindow, ipcMain, Menu, dialog, shell } = require('electron');
 const path = require('path');
 const fs = require('fs');
 const { fork, spawn } = require('child_process');
@@ -42,6 +42,24 @@ let mainWindow = null;
 let serverProcess = null;
 let isShuttingDown = false;
 
+// ---------------------------------------------------------------------------
+// Otomatik güncelleme (electron-updater / GitHub Releases)
+// ---------------------------------------------------------------------------
+/** Açılıştan kaç ms sonra sessiz güncelleme kontrolü yapılır. */
+const UPDATE_INITIAL_DELAY_MS = 10_000;
+/** Uygulama açık kaldığı sürece kaç ms'de bir sessiz kontrol yapılır (4 saat). */
+const UPDATE_CHECK_INTERVAL_MS = 4 * 60 * 60 * 1000;
+/** macOS imzasız sürümde kullanılan manuel indirme sayfası. */
+const RELEASES_URL = 'https://github.com/ozcangok/oto-servis/releases/latest';
+
+let autoUpdater = null;
+let updateDownloaded = false;
+let lastUpdateStatus = null;
+let updateCheckTimer = null;
+let isInstallingUpdate = false;
+let lastCheckWasSilent = true;
+let updaterInitialized = false;
+
 function getDataDir() {
   return path.join(app.getPath('userData'), 'data');
 }
@@ -56,6 +74,213 @@ function getDataDir() {
  */
 function getServerCwd() {
   return app.getPath('userData');
+}
+
+// ---------------------------------------------------------------------------
+// Otomatik güncelleme yardımcıları
+// ---------------------------------------------------------------------------
+
+/**
+ * electron-updater'ı tembel yükler. Geliştirme ortamında modül yoksa uygulama
+ * yine de açılır; yalnızca güncelleme özelliği devre dışı kalır.
+ */
+function getAutoUpdater() {
+  if (autoUpdater) return autoUpdater;
+  try {
+    autoUpdater = require('electron-updater').autoUpdater;
+    return autoUpdater;
+  } catch (err) {
+    console.error('[UPDATE] electron-updater yüklenemedi:', err);
+    return null;
+  }
+}
+
+/** Güncelleme durumunu arayüze ve son durum belleğine yazar. */
+function sendUpdateStatus(status) {
+  const payload = {
+    ...status,
+    currentVersion: app.getVersion(),
+    at: new Date().toISOString()
+  };
+  lastUpdateStatus = payload;
+
+  try {
+    if (mainWindow && !mainWindow.isDestroyed()) {
+      mainWindow.webContents.send('update:status', payload);
+    }
+  } catch (err) {
+    console.error('[UPDATE] Durum arayüze iletilemedi:', err);
+  }
+  return payload;
+}
+
+/**
+ * GitHub Releases üzerinden güncelleme kontrolü.
+ * `silent=true` iken hata/güncel durumu arayüzde rahatsız etmez.
+ */
+async function checkForUpdatesNow(silent = false) {
+  lastCheckWasSilent = silent;
+  const updater = getAutoUpdater();
+  if (!updater) {
+    const message = 'Güncelleme modülü yüklü değil.';
+    if (!silent) sendUpdateStatus({ state: 'error', message, silent });
+    return { ok: false, error: message };
+  }
+
+  // electron-updater paketlenmiş uygulama bekler. Geliştirme sırasında
+  // OTO_FORCE_UPDATE=1 ile (dev-app-update.yml varsa) denenebilir.
+  if (!app.isPackaged && process.env.OTO_FORCE_UPDATE !== '1') {
+    const message = 'Geliştirme sürümünde otomatik güncelleme kapalı.';
+    if (!silent) sendUpdateStatus({ state: 'dev', message, silent });
+    return { ok: false, dev: true, message };
+  }
+
+  try {
+    sendUpdateStatus({ state: 'checking', silent });
+    const result = await updater.checkForUpdates();
+    return { ok: true, version: result?.updateInfo?.version || null };
+  } catch (err) {
+    const message = String((err && err.message) || err);
+    console.error('[UPDATE] Kontrol hatası:', err);
+    sendUpdateStatus({ state: 'error', message, silent });
+    return { ok: false, error: message };
+  }
+}
+
+/**
+ * İndirilen güncellemeyi kurar.
+ *
+ * Normal kapanış akışından farkı: gömülü sunucu durdurulur, veritabanı
+ * yedeklenir ve `autoUpdater.quitAndInstall()` çağrılır. `isShuttingDown`
+ * önceden true yapıldığı için `before-quit` normal 10 saniyelik veda akışını
+ * tekrar başlatmaz.
+ */
+async function installUpdate() {
+  const updater = getAutoUpdater();
+  if (!updater) return { ok: false, error: 'Güncelleme modülü yüklü değil.' };
+  if (!updateDownloaded) return { ok: false, error: 'Güncelleme henüz indirilmedi.' };
+  if (isInstallingUpdate) return { ok: true };
+
+  isInstallingUpdate = true;
+  isShuttingDown = true;
+  sendUpdateStatus({ state: 'installing' });
+
+  try {
+    await stopEmbeddedServer();
+
+    try {
+      const result = createDatabaseBackup({
+        dataDir: getDataDir(),
+        documentsDir: app.getPath('documents'),
+        now: new Date()
+      });
+      if (result.ok) {
+        console.log(`[UPDATE] Güncelleme öncesi yedek alındı → ${result.main}`);
+      } else {
+        console.warn(`[UPDATE] Güncelleme öncesi yedek alınamadı (${result.reason}): ${result.source}`);
+      }
+    } catch (err) {
+      console.error('[UPDATE] Güncelleme öncesi yedekleme hatası:', err);
+    }
+
+    // Arayüzün "Güncelleme yükleniyor" ekranını çizmesi için kısa nefes.
+    await new Promise((resolve) => setTimeout(resolve, 900));
+
+    // Sessiz kurulum + yeniden başlat.
+    updater.quitAndInstall(true, true);
+    return { ok: true };
+  } catch (err) {
+    const message = String((err && err.message) || err);
+    console.error('[UPDATE] Kurulum hatası:', err);
+    isInstallingUpdate = false;
+    isShuttingDown = false;
+    sendUpdateStatus({ state: 'error', message });
+
+    // Sunucu durdurulduysa arayüzün çalışmaya devam edebilmesi için tekrar başlat.
+    try {
+      startEmbeddedServer();
+    } catch (restartErr) {
+      console.error('[UPDATE] Sunucu yeniden başlatılamadı:', restartErr);
+    }
+    return { ok: false, error: message };
+  }
+}
+
+/** electron-updater olaylarını bağlar ve periyodik sessiz kontrolü kurar. */
+function setupAutoUpdater() {
+  if (updaterInitialized) return;
+  updaterInitialized = true;
+
+  const updater = getAutoUpdater();
+  if (!updater) return;
+
+  updater.autoDownload = true;
+  updater.autoInstallOnAppQuit = true;
+  updater.allowPrerelease = false;
+  updater.logger = {
+    info: (...args) => console.log('[UPDATE]', ...args),
+    warn: (...args) => console.warn('[UPDATE]', ...args),
+    error: (...args) => console.error('[UPDATE]', ...args),
+    debug: (...args) => console.log('[UPDATE]', ...args)
+  };
+
+  updater.on('checking-for-update', () => {
+    sendUpdateStatus({ state: 'checking', silent: lastCheckWasSilent });
+  });
+  updater.on('update-available', (info) => {
+    sendUpdateStatus({ state: 'available', version: info?.version, silent: lastCheckWasSilent });
+  });
+  updater.on('update-not-available', (info) => {
+    sendUpdateStatus({ state: 'not-available', version: info?.version, silent: lastCheckWasSilent });
+  });
+  updater.on('download-progress', (progress) => {
+    sendUpdateStatus({
+      state: 'downloading',
+      percent: Math.max(0, Math.min(100, Math.round(Number(progress?.percent) || 0))),
+      bytesPerSecond: progress?.bytesPerSecond,
+      transferred: progress?.transferred,
+      total: progress?.total
+    });
+  });
+  updater.on('update-downloaded', (info) => {
+    updateDownloaded = true;
+    sendUpdateStatus({ state: 'downloaded', version: info?.version });
+    // Menüde "Güncelle ve Yeniden Başlat" öğesi görünsün.
+    buildApplicationMenu();
+  });
+  updater.on('update-cancelled', (info) => {
+    sendUpdateStatus({ state: 'cancelled', version: info?.version });
+  });
+  updater.on('error', (err) => {
+    console.error('[UPDATE] Hata:', err);
+    // Kurulum sırasında oluşan hata (örn. macOS imzasız sürüm): sunucuyu
+    // yeniden başlatıp arayüzün normal çalışmasına dönmesini sağla.
+    if (isInstallingUpdate) {
+      isInstallingUpdate = false;
+      isShuttingDown = false;
+      try {
+        startEmbeddedServer();
+      } catch (restartErr) {
+        console.error('[UPDATE] Sunucu yeniden başlatılamadı:', restartErr);
+      }
+    }
+    sendUpdateStatus({
+      state: 'error',
+      message: String((err && err.message) || err),
+      silent: lastCheckWasSilent
+    });
+  });
+
+  if (app.isPackaged && !SMOKE_TEST) {
+    setTimeout(() => {
+      void checkForUpdatesNow(true);
+    }, UPDATE_INITIAL_DELAY_MS);
+
+    updateCheckTimer = setInterval(() => {
+      void checkForUpdatesNow(true);
+    }, UPDATE_CHECK_INTERVAL_MS);
+    if (updateCheckTimer.unref) updateCheckTimer.unref();
+  }
 }
 
 /** SQLite metin değeri için güvenli tırnaklama. */
@@ -125,6 +350,39 @@ function buildApplicationMenu() {
     }
   };
 
+  const updateItem = {
+    label: 'Güncellemeleri Kontrol Et…',
+    click: async () => {
+      const result = await checkForUpdatesNow(false);
+      if (result.dev) {
+        await dialog.showMessageBox(mainWindow, {
+          type: 'info',
+          title: 'Güncelleme',
+          message: 'Geliştirme sürümü',
+          detail: 'Otomatik güncelleme yalnızca paketlenmiş masaüstü uygulamasında çalışır.',
+          buttons: ['Tamam']
+        });
+      } else if (result.error) {
+        await dialog.showMessageBox(mainWindow, {
+          type: 'error',
+          title: 'Güncelleme Hatası',
+          message: 'Güncelleme kontrol edilemedi.',
+          detail: result.error,
+          buttons: ['Tamam']
+        });
+      }
+    }
+  };
+
+  const installItem = updateDownloaded
+    ? {
+        label: 'Güncelle ve Yeniden Başlat',
+        click: () => {
+          void installUpdate();
+        }
+      }
+    : null;
+
   const template = [];
 
   if (isMac) {
@@ -134,6 +392,8 @@ function buildApplicationMenu() {
         { role: 'about', label: 'Hakkında' },
         { type: 'separator' },
         exportItem,
+        updateItem,
+        ...(installItem ? [installItem] : []),
         { type: 'separator' },
         { role: 'hide', label: 'Gizle' },
         { role: 'hideOthers', label: 'Diğerlerini Gizle' },
@@ -145,7 +405,13 @@ function buildApplicationMenu() {
   } else {
     template.push({
       label: 'Dosya',
-      submenu: [exportItem, { type: 'separator' }, { role: 'quit', label: 'Çıkış' }]
+      submenu: [
+        exportItem,
+        updateItem,
+        ...(installItem ? [installItem] : []),
+        { type: 'separator' },
+        { role: 'quit', label: 'Çıkış' }
+      ]
     });
   }
 
@@ -430,11 +696,46 @@ function runSmokeTest() {
   });
 }
 
+// ---------------------------------------------------------------------------
+// Güncelleme IPC köprüsü (preload → main)
+// ---------------------------------------------------------------------------
+ipcMain.handle('update:check', async () => checkForUpdatesNow(false));
+
+ipcMain.handle('update:download', async () => {
+  const updater = getAutoUpdater();
+  if (!updater) return { ok: false, error: 'Güncelleme modülü yüklü değil.' };
+  try {
+    await updater.downloadUpdate();
+    return { ok: true };
+  } catch (err) {
+    const message = String((err && err.message) || err);
+    console.error('[UPDATE] İndirme hatası:', err);
+    sendUpdateStatus({ state: 'error', message });
+    return { ok: false, error: message };
+  }
+});
+
+ipcMain.handle('update:install', async () => installUpdate());
+
+ipcMain.handle('update:get-version', () => app.getVersion());
+
+ipcMain.handle('update:get-status', () => lastUpdateStatus);
+
+ipcMain.handle('update:open-release', async () => {
+  try {
+    await shell.openExternal(RELEASES_URL);
+    return { ok: true };
+  } catch (err) {
+    return { ok: false, error: String((err && err.message) || err) };
+  }
+});
+
 app.whenReady().then(() => {
   buildApplicationMenu();
   startEmbeddedServer();
   // Small delay to allow fastify server to bind
   setTimeout(createWindow, 1500);
+  setupAutoUpdater();
 
   app.on('activate', () => {
     if (BrowserWindow.getAllWindows().length === 0) {
@@ -448,6 +749,13 @@ app.on('before-quit', (event) => {
   if (isShuttingDown) return;
   event.preventDefault();
   beginGracefulShutdown();
+});
+
+app.on('will-quit', () => {
+  if (updateCheckTimer) {
+    clearInterval(updateCheckTimer);
+    updateCheckTimer = null;
+  }
 });
 
 app.on('window-all-closed', () => {
