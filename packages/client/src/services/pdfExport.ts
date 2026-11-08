@@ -49,9 +49,11 @@ export function statementHTML(orders: any[], v: any, settings: any = {}, options
 
   // Tüm kurumsal kimlik — global ayar kaynağından gelir.
   const companyName = String(settings.shop_name || CORPORATE.legalName).trim();
-  const brandName = companyName.includes(' - ')
-    ? companyName.split(' - ')[0].trim()
-    : companyName;
+  const nameParts = companyName.split(' - ');
+  const brandName = (nameParts[0] || companyName).trim();
+  const companyTagline = nameParts.length > 1
+    ? nameParts.slice(1).join(' - ').trim()
+    : '';
   const shopPhone = String(settings.shop_phone || CORPORATE.phone).trim();
   const shopAddress = String(settings.shop_address || CORPORATE.address).trim();
   const shopEmail = String(settings.shop_email || CORPORATE.email).trim();
@@ -141,7 +143,7 @@ export function statementHTML(orders: any[], v: any, settings: any = {}, options
     #stmt{width:794px;min-height:1123px;box-sizing:border-box;background:#fff;color:#111827;font-family:"IBM Plex Sans",Arial,sans-serif;font-size:11px;line-height:1.4;position:relative;overflow:hidden;padding:0}
     #stmt *{box-sizing:border-box}
     /* Arka filigran — tüm sayfalar için ortada, saydam, içeriğin arkasında */
-    #stmt .watermark{position:absolute;top:50%;left:50%;transform:translate(-50%,-50%) rotate(-15deg);font-size:80px;font-weight:900;color:#0f2a5c;opacity:0.06;pointer-events:none;z-index:0;white-space:nowrap;mix-blend-mode:multiply}
+    #stmt .watermark{position:absolute;top:50%;left:50%;transform:translate(-50%,-50%) rotate(-15deg);font-size:62px;letter-spacing:6px;font-weight:900;color:#0f2a5c;opacity:0.06;pointer-events:none;z-index:0;white-space:nowrap;mix-blend-mode:multiply}
 
     /* Başlık */
     #stmt .header{position:relative;z-index:1;padding:20px 30px;border-bottom:3px solid #0f2a5c;margin-bottom:16px}
@@ -167,11 +169,11 @@ export function statementHTML(orders: any[], v: any, settings: any = {}, options
     #stmt .info-value{display:table-cell;width:58%;font-size:10px;color:#111827;font-weight:600}
 
     /* CSS ile çizilmiş araç görünümü (blueprint) */
-    #stmt .blueprint{width:100%;height:64px;border:1px solid #d1d5db;border-radius:6px;margin-top:8px;position:relative;background:#f9fafb}
-    #stmt .blueprint::before{content:'';position:absolute;top:9px;left:9px;right:9px;bottom:9px;border:2px solid #0f2a5c;border-radius:11px}
-    #stmt .blueprint .wheel-l{position:absolute;top:18px;left:16px;width:10px;height:10px;background:#0f2a5c;border-radius:50%}
-    #stmt .blueprint .wheel-r{position:absolute;top:18px;right:16px;width:10px;height:10px;background:#0f2a5c;border-radius:50%}
-    #stmt .blueprint .win{position:absolute;top:13px;left:28px;right:28px;bottom:18px;border:1px solid #cbd5e1;border-radius:5px}
+    #stmt .blueprint{width:100%;height:70px;border:1px solid #d1d5db;border-radius:6px;margin-top:8px;position:relative;background:#f9fafb}
+    #stmt .blueprint::before{content:'';position:absolute;top:8px;left:9px;right:9px;bottom:20px;border:2px solid #0f2a5c;border-radius:11px}
+    #stmt .blueprint .wheel-l{position:absolute;top:17px;left:16px;width:10px;height:10px;background:#0f2a5c;border-radius:50%}
+    #stmt .blueprint .wheel-r{position:absolute;top:17px;right:16px;width:10px;height:10px;background:#0f2a5c;border-radius:50%}
+    #stmt .blueprint .win{position:absolute;top:12px;left:28px;right:28px;bottom:28px;border:1px solid #cbd5e1;border-radius:5px}
     #stmt .blueprint-label{position:absolute;bottom:3px;left:50%;transform:translateX(-50%);font-size:7.5px;color:#6b7280;font-weight:700;text-transform:uppercase}
 
     /* Finansal tablo — sadece yatay çerçeveler */
@@ -222,8 +224,8 @@ export function statementHTML(orders: any[], v: any, settings: any = {}, options
             <div class="logo-lockup" style="display:table;width:100%">
               <div style="display:table-cell;width:56px;height:56px">${LOGO_SVG}</div>
               <div style="display:table-cell;vertical-align:middle;padding-left:12px">
-                <div class="logo-company">${esc(companyName)}</div>
-                <div class="company-sub">Özel Servis & Bakım Hizmetleri</div>
+                <div class="logo-company">${esc(brandName)}</div>
+                ${companyTagline ? `<div class="company-sub">${esc(companyTagline)}</div>` : ''}
                 <div class="company-addr">${esc(shopAddress)}</div>
                 <div class="company-addr">Tel: ${esc(shopPhone)}${shopEmail ? ` · ${esc(shopEmail)}` : ''}</div>
                 ${taxLine ? `<div class="company-addr">${esc(taxLine)}</div>` : ''}

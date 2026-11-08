@@ -264,7 +264,8 @@ test.describe('7) Kurumsal Servis Dökümü (PDF) — uçtan uca üretim', () =>
 
     expect(html).toContain('İŞ EMRİ / TEKLİF FORMU');
     expect(html).toContain('Çınar Otomotiv'); // dükkan başlığı
-    expect(html).toContain('Çınar Otomotiv - Özel Servis &amp; Bakım Hizmetleri'); // dinamik ticari unvan (HTML-escaped)
+    expect(html).toContain('Çınar Otomotiv'); // dinamik marka adı
+    expect(html).toContain('Özel Servis &amp; Bakım Hizmetleri'); // dinamik hizmet unvanı (HTML-escaped)
     expect(html).toContain(PDF_MUSTERI); // güncel müşteri adı
     expect(html).toContain('MÜŞTERİ BİLGİLERİ');
     expect(html).toContain(plaka); // plaka
