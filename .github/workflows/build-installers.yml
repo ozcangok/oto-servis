@@ -71,9 +71,16 @@ jobs:
       - name: Bağımlılıkları kur
         run: npm install
 
-      # Tüm workspace'ları derle (shared + server + client)
-      - name: Workspace'ları derle
-        run: npm run build --workspaces --if-present
+      # Workspace'ları sırayla derle (shared önce, sonra server ve client)
+      # electron-builder'ın @oto-servis/shared'ı bulabilmesi için
+      - name: shared workspace'ı derle
+        run: npm run build --workspace=@oto-servis/shared
+
+      - name: server workspace'ı derle
+        run: npm run build --workspace=@oto-servis/server
+
+      - name: client workspace'ı derle
+        run: npm run build --workspace=@oto-servis/client
 
       # build:desktop + izole staging + electron-builder (arm64 & x64)
       - name: Kurulum dosyaları üret (macOS)
@@ -118,9 +125,16 @@ jobs:
       - name: Bağımlılıkları kur
         run: npm install
 
-      # Tüm workspace'ları derle (shared + server + client)
-      - name: Workspace'ları derle
-        run: npm run build --workspaces --if-present
+      # Workspace'ları sırayla derle (shared önce, sonra server ve client)
+      # electron-builder'ın @oto-servis/shared'ı bulabilmesi için
+      - name: shared workspace'ı derle
+        run: npm run build --workspace=@oto-servis/shared
+
+      - name: server workspace'ı derle
+        run: npm run build --workspace=@oto-servis/server
+
+      - name: client workspace'ı derle
+        run: npm run build --workspace=@oto-servis/client
 
       # build:desktop + izole staging + electron-builder (NSIS .exe)
       - name: Kurulum dosyası üret (Windows)
