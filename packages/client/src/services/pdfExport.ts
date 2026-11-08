@@ -1,19 +1,19 @@
-import { CORPORATE } from '@oto-servis/shared';
 import { dateISO, fdate, money, numfmt, formatPlateDisplay, toast, todayISO } from './ui.js';
 
 /**
  * VIP "YETKİLİ SERVİS" SERVİS İŞ EMRİ / TEKLİF FORMU (A4 PDF)
  *
  * Lüks yetkili servis (Mercedes/BMW) referans şablonu:
- *  - Sol üstte dairesel, metalik kırmızı kurumsal amblem + ÇINAR OTOMOTİV
+ *  - Sol üstte gerçek kurumsal logo + canlı ayarlardan gelen şirket adı
  *  - Sağ üstte sade siyah "İŞ EMRİ / TEKLİF FORMU" başlığı, belge no ve tarih
  *  - Üç sütunlu üst gövde: MÜŞTERİ | ARAÇ | üç görünümlü teknik kroki
  *  - KOD | AÇIKLAMA | TÜR | MİKTAR | BİRİM FİYAT | TUTAR matrisi (yatay çizgiler)
  *  - Sağa hizalı Ara Toplam / KDV / GENEL TOPLAM (siyah blok)
  *  - Garanti beyanı solda + simetrik çift imza/kaşe blokları sağda
- *  - Tüm sayfada %6 opaklık "ÇINAR OTOMOTİV" filigranı
+ *  - Tüm sayfada %6 opaklık, canlı ayarlardan gelen şirket adı filigranı
  *
- * Tüm şirket kimliği `settings` parametresinden gelir.
+ * Tüm şirket kimliği yalnızca `settings` parametresinden gelir; modülde
+ * hiçbir sabit adres, telefon, vergi no veya şirket adı yedeği tutulmaz.
  */
 
 /**
@@ -22,7 +22,7 @@ import { dateISO, fdate, money, numfmt, formatPlateDisplay, toast, todayISO } fr
  * servis belgelerindeki kurumsal künye hissini verir.
  */
 const LOGO_SVG = `
-<svg class="stmt-logo" viewBox="0 0 100 100" width="66" height="66" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+<svg class="stmt-logo" viewBox="0 0 100 100" width="56" height="56" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
   <defs>
     <linearGradient id="cinarRing" x1="0" y1="0" x2="1" y2="1">
       <stop offset="0%" stop-color="#f8fafc"/>
@@ -50,84 +50,104 @@ const LOGO_SVG = `
 </svg>`;
 
 /**
- * 3 görünümlü mühendislik krokisi — royal blue zemin üzerinde saf beyaz çizgi.
- * Üstten, yandan ve önden olmak üzere üç ayrı sedan vektörü kullanılır.
+ * 3 görünümlü mühendislik krokisi — yazıcı dostu saf beyaz zemin üzerinde
+ * koyu slate çizgiler. Üstten, yandan ve önden modern sedan vektörleri.
+ *
+ * Not: Bu çizimler mürekkep tasarrufu için dolgusuzdur; yalnızca ince
+ * kontur çizgileri kullanır. Oranlar gerçek bir sedan siluetine göre
+ * (uzun kaput, eğimli ön cam, akıcı tavan, kısa bagaj) kurgulanmıştır.
  */
 const BLUEPRINT_PLAN_SVG = `
-<svg class="inspect-svg" viewBox="0 0 300 110" width="300" height="110" preserveAspectRatio="xMidYMid meet" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
-  <g stroke="#FFFFFF" stroke-width="1.5" fill="none" stroke-linejoin="round" stroke-linecap="round">
-    <path d="M46 55 C46 41 52 28 64 24 L178 24 C196 24 214 29 230 35 C244 40 256 46 264 50 C270 52 274 53 274 55 C274 57 270 58 264 60 C256 64 244 70 230 75 C214 81 196 86 178 86 L64 86 C52 82 46 69 46 55 Z"/>
-    <rect x="62" y="18" width="26" height="9" rx="4.5"/>
-    <rect x="62" y="83" width="26" height="9" rx="4.5"/>
-    <rect x="188" y="18" width="26" height="9" rx="4.5"/>
-    <rect x="188" y="83" width="26" height="9" rx="4.5"/>
-    <path d="M196 26 C210 38 210 72 196 84"/>
-    <path d="M116 26 C102 38 102 72 116 84"/>
-    <path d="M124 26 L188 26 L196 36 L196 74 L188 84 L124 84 L116 74 L116 36 Z"/>
-    <path d="M192 18 L202 15 L204 20 L194 22 Z"/>
-    <path d="M192 92 L202 95 L204 90 L194 88 Z"/>
-    <path d="M212 28 L252 38 M212 82 L252 72"/>
-    <path d="M76 28 L76 82"/>
-    <path d="M258 40 L270 44 M258 70 L270 66"/>
-    <path d="M266 55 L278 55"/>
-    <path d="M50 41 L60 44 M50 69 L60 66"/>
+<svg class="inspect-svg" viewBox="0 0 320 140" width="320" height="140" preserveAspectRatio="xMidYMid meet" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+  <g stroke="#1E293B" stroke-width="1.4" fill="none" stroke-linejoin="round" stroke-linecap="round">
+    <path d="M36 42 C44 30 58 24 74 22 L126 18 C146 17 174 17 194 18 L246 22 C262 24 276 30 284 42 L296 60 L296 80 L284 98 C276 110 262 116 246 118 L194 122 C174 123 146 123 126 122 L74 118 C58 116 44 110 36 98 L24 80 L24 60 Z"/>
+    <rect x="64" y="10" width="34" height="11" rx="5.5"/>
+    <rect x="64" y="119" width="34" height="11" rx="5.5"/>
+    <rect x="222" y="10" width="34" height="11" rx="5.5"/>
+    <rect x="222" y="119" width="34" height="11" rx="5.5"/>
+    <path d="M100 22 L90 12 L96 10 L106 20 Z"/>
+    <path d="M100 118 L90 128 L96 130 L106 120 Z"/>
+    <path d="M30 46 L48 44 L48 54 L30 56 Z"/>
+    <path d="M30 94 L48 96 L48 86 L30 84 Z"/>
+    <path d="M286 44 L298 46 L298 54 L286 52 Z"/>
+    <path d="M286 96 L298 94 L298 86 L286 88 Z"/>
+    <rect x="18" y="62" width="10" height="16" rx="2"/>
   </g>
-  <g fill="#FFFFFF">
-    <circle cx="18" cy="16" r="1.4"/><circle cx="282" cy="16" r="1.4"/>
-    <circle cx="18" cy="94" r="1.4"/><circle cx="282" cy="94" r="1.4"/>
+  <g stroke="#334155" stroke-width="1.1" fill="none" stroke-linejoin="round" stroke-linecap="round">
+    <path d="M100 22 C112 38 112 102 100 118"/>
+    <path d="M124 19 L124 121"/>
+    <path d="M198 19 L198 121"/>
+    <path d="M222 22 C210 38 210 102 222 118"/>
+    <rect x="138" y="42" width="46" height="56" rx="6"/>
+    <path d="M44 58 C70 54 90 54 98 58"/>
+    <path d="M44 82 C70 86 90 86 98 82"/>
+    <path d="M250 30 L250 110"/>
+    <path d="M138 19 L138 30 M138 110 L138 121"/>
+    <path d="M186 19 L186 30 M186 110 L186 121"/>
+    <path d="M44 70 L96 70"/>
+    <path d="M226 70 L290 70"/>
+  </g>
+  <g fill="#334155">
+    <circle cx="16" cy="16" r="1.4"/><circle cx="304" cy="16" r="1.4"/>
+    <circle cx="16" cy="124" r="1.4"/><circle cx="304" cy="124" r="1.4"/>
   </g>
 </svg>`;
 
 const BLUEPRINT_SIDE_SVG = `
-<svg class="inspect-svg" viewBox="0 0 300 110" width="300" height="110" preserveAspectRatio="xMidYMid meet" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
-  <g stroke="#FFFFFF" stroke-width="1.5" fill="none" stroke-linejoin="round" stroke-linecap="round">
-    <circle cx="90" cy="88" r="17"/>
-    <circle cx="90" cy="88" r="8"/>
-    <circle cx="230" cy="88" r="17"/>
-    <circle cx="230" cy="88" r="8"/>
-    <path d="M18 88 L18 76 C18 68 24 64 34 62 L68 56 L100 36 C106 32 114 30 122 30 L184 30 C194 30 202 34 208 40 L238 62 L276 65 C290 67 294 74 294 82 L294 88 L246 88 C246 77 238 71 230 71 C222 71 214 77 214 88 L106 88 C106 77 98 71 90 71 C82 71 74 77 74 88 Z"/>
-    <path d="M104 38 L142 38 L142 58 L104 58 Z"/>
-    <path d="M148 38 L184 38 L206 58 L148 58 Z"/>
-    <path d="M142 58 L142 86 M206 58 L206 86"/>
-    <path d="M120 64 L132 64 M160 64 L172 64"/>
-    <path d="M104 42 L98 40 L96 45 L102 47 Z"/>
-    <path d="M282 70 L292 72"/>
-    <path d="M20 70 L32 72"/>
-    <path d="M38 62 L70 56"/>
-    <path d="M240 62 L276 65"/>
+<svg class="inspect-svg" viewBox="0 0 320 140" width="320" height="140" preserveAspectRatio="xMidYMid meet" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+  <g stroke="#1E293B" stroke-width="1.4" fill="none" stroke-linejoin="round" stroke-linecap="round">
+    <circle cx="72" cy="104" r="20"/>
+    <circle cx="72" cy="104" r="10"/>
+    <circle cx="248" cy="104" r="20"/>
+    <circle cx="248" cy="104" r="10"/>
+    <path d="M16 96 L16 84 C16 78 20 74 28 72 L92 64 C100 63 106 59 112 53 L134 34 C140 29 148 27 156 27 L194 27 C204 27 212 30 218 36 L244 60 L288 64 C298 65 304 70 304 78 L304 96 L268 96 C268 85 260 78 248 78 C236 78 228 85 228 96 L92 96 C92 85 84 78 72 78 C60 78 52 85 52 96 Z"/>
+    <path d="M112 54 L102 50 L100 56 L110 60 Z"/>
+    <path d="M20 80 L38 78 L40 86 L22 88 Z"/>
+    <path d="M292 70 L302 72 L302 80 L292 78 Z"/>
   </g>
-  <g fill="#FFFFFF">
-    <circle cx="18" cy="16" r="1.4"/><circle cx="282" cy="16" r="1.4"/>
-    <circle cx="18" cy="100" r="1.4"/><circle cx="282" cy="100" r="1.4"/>
+  <g stroke="#334155" stroke-width="1.1" fill="none" stroke-linejoin="round" stroke-linecap="round">
+    <path d="M118 54 L138 36 L158 36 L158 58 L118 58 Z"/>
+    <path d="M164 36 L194 36 L214 58 L164 58 Z"/>
+    <path d="M160 58 L160 94 M214 58 L214 94"/>
+    <path d="M136 68 L152 68 M172 68 L188 68"/>
+    <path d="M34 82 C120 78 220 78 292 82"/>
+    <path d="M72 94 L72 114 M62 104 L82 104 M65 97 L79 111 M79 97 L65 111"/>
+    <path d="M248 94 L248 114 M238 104 L258 104 M241 97 L255 111 M255 97 L241 111"/>
+    <circle cx="280" cy="76" r="3"/>
+  </g>
+  <g fill="#334155">
+    <circle cx="16" cy="16" r="1.4"/><circle cx="304" cy="16" r="1.4"/>
+    <circle cx="16" cy="124" r="1.4"/><circle cx="304" cy="124" r="1.4"/>
   </g>
 </svg>`;
 
 const BLUEPRINT_FRONT_SVG = `
-<svg class="inspect-svg" viewBox="0 0 300 110" width="300" height="110" preserveAspectRatio="xMidYMid meet" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
-  <g stroke="#FFFFFF" stroke-width="1.5" fill="none" stroke-linejoin="round" stroke-linecap="round">
-    <ellipse cx="52" cy="94" rx="12" ry="8"/>
-    <ellipse cx="248" cy="94" rx="12" ry="8"/>
-    <path d="M100 16 C126 12 174 12 200 16 L232 34 L250 52 L262 78 C265 88 259 94 249 94 L51 94 C41 94 35 88 38 78 L50 52 L68 34 Z"/>
-    <path d="M84 42 L216 42 L202 26 L98 26 Z"/>
-    <path d="M98 26 C120 22 180 22 202 26"/>
-    <path d="M68 34 L84 42 M232 34 L216 42"/>
-    <path d="M66 50 L234 50"/>
-    <rect x="112" y="60" width="76" height="20" rx="4"/>
-    <path d="M116 65 L184 65 M116 70 L184 70 M116 75 L184 75"/>
-    <path d="M60 56 L104 60 L102 74 L58 70 Z"/>
-    <path d="M240 56 L196 60 L198 74 L242 70 Z"/>
-    <path d="M44 82 L256 82 L252 92 L48 92 Z"/>
-    <rect x="132" y="84" width="36" height="7" rx="1"/>
-    <circle cx="60" cy="87" r="3"/>
-    <circle cx="240" cy="87" r="3"/>
-    <path d="M66 46 L48 42 L46 49 L60 53 Z"/>
-    <path d="M234 46 L252 42 L254 49 L240 53 Z"/>
-    <path d="M150 50 L150 58"/>
-    <path d="M118 44 L140 40 M182 40 L204 44"/>
+<svg class="inspect-svg" viewBox="0 0 320 140" width="320" height="140" preserveAspectRatio="xMidYMid meet" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+  <g stroke="#1E293B" stroke-width="1.4" fill="none" stroke-linejoin="round" stroke-linecap="round">
+    <ellipse cx="78" cy="114" rx="16" ry="7"/>
+    <ellipse cx="242" cy="114" rx="16" ry="7"/>
+    <path d="M160 22 C142 22 128 26 120 34 L108 46 C100 56 94 68 92 80 L86 102 C84 110 88 114 96 116 L224 116 C232 114 236 110 234 102 L228 80 C226 68 220 56 212 46 L200 34 C192 26 178 22 160 22 Z"/>
+    <path d="M92 52 L74 48 L72 54 L90 58 Z"/>
+    <path d="M228 52 L246 48 L248 54 L230 58 Z"/>
+    <path d="M90 54 L126 50 L128 64 L92 68 Z"/>
+    <path d="M230 54 L194 50 L192 64 L228 68 Z"/>
+    <circle cx="104" cy="94" r="4"/>
+    <circle cx="216" cy="94" r="4"/>
   </g>
-  <g fill="#FFFFFF">
-    <circle cx="14" cy="12" r="1.4"/><circle cx="286" cy="12" r="1.4"/>
-    <circle cx="14" cy="100" r="1.4"/><circle cx="286" cy="100" r="1.4"/>
+  <g stroke="#334155" stroke-width="1.1" fill="none" stroke-linejoin="round" stroke-linecap="round">
+    <path d="M124 34 L196 34 L208 46 L112 46 Z"/>
+    <path d="M112 46 C130 42 190 42 208 46"/>
+    <rect x="132" y="62" width="56" height="24" rx="4"/>
+    <path d="M136 68 L184 68 M136 74 L184 74 M136 80 L184 80"/>
+    <path d="M118 92 L202 92 L198 106 L122 106 Z"/>
+    <path d="M122 96 L198 96 M122 101 L198 101"/>
+    <path d="M120 48 L138 44 M200 48 L182 44"/>
+    <path d="M88 86 L232 86"/>
+    <rect x="144" y="107" width="32" height="7" rx="1"/>
+  </g>
+  <g fill="#334155">
+    <circle cx="16" cy="16" r="1.4"/><circle cx="304" cy="16" r="1.4"/>
+    <circle cx="16" cy="124" r="1.4"/><circle cx="304" cy="124" r="1.4"/>
   </g>
 </svg>`;
 
@@ -137,6 +157,30 @@ function esc(s?: any): string {
     .replace(/&/g, '&amp;')
     .replace(/</g, '&lt;')
     .replace(/>/g, '&gt;');
+}
+
+/** Boş/undefined değerleri atlayarak ilk dolu metni döndürür. */
+function pickString(...values: any[]): string {
+  for (const value of values) {
+    if (value !== undefined && value !== null && String(value).trim() !== '') {
+      return String(value).trim();
+    }
+  }
+  return '';
+}
+
+/** Dosya adı için canlı ayarlardan güvenli, aksansız marka adı üretir. */
+function fileBrand(settings: any): string {
+  const shopName = pickString(settings.shopName, settings.shop_name);
+  const brand = (shopName.split(' - ')[0] || shopName || 'Belge').trim();
+  const ascii = brand
+    .replace(/ı/g, 'i').replace(/İ/g, 'I')
+    .replace(/ş/g, 's').replace(/Ş/g, 'S')
+    .replace(/ğ/g, 'g').replace(/Ğ/g, 'G')
+    .replace(/ü/g, 'u').replace(/Ü/g, 'U')
+    .replace(/ö/g, 'o').replace(/Ö/g, 'O')
+    .replace(/ç/g, 'c').replace(/Ç/g, 'C');
+  return ascii.replace(/[^a-zA-Z0-9]+/g, '-').replace(/^-+|-+$/g, '') || 'Belge';
 }
 
 export interface StatementOptions {
@@ -152,23 +196,35 @@ export function statementHTML(orders: any[], v: any, settings: any = {}, options
   const isQuote = Boolean(options.isQuote);
   const validityDays = options.validityDays ?? 14;
 
-  // Tüm kurumsal kimlik — global ayar kaynağından gelir.
-  const companyName = String(settings.shop_name || CORPORATE.legalName).trim();
-  const nameParts = companyName.split(' - ');
-  const brandName = (nameParts[0] || companyName).trim();
+  // Tüm kurumsal kimlik yalnızca canlı global ayarlardan gelir. PDF modülünde
+  // sabit adres/telefon/vergi/şirket adı yedeği YOKTUR. Hem mevcut snake_case
+  // AppSettings hem de camelCase profil nesnesi desteklenir.
+  const shopName = pickString(settings.shopName, settings.shop_name);
+  const companyName = shopName;
+  const nameParts = shopName.split(' - ');
+  const brandName = (nameParts[0] || shopName).trim();
   const companyTagline = nameParts.length > 1
     ? nameParts.slice(1).join(' - ').trim()
-    : 'Özel Servis & Bakım Hizmetleri';
-  const shopPhone = String(settings.shop_phone || CORPORATE.phone).trim();
-  const shopAddress = String(settings.shop_address || CORPORATE.address).trim();
-  const shopEmail = String(settings.shop_email || CORPORATE.email).trim();
-  const shopTaxOffice = String(settings.shop_tax_office || CORPORATE.taxOffice).trim();
-  const shopTaxNumber = String(settings.shop_tax_number || CORPORATE.taxNumber).trim();
+    : pickString(settings.tagline, settings.shop_tagline);
+  const shopPhone = pickString(settings.phone, settings.shop_phone);
+  const shopAddress = pickString(settings.address, settings.shop_address);
+  const shopEmail = pickString(settings.email, settings.shop_email);
+  const shopTaxOffice = pickString(settings.taxOffice, settings.shop_tax_office);
+  const shopTaxNumber = pickString(settings.taxNumber, settings.shop_tax_number);
+  const shopOwner = pickString(settings.ownerName, settings.owner, settings.shop_owner);
   const owner = v?.musteri || {};
 
   const taxLine = [
     shopTaxOffice ? `Vergi Dairesi: ${shopTaxOffice}` : '',
     shopTaxNumber ? `VKN: ${shopTaxNumber}` : ''
+  ].filter(Boolean).join(' · ');
+  const contactLine = [
+    shopPhone ? `T: ${shopPhone}` : '',
+    shopEmail
+  ].filter(Boolean).join(' · ');
+  const footerLine = [
+    shopAddress,
+    shopPhone ? `Tel: ${shopPhone}` : ''
   ].filter(Boolean).join(' · ');
 
   const today = todayISO();
@@ -248,10 +304,14 @@ export function statementHTML(orders: any[], v: any, settings: any = {}, options
   const chassis = v?.sasi_no || v?.vin || '—';
   const engine = v?.motor_kodu || v?.motor_no || '—';
   const km = lastKm ? `${numfmt(lastKm)} km` : '—';
-  const signatureOwner = settings.shop_owner || CORPORATE.owner;
+  const signatureOwner = shopOwner;
   const legalNote = 'Bu belge bilgi amaçlı servis dökümüdür, resmi fatura yerine geçmesi için faturaya dönüştürülmelidir.';
   const warrantyNote = 'Değişen yedek parçalar 1 Yıl / 10.000 KM firmamız ve üretici garantisi altındadır. İşbu evrak hizmet kabul tutanağıdır; servis işlemleriyle ilgili tüm garanti koşulları için servis departmanımızla iletişime geçebilirsiniz.';
   const brandUpper = brandName.toLocaleUpperCase('tr');
+  // Filigran her zaman canlı ayarlardaki tam şirket adından (settings.shopName)
+  // üretilir; uzun adlarda taşmayı önlemek için punto uzunluğa göre ölçeklenir.
+  const watermarkText = shopName.toLocaleUpperCase('tr').trim();
+  const watermarkFontSize = Math.max(22, Math.min(62, Math.floor(980 / Math.max(6, watermarkText.length))));
   // Gerçek kurumsal logo. Dosya `public/logo.jpeg` içine konur; Electron
   // derlemesinde göreli yol kullanıldığı için BASE_URL ile birleştirilir.
   const logoUrl = `${import.meta.env.BASE_URL}logo.jpeg`;
@@ -272,7 +332,7 @@ export function statementHTML(orders: any[], v: any, settings: any = {}, options
     #stmt .logo-lockup{display:flex;align-items:center;gap:16px;width:100%}
     #stmt .logo-cell{flex:0 0 auto;width:auto}
     #stmt .brand-cell{flex:1 1 auto;padding-left:0}
-    #stmt .stmt-logo-img{display:block;height:60px;width:auto;max-width:96px;object-fit:contain}
+    #stmt .stmt-logo-img{display:block;height:56px;width:auto;max-width:112px;object-fit:contain}
     #stmt .stmt-logo-fallback{display:none}
     #stmt .logo-company{font-family:"Inter","Segoe UI",system-ui,-apple-system,sans-serif;font-size:22px;font-weight:700;color:#1E293B;letter-spacing:.01em;text-transform:uppercase;line-height:1.08}
     #stmt .company-sub{font-size:10px;color:#475569;margin-top:3px;letter-spacing:.02em;font-weight:400}
@@ -297,17 +357,18 @@ export function statementHTML(orders: any[], v: any, settings: any = {}, options
     #stmt .info-label{display:table-cell;width:42%;font-size:8px;font-weight:500;color:#64748B;text-transform:uppercase;letter-spacing:.05em;padding-top:1px}
     #stmt .info-value{display:table-cell;width:58%;font-size:9.5px;color:#1E293B;font-weight:400}
 
-    /* 3 görünümlü mühendislik krokisi — royal blue zemin + grid */
-    #stmt .blueprint-box{background:#1E40AF;border-color:#1E3A8A}
-    #stmt .blueprint-box .info-head{background:#1E40AF;color:#FFFFFF;border-bottom-color:rgba(255,255,255,.18)}
-    #stmt .blueprint-body{padding:10px 8px 8px;background-color:#1E40AF;background-image:linear-gradient(rgba(255,255,255,.1) 1px,transparent 1px),linear-gradient(90deg,rgba(255,255,255,.1) 1px,transparent 1px);background-size:16px 16px}
+    /* 3 görünümlü mühendislik krokisi — yazıcı dostu saf beyaz zemin.
+       Mürekkep tasarrufu için dolgu/grid yok; yalnızca ince slate konturlar. */
+    #stmt .blueprint-box{background:#FFFFFF;border-color:#CBD5E1}
+    #stmt .blueprint-box .info-head{background:#FFFFFF;color:#1E293B;border-bottom-color:#CBD5E1}
+    #stmt .blueprint-body{padding:10px 8px 8px;background:#FFFFFF}
     #stmt .bp-row{display:table;width:100%;table-layout:fixed;margin-bottom:4px}
     #stmt .bp-cell{display:table-cell;width:50%;text-align:center;vertical-align:top;padding:0 2px}
     #stmt .bp-large{text-align:center}
     #stmt .inspect-svg{display:block;margin:0 auto}
     #stmt .bp-cell .inspect-svg{width:118px;height:54px}
-    #stmt .bp-large .inspect-svg{width:238px;height:72px}
-    #stmt .inspect-cap{font-family:"Inter","Segoe UI",system-ui,-apple-system,sans-serif;font-size:7px;font-weight:500;color:#DBEAFE;text-transform:uppercase;letter-spacing:.08em;margin-top:1px}
+    #stmt .bp-large .inspect-svg{width:238px;height:80px}
+    #stmt .inspect-cap{font-family:"Inter","Segoe UI",system-ui,-apple-system,sans-serif;font-size:7px;font-weight:500;color:#475569;text-transform:uppercase;letter-spacing:.08em;margin-top:1px}
 
     /* Ürün/işlem matrisi — yalnızca yatay çizgiler */
     #stmt .items-table{width:100%;border-collapse:collapse;margin-bottom:16px}
@@ -359,21 +420,21 @@ export function statementHTML(orders: any[], v: any, settings: any = {}, options
   return `
     <style>${css}</style>
     <div id="stmt">
-      <div class="watermark">ÇINAR OTOMOTİV</div>
+      <div class="watermark" style="font-size:${watermarkFontSize}px">${esc(watermarkText)}</div>
 
       <div class="header">
         <div class="header-top">
           <div class="header-left">
             <div class="logo-lockup">
               <div class="logo-cell">
-                <img class="stmt-logo-img" src="${logoUrl}" alt="Çınar Otomotiv Logo" onerror="this.style.display='none';this.parentElement.querySelector('.stmt-logo-fallback').style.display='block'" />
+                <img class="stmt-logo-img" src="${logoUrl}" alt="Logo" onerror="this.style.display='none';this.parentElement.querySelector('.stmt-logo-fallback').style.display='block'" />
                 <div class="stmt-logo-fallback">${LOGO_SVG}</div>
               </div>
               <div class="brand-cell">
-                <div class="logo-company">${esc(brandUpper)}</div>
-                <div class="company-sub">${esc(companyTagline)}</div>
-                <div class="company-addr">${esc(shopAddress)}</div>
-                <div class="company-addr">T: ${esc(shopPhone)}${shopEmail ? ` · ${esc(shopEmail)}` : ''}</div>
+                ${brandUpper ? `<div class="logo-company">${esc(brandUpper)}</div>` : ''}
+                ${companyTagline ? `<div class="company-sub">${esc(companyTagline)}</div>` : ''}
+                ${shopAddress ? `<div class="company-addr">${esc(shopAddress)}</div>` : ''}
+                ${contactLine ? `<div class="company-addr">${esc(contactLine)}</div>` : ''}
                 ${taxLine ? `<div class="company-addr">${esc(taxLine)}</div>` : ''}
               </div>
             </div>
@@ -422,9 +483,9 @@ export function statementHTML(orders: any[], v: any, settings: any = {}, options
             <div class="blueprint-body">
               <div class="bp-row">
                 <div class="bp-cell">${BLUEPRINT_PLAN_SVG}<div class="inspect-cap">Üstten Görünüm</div></div>
-                <div class="bp-cell">${BLUEPRINT_SIDE_SVG}<div class="inspect-cap">Yandan Görünüm</div></div>
+                <div class="bp-cell">${BLUEPRINT_FRONT_SVG}<div class="inspect-cap">Önden Görünüm</div></div>
               </div>
-              <div class="bp-large">${BLUEPRINT_FRONT_SVG}<div class="inspect-cap">Önden Görünüm</div></div>
+              <div class="bp-large">${BLUEPRINT_SIDE_SVG}<div class="inspect-cap">Yandan Görünüm</div></div>
             </div>
           </div>
         </div>
@@ -470,7 +531,7 @@ export function statementHTML(orders: any[], v: any, settings: any = {}, options
         </div>
         <div class="sig-col right">
           <div class="sig-box">
-            <span class="sig-label">Servis Danışmanı / Kaşe & İmza (${esc(signatureOwner)})</span>
+            <span class="sig-label">Servis Danışmanı / Kaşe & İmza${signatureOwner ? ` (${esc(signatureOwner)})` : ''}</span>
           </div>
         </div>
       </div>
@@ -480,7 +541,7 @@ export function statementHTML(orders: any[], v: any, settings: any = {}, options
       <div class="page-footer">
         <div class="pf-inner">
           <span class="pf-left">${esc(companyName)}</span>
-          <span class="pf-right">${esc(shopAddress)} · Tel: ${esc(shopPhone)}</span>
+          <span class="pf-right">${esc(footerLine)}</span>
         </div>
       </div>
     </div>
@@ -518,7 +579,7 @@ export async function exportStatementPDF(
     `IS-${new Date().getFullYear()}-${String(orders[0]?.id || 1).padStart(4, '0')}`
   );
   const baseName = [
-    'Cinar-Otomotiv',
+    fileBrand(settings),
     options.isQuote ? 'Teklif' : 'Servis-Is-Emri',
     documentNo,
     String(plate).replace(/\s+/g, '')
@@ -538,6 +599,9 @@ export async function exportStatementPDF(
       try { await (document as any).fonts?.ready; } catch {}
 
       const stmtEl = host.querySelector('#stmt') as HTMLElement;
+      const watermarkEl = stmtEl.querySelector('.watermark') as HTMLElement | null;
+      const watermarkText = (watermarkEl?.textContent || '').trim();
+      const watermarkFontSize = Math.max(22, Math.min(64, Math.floor(1100 / Math.max(6, watermarkText.length))));
       const canvas = await win.html2canvas(stmtEl, {
         scale: 2,
         backgroundColor: '#ffffff',
@@ -575,20 +639,22 @@ export async function exportStatementPDF(
         cx.drawImage(canvas, 0, y, canvas.width, h, 0, 0, canvas.width, h);
 
         // Kurumsal filigran — her sayfada ortada, tek katman, %6 opaklık.
-        // multiply: beyaz zemini hafifçe koyulaştırır, koyu metni bozmaz;
-        // böylece tablo satırlarının "arkasında" duruyormuş gibi görünür.
-        cx.save();
-        cx.globalCompositeOperation = 'multiply';
-        cx.globalAlpha = 0.06;
-        cx.fillStyle = '#111827';
-        cx.font = 'bold 64px sans-serif';
-        (cx as any).letterSpacing = '6px';
-        cx.textAlign = 'center';
-        cx.textBaseline = 'middle';
-        cx.translate(canvas.width / 2, h / 2);
-        cx.rotate(-0.25);
-        cx.fillText('ÇINAR OTOMOTİV', 0, 0);
-        cx.restore();
+        // Metin canlı ayarlardaki marka adından gelir; multiply beyaz zemini
+        // hafifçe koyulaştırır, koyu metni bozmaz.
+        if (watermarkText) {
+          cx.save();
+          cx.globalCompositeOperation = 'multiply';
+          cx.globalAlpha = 0.06;
+          cx.fillStyle = '#1E293B';
+          cx.font = `bold ${watermarkFontSize}px sans-serif`;
+          (cx as any).letterSpacing = '6px';
+          cx.textAlign = 'center';
+          cx.textBaseline = 'middle';
+          cx.translate(canvas.width / 2, h / 2);
+          cx.rotate(-0.25);
+          cx.fillText(watermarkText, 0, 0);
+          cx.restore();
+        }
 
         if (!first) pdf.addPage();
         pdf.addImage(c.toDataURL('image/jpeg', 0.92), 'JPEG', 0, 0, pw, h * k);

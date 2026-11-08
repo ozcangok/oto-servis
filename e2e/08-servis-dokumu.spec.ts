@@ -107,14 +107,18 @@ test.describe('7) Kurumsal Servis Dökümü (PDF) — şablon & tasarım', () =>
     expect(html).not.toContain('ARAÇ GÖRÜNÜMÜ');
     expect(html).not.toContain('class="blueprint"');
 
-    // STRICT PDF şartnamesi: 3 görünümlü beyaz kroki, royal blue zemin,
-    // Inter tipografi, lacivert toplam kutusu, zebra satırlar ve %6 filigran.
+    // STRICT PDF şartnamesi: 3 görünümlü yazıcı dostu kroki (saf beyaz zemin,
+    // koyu slate çizgiler), Inter tipografi, lacivert toplam kutusu, zebra
+    // satırlar ve %6 filigran.
     expect(html).toContain('Önden Görünüm');
-    expect(html).toContain('stroke="#FFFFFF"');
-    expect(html).toContain('stroke-width="1.5"');
+    expect(html).toContain('stroke="#1E293B"');
+    expect(html).toContain('stroke="#334155"');
+    expect(html).toContain('stroke-width="1.4"');
     expect(html).toContain('fill="none"');
-    expect(html).toContain('#1E40AF');
-    expect(html).toContain('#1E3A8A');
+    expect(html).toContain('background:#FFFFFF');
+    expect(html).not.toContain('#1E40AF');
+    expect(html).not.toContain('#1E3A8A');
+    expect(html).not.toContain('stroke="#FFFFFF"');
     expect(html).toContain('#E2E8F0');
     expect(html).toContain('#334155');
     expect(html).toContain('#1E293B');
@@ -186,10 +190,45 @@ test.describe('7) Kurumsal Servis Dökümü (PDF) — şablon & tasarım', () =>
     }, html);
     expect(logo.hasImg, 'gerçek logo <img> öğesi bulunamadı').toBe(true);
     expect(logo.src, 'logo kaynağı logo.jpeg olmalı').toContain('logo.jpeg');
-    expect(logo.alt, 'logo alt metni kurumsal olmalı').toContain('Çınar Otomotiv');
+    expect(logo.alt, 'logo alt metni kurumsal olmalı').toContain('Logo');
     expect(logo.hasFallback, 'logo yedek amblemi bulunamadı').toBe(true);
     expect(logo.shapes, 'yedek amblem vektör şekilleri içermeli').toBeGreaterThan(0);
     expect(html).not.toMatch(/<img[^>]+src=""/); // kırık/boş görsel referansı yok
+  });
+
+  test('kurumsal künye yalnızca canlı global ayarlardan gelir; PDF modülünde sabit şirket verisi yoktur', async ({ page }) => {
+    await login(page, OWNER);
+    const customSettings = {
+      shopName: 'Deneme Otomotiv - Test Hizmetleri',
+      address: 'Test Mah. Test Sk. No:1',
+      phone: '0212 000 00 00',
+      email: 'test@example.com',
+      taxOffice: 'Test V.D.',
+      taxNumber: '9999999999',
+      ownerName: 'Test Yetkili'
+    };
+    const html = await buildStatementHTML(page, SAMPLE_ORDERS, SAMPLE_VEHICLE, customSettings);
+
+    // CamelCase ayar nesnesi doğrudan PDF'e yansır.
+    expect(html).toContain('DENEME OTOMOTİV');
+    expect(html).toContain('Test Hizmetleri');
+    expect(html).toContain('Test Mah. Test Sk. No:1');
+    expect(html).toContain('T: 0212 000 00 00');
+    expect(html).toContain('test@example.com');
+    expect(html).toContain('Vergi Dairesi: Test V.D.');
+    expect(html).toContain('VKN: 9999999999');
+    expect(html).toContain('Test Yetkili');
+
+    // Filigran da canlı ayarlardan üretilir.
+    expect(html).toContain('class="watermark"');
+    expect(html).toContain('DENEME OTOMOTİV');
+
+    // PDF modülünde eski sabit şirket verisi kalmamalı.
+    expect(html).not.toContain('Esenşehir');
+    expect(html).not.toContain('0530 766 52 60');
+    expect(html).not.toContain('Marmara V.D.');
+    expect(html).not.toContain('ÇINAR OTOMOTİV');
+    expect(html).not.toContain('Çınar Otomotiv');
   });
 });
 
@@ -305,28 +344,45 @@ test.describe('7) Kurumsal Servis Dökümü (PDF) — uçtan uca üretim', () =>
     expect(html).toContain('1.200,00 ₺'); // Genel toplam
     expect(html).toContain('GENEL TOPLAM');
 
-    // 4) Görsel kontrol: logo alanı dolu ve render edilmiş (boş/kırık değil)
-    expect(html).toContain('stmt-logo');
+    // 4) Görsel kontrol: gerçek logo dosyası servis ediliyor ve başlıkta
+    // 56px yüksekliğinde render ediliyor; dosya yoksa vektör yedeği hazır.
+    expect(html).toContain('stmt-logo-img');
+    expect(html).toContain('logo.jpeg');
     const logo = await page.evaluate((h) => {
       const host = document.createElement('div');
       host.style.cssText = 'position:fixed;left:0;top:0;width:794px;background:#fff;';
       host.innerHTML = h;
       document.body.appendChild(host);
-      const svg = host.querySelector('.stmt-logo') as SVGSVGElement | null;
-      const r = svg ? svg.getBoundingClientRect() : null;
+      const img = host.querySelector('.stmt-logo-img') as HTMLImageElement | null;
+      const svg = host.querySelector('.stmt-logo-fallback .stmt-logo') as SVGSVGElement | null;
       const res = {
-        found: !!svg,
-        w: r ? r.width : 0,
-        h: r ? r.height : 0,
+        hasImg: !!img,
+        imgSrc: img?.getAttribute('src') || '',
+        imgHeight: img ? parseFloat(getComputedStyle(img).height) : 0,
+        hasFallback: !!svg,
         shapes: svg ? svg.querySelectorAll('path, rect, polygon, circle, line').length : 0
       };
       host.remove();
       return res;
     }, html);
-    expect(logo.found, 'PDF içindeki logo konteyneri bulunamadı').toBe(true);
-    expect(logo.w, 'logo genişliği > 0 olmalı').toBeGreaterThan(10);
-    expect(logo.h, 'logo yüksekliği > 0 olmalı').toBeGreaterThan(10);
-    expect(logo.shapes, 'logo vektör şekilleri içermeli').toBeGreaterThan(0);
+    expect(logo.hasImg, 'gerçek logo <img> öğesi bulunamadı').toBe(true);
+    expect(logo.imgSrc, 'logo kaynağı logo.jpeg olmalı').toContain('logo.jpeg');
+    expect(logo.imgHeight, 'logo yüksekliği 56px olmalı').toBeGreaterThanOrEqual(50);
+    expect(logo.hasFallback, 'logo yedek amblemi bulunamadı').toBe(true);
+    expect(logo.shapes, 'yedek amblem vektör şekilleri içermeli').toBeGreaterThan(0);
+
+    // Logo dosyası gerçekten yüklenebiliyor mu? (kırık görsel olmamalı)
+    const logoFile = await page.evaluate(async () => {
+      const img = new Image();
+      img.src = '/logo.jpeg';
+      await new Promise<void>((resolve) => {
+        img.addEventListener('load', () => resolve(), { once: true });
+        img.addEventListener('error', () => resolve(), { once: true });
+      });
+      return { complete: img.complete, width: img.naturalWidth, height: img.naturalHeight };
+    });
+    expect(logoFile.width, 'logo.jpeg gerçek bir görsel olmalı').toBeGreaterThan(0);
+    expect(logoFile.height, 'logo.jpeg gerçek bir görsel olmalı').toBeGreaterThan(0);
 
     // Hiçbir beklenmedik hata (pageerror / console error) olmamalı
     expect(errors, errors.join('\n')).toEqual([]);
