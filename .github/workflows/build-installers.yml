@@ -57,7 +57,7 @@ jobs:
   macos:
     name: macOS (.dmg + .zip)
     needs: prep
-    runs-on: macos-14
+    runs-on: macos-latest
     steps:
       - name: Depoyu çek
         uses: actions/checkout@v4
@@ -102,6 +102,12 @@ jobs:
         with:
           node-version: '20'
           cache: 'npm'
+
+      - name: Windows derleme ortamını hazırla
+        if: runner.os == 'Windows'
+        run: |
+          git config --system core.longpaths true
+          npm config set scripts-prepend-node-path true
 
       - name: Bağımlılıkları kur
         run: npm ci
