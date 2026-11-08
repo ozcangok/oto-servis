@@ -2,19 +2,18 @@ import { CORPORATE } from '@oto-servis/shared';
 import { dateISO, fdate, money, numfmt, formatPlateDisplay, toast, todayISO } from './ui.js';
 
 /**
- * KURUMSAL SERVİS İŞ EMRİ / TEKLİF FORMU (A4 PDF)
+ * KURUMSAL "YETKİLİ SERVİS" SERVİS İŞ EMRİ / TEKLİF FORMU (A4 PDF)
  *
- * Baskı kalitesinde, tek sayfaya oturan kurumsal belge:
- *  - Sol üstte belge başlığı + belge no/tarih/vade; sağ üstte logo, kısa marka
- *    adı ve Ayarlar'dan gelen gerçek adres/telefon/vergi bilgileri.
- *  - Müşteri ve araç bilgileri, açık gri başlıklı iki sütunlu matris.
- *  - Tür / Açıklama / Miktar / Birim Fiyat / Tutar sütunlu, çizgili ve satır
- *    araları tonlanmış finansal tablo.
- *  - Sağa hizalı Ara Toplam / KDV / KDV Dahil Genel Toplam özeti.
- *  - Çift imza/kaşe kutusu ve ortalanmış resmi yasal uyarı.
+ * Mercedes/BMW standartında lüks yetkili servis şablonu:
+ *  - Sol üstte kurumsal logo + firma bilgileri (adres, telefon, e-posta, vergi)
+ *  - Sağ üstte "İŞ EMRİ / TEKLİF FORMU" başlığı, belge no ve tarih
+ *  - Müşteri ve araç bilgileri #F4F6F8 tonlu panellerde
+ *  - CSS ile çizilmiş araç görünümü (blueprint)
+ *  - Tek satırlı çerçeveli finansal tablo, dark navy genel toplam rozeti
+ *  - Garanti beyanı ve çift imza/kaşe blokları
+ *  - Tüm sayfada %6 opaklık "ÇINAR OTOMOTİV" arka filigranı
  *
- * Tüm şirket kimliği `settings` parametresinden (global SettingsContext)
- * gelir; bu dosyada sabit adres/telefon/şirket adı kullanılmaz.
+ * Tüm şirket kimliği `settings` parametresinden gelir.
  */
 const LOGO_SVG = `
 <svg class="stmt-logo" viewBox="0 0 96 96" width="56" height="56" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
@@ -27,17 +26,7 @@ const LOGO_SVG = `
   </g>
 </svg>`;
 
-/** Kurumsal arka filigran SVG'i (PDF sayfalarının arkasında, saydam). */
-const WATERMARK_SVG = `
-<svg class="pdf-watermark" viewBox="0 0 600 400" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
-  <text x="50%" y="50%" dominant-baseline="middle" text-anchor="middle"
-        font-family="'IBM Plex Sans', Arial, sans-serif" font-size="42" font-weight="900"
-        fill="#0f2a5c" opacity="0.06" letter-spacing="4px">
-    ÇINAR OTOMOTİV
-  </text>
-</svg>`;
-
-/** Kullanıcı verisini HTML'e güvenli biçimde basar (düzeni bozmasın). */
+/** Kullanıcı verisini HTML'e güvenli biçimde basar. */
 function esc(s?: any): string {
   return String(s ?? '')
     .replace(/&/g, '&amp;')
@@ -45,32 +34,20 @@ function esc(s?: any): string {
     .replace(/>/g, '&gt;');
 }
 
-/** Bilgi matrisi içindeki tek bir alan: üstte küçük etiket, altta değer. */
-function field(label: string, value?: any): string {
-  const txt = value === null || value === undefined || value === '' ? '—' : esc(value);
-  return `<div class="info-cell"><label>${esc(label)}</label><b>${txt}</b></div>`;
-}
-
 export interface StatementOptions {
-  /** Belge başlığı (varsayılan: SERVİS İŞ EMRİ VE TEKLİF FORMU). */
   title?: string;
-  /** Teklif modunda geçerlilik süresi (gün). */
   validityDays?: number;
-  /** Teklif modunda vade/geçerlilik bilgisini ve dosya adını değiştirir. */
   isQuote?: boolean;
-  /** Kurumsal belge numarası (örn. CNR-2026-001). */
   documentNo?: string;
-  /** Ödeme vade tarihi (ISO tarih). */
   dueDate?: string | Date;
 }
 
 export function statementHTML(orders: any[], v: any, settings: any = {}, options: StatementOptions = {}) {
-  const docTitle = String(options.title || 'SERVİS İŞ EMRİ VE TEKLİF FORMU').toLocaleUpperCase('tr');
+  const docTitle = String(options.title || 'İŞ EMRİ / TEKLİF FORMU').toLocaleUpperCase('tr');
   const isQuote = Boolean(options.isQuote);
   const validityDays = options.validityDays ?? 14;
 
-  // Tüm kurumsal kimlik — adres, telefon, vergi bilgileri, yetkili — global
-  // ayar kaynağından gelir. Burada "Örnek Oto Servis" gibi sabit bir metin yoktur.
+  // Tüm kurumsal kimlik — global ayar kaynağından gelir.
   const companyName = String(settings.shop_name || CORPORATE.legalName).trim();
   const brandName = companyName.includes(' - ')
     ? companyName.split(' - ')[0].trim()
@@ -100,6 +77,7 @@ export function statementHTML(orders: any[], v: any, settings: any = {}, options
     ? (typeof options.dueDate === 'string' ? options.dueDate : dateISO(options.dueDate))
     : dateISO(dueDateFallback);
 
+  // Finansal hesaplamalar
   let tg = 0;
   let tnet = 0;
   let tvat = 0;
@@ -156,157 +134,187 @@ export function statementHTML(orders: any[], v: any, settings: any = {}, options
   const km = lastKm ? `${numfmt(lastKm)} km` : '—';
   const signatureOwner = settings.shop_owner || CORPORATE.owner;
   const legalNote = 'Bu belge bilgi amaçlı servis dökümüdür, resmi fatura yerine geçmesi için faturaya dönüştürülmelidir.';
+  const warrantyNote = 'Değişen yedek parçalar 1 Yıl / 10.000 KM firmamız ve üretici garantisi altındadır. Servis işlemleriyle ilgili tüm garanti koşulları için servis departmanımızla iletişime geçebilirsiniz.';
 
   const css = `
     @page{size:A4;margin:0}
-    #stmt{width:794px;min-height:1123px;box-sizing:border-box;background:#fff;color:#111827;font-family:"IBM Plex Sans",Arial,sans-serif;font-size:11.5px;line-height:1.4;display:flex;flex-direction:column;color-scheme:light;position:relative;overflow:hidden}
+    #stmt{width:794px;min-height:1123px;box-sizing:border-box;background:#fff;color:#111827;font-family:"IBM Plex Sans",Arial,sans-serif;font-size:11px;line-height:1.4;position:relative;overflow:hidden;padding:0}
     #stmt *{box-sizing:border-box}
-    #stmt .hd{display:grid;grid-template-columns:1.15fr .85fr;gap:24px;padding:26px 38px 18px;border-bottom:3px solid #0f2a5c}
-    #stmt .hd-l{min-width:0;display:flex;flex-direction:column;justify-content:center}
-    #stmt .doc-title{font-size:22px;font-weight:800;letter-spacing:.025em;line-height:1.12;color:#0f2a5c;text-transform:uppercase}
-    #stmt .doc-meta{margin-top:14px;display:flex;flex-direction:column;gap:4px}
-    #stmt .meta-row{display:flex;gap:8px;font-size:10.5px;color:#4b5563}
-    #stmt .meta-row span{width:76px;color:#6b7280;text-transform:uppercase;letter-spacing:.06em;font-size:8.5px;font-weight:700;padding-top:1px}
-    #stmt .meta-row b{color:#111827;font-weight:600}
-    #stmt .hd-r{text-align:right;display:flex;flex-direction:column;align-items:flex-end;gap:3px;min-width:0}
-    #stmt .brand-lockup{display:flex;align-items:center;justify-content:flex-end;gap:10px;margin-bottom:3px}
-    #stmt .stmt-logo{display:block;flex:none}
-    #stmt .brand-name{font-size:20px;font-weight:800;color:#0f2a5c;letter-spacing:.02em;line-height:1.1}
-    #stmt .brand-legal{font-size:9px;color:#6b7280;max-width:320px;line-height:1.35}
-    #stmt .brand-line{font-size:9.5px;color:#4b5563;line-height:1.45;max-width:340px}
-    #stmt .bd{padding:16px 38px 22px;display:flex;flex-direction:column;flex:1}
-    #stmt .matrix{display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:14px}
+    /* Arka filigran — tüm sayfalar için ortada, saydam, içeriğin arkasında */
+    #stmt .watermark{position:absolute;top:50%;left:50%;transform:translate(-50%,-50%) rotate(-15deg);font-size:80px;font-weight:900;color:#0f2a5c;opacity:0.06;pointer-events:none;z-index:0;white-space:nowrap;mix-blend-mode:multiply}
+
+    /* Başlık */
+    #stmt .header{position:relative;z-index:1;padding:20px 30px;border-bottom:3px solid #0f2a5c;margin-bottom:16px}
+    #stmt .header-top{display:table;width:100%}
+    #stmt .header-left{display:table-cell;vertical-align:middle;width:60%}
+    #stmt .header-right{display:table-cell;vertical-align:middle;text-align:right;width:40%}
+    #stmt .logo-company{font-size:17px;font-weight:900;color:#0f2a5c;letter-spacing:.5px}
+    #stmt .company-sub{font-size:10px;color:#4b5563;margin-top:2px}
+    #stmt .company-addr{font-size:9.5px;color:#4b5563;margin-top:3px}
+    #stmt .doc-title{font-size:16px;font-weight:900;color:#0f2a5c;text-transform:uppercase;letter-spacing:1px}
+    #stmt .doc-meta{font-size:9.5px;color:#4b5563;margin-top:5px}
+    #stmt .doc-meta div{margin-bottom:1px}
+
+    /* Bilgi Izgarası */
+    #stmt .info-grid{display:table;width:100%;margin-bottom:14px;border-collapse:separate;border-spacing:8px 0}
+    #stmt .info-col{display:table-cell;width:50%;vertical-align:top}
     #stmt .info-box{border:1px solid #d1d5db;border-radius:6px;overflow:hidden;background:#fff}
-    #stmt .info-head{background:#f3f4f6;border-bottom:1px solid #d1d5db;padding:7px 12px;font-size:9px;font-weight:800;letter-spacing:.08em;text-transform:uppercase;color:#374151}
-    #stmt .info-grid{display:grid;grid-template-columns:1fr 1fr}
-    #stmt .info-cell{padding:7px 12px;border-bottom:1px solid #e5e7eb;min-width:0}
-    #stmt .info-cell.span2{grid-column:span 2}
-    #stmt .info-cell label{display:block;font-size:8px;letter-spacing:.06em;text-transform:uppercase;color:#6b7280;margin-bottom:2px;font-weight:700}
-    #stmt .info-cell b{display:block;font-size:10.5px;color:#111827;font-weight:600;line-height:1.35;word-break:break-word}
-    #stmt .info-cell b.muted-val{font-weight:500;color:#4b5563}
-    #stmt .items{width:100%;border-collapse:collapse;border:1px solid #d1d5db;margin-top:2px}
-    #stmt .items thead th{background:#f3f4f6;color:#374151;font-size:8.5px;font-weight:800;letter-spacing:.07em;text-transform:uppercase;text-align:left;padding:8px 10px;border:1px solid #d1d5db}
-    #stmt .items tbody td{padding:8px 10px;border:1px solid #e5e7eb;vertical-align:top;font-size:10.5px}
-    #stmt .items tbody tr:nth-child(even){background:#f9fafb}
-    #stmt .c-tur{width:72px}
-    #stmt .c-qty{width:64px}
-    #stmt .c-unit{width:98px}
-    #stmt .c-total{width:104px}
-    #stmt .r{text-align:right;white-space:nowrap;font-variant-numeric:tabular-nums}
-    #stmt .amt{font-weight:700;color:#111827}
-    #stmt .item{font-weight:600;color:#111827}
-    #stmt .item-meta{font-size:8.5px;color:#6b7280;margin-top:2px;line-height:1.3}
-    #stmt .rtag{display:inline-block;font-size:8px;font-weight:800;padding:2px 7px;border-radius:3px;letter-spacing:.03em;text-transform:uppercase}
+    #stmt .info-head{background:#F4F6F8;color:#374151;font-size:9px;font-weight:800;letter-spacing:.08em;text-transform:uppercase;padding:8px 12px;border-bottom:1px solid #d1d5db}
+    #stmt .info-body{padding:12px;font-size:10px}
+    #stmt .info-row{display:table;width:100%;margin-bottom:5px;border-bottom:1px solid #f1f5f9}
+    #stmt .info-row:last-child{border-bottom:none}
+    #stmt .info-label{display:table-cell;width:42%;font-size:8.5px;font-weight:700;color:#6b7280;text-transform:uppercase;letter-spacing:.05em;padding-top:1px}
+    #stmt .info-value{display:table-cell;width:58%;font-size:10px;color:#111827;font-weight:600}
+
+    /* CSS ile çizilmiş araç görünümü (blueprint) */
+    #stmt .blueprint{width:100%;height:64px;border:1px solid #d1d5db;border-radius:6px;margin-top:8px;position:relative;background:#f9fafb}
+    #stmt .blueprint::before{content:'';position:absolute;top:9px;left:9px;right:9px;bottom:9px;border:2px solid #0f2a5c;border-radius:11px}
+    #stmt .blueprint .wheel-l{position:absolute;top:18px;left:16px;width:10px;height:10px;background:#0f2a5c;border-radius:50%}
+    #stmt .blueprint .wheel-r{position:absolute;top:18px;right:16px;width:10px;height:10px;background:#0f2a5c;border-radius:50%}
+    #stmt .blueprint .win{position:absolute;top:13px;left:28px;right:28px;bottom:18px;border:1px solid #cbd5e1;border-radius:5px}
+    #stmt .blueprint-label{position:absolute;bottom:3px;left:50%;transform:translateX(-50%);font-size:7.5px;color:#6b7280;font-weight:700;text-transform:uppercase}
+
+    /* Finansal tablo — sadece yatay çerçeveler */
+    #stmt .items-table{width:100%;border-collapse:collapse;margin-bottom:14px}
+    #stmt .items-table th{background:#F4F6F8;color:#374151;font-size:8.5px;font-weight:800;text-transform:uppercase;letter-spacing:.07em;padding:7px 10px;border:1px solid #d1d5db;border-top:none;border-bottom:none;text-align:left}
+    #stmt .items-table th.num{text-align:right}
+    #stmt .items-table td{padding:7px 10px;border:1px solid #e5e7eb;vertical-align:top;font-size:10px;border-top:none}
+    #stmt .items-table td.num{text-align:right;font-variant-numeric:tabular-nums}
+    #stmt .items-table tr{border-bottom:none}
+    #stmt .items-table tr:nth-child(even) td{background:#f9fafb}
+    #stmt .rtag{display:inline-block;font-size:7.5px;font-weight:800;padding:1.5px 6px;border-radius:3px;text-transform:uppercase;letter-spacing:.03em}
     #stmt .tag-part{background:#e8eefc;color:#1e3a8a}
     #stmt .tag-labor{background:#e7f6ec;color:#166534}
-    #stmt .empty{text-align:center;color:#6b7280;padding:14px}
-    #stmt .summary-wrap{display:flex;justify-content:flex-end;margin-top:12px}
-    #stmt .summary{width:300px;border:1px solid #d1d5db;border-radius:6px;overflow:hidden}
-    #stmt .srow{display:flex;justify-content:space-between;gap:14px;padding:6px 12px;font-size:10.5px;border-bottom:1px solid #e5e7eb}
-    #stmt .srow:last-child{border-bottom:none}
-    #stmt .srow span{color:#4b5563}
-    #stmt .srow b{font-variant-numeric:tabular-nums;font-weight:600;color:#111827}
-    #stmt .srow.grand{background:#0f2a5c;padding:9px 12px}
-    #stmt .srow.grand span{color:#dbe4f5;font-weight:700;font-size:9px;text-transform:uppercase;letter-spacing:.05em}
-    #stmt .srow.grand b{color:#fff;font-size:15px;font-weight:800}
-    #stmt .ftr{margin-top:auto;padding-top:18px}
-    #stmt .sign{display:grid;grid-template-columns:1fr 1fr;gap:22px;margin-top:8px}
-    #stmt .sign-box{border:1px solid #d1d5db;border-radius:6px;padding:10px 12px;min-height:70px;display:flex;flex-direction:column;justify-content:flex-end}
-    #stmt .sign-box span{font-size:8px;letter-spacing:.07em;text-transform:uppercase;color:#6b7280;font-weight:700}
-    #stmt .sign-line{flex:1;border-bottom:1px dashed #9ca3af;margin:12px 0 5px;min-height:18px}
-    #stmt .sign-box b{font-size:10.5px;color:#111827}
-    #stmt .legal{margin-top:12px;padding-top:8px;border-top:1px solid #e5e7eb;text-align:center;font-style:italic;font-size:9px;color:#6b7280;line-height:1.4}
-    #stmt .pdf-watermark{position:absolute;top:50%;left:50%;transform:translate(-50%,-50%) rotate(-14deg);font-size:72px;font-weight:900;color:#0f2a5c;opacity:0.06;pointer-events:none;z-index:0;white-space:nowrap;mix-blend-mode:multiply}
+    #stmt .item{font-weight:600;color:#111827}
+    #stmt .item-meta{font-size:8px;color:#6b7280;margin-top:2px;line-height:1.3}
+
+    /* Toplamlar */
+    #stmt .totals-wrap{display:table;width:100%;margin-bottom:14px}
+    #stmt .totals-col{display:table-cell;width:70%;vertical-align:top}
+    #stmt .totals-summary{display:table-cell;width:30%;vertical-align:top;padding-left:16px}
+    #stmt .total-row{display:table;width:100%;margin-bottom:3px}
+    #stmt .total-label{display:table-cell;font-size:9.5px;color:#4b5563}
+    #stmt .total-value{display:table-cell;text-align:right;font-size:10px;font-weight:700;color:#111827;font-variant-numeric:tabular-nums}
+    #stmt .grand-row{background:#0f2a5c;color:#fff;padding:10px 12px;border-radius:6px;font-size:11.5px;font-weight:900;margin-top:3px}
+    #stmt .grand-label{color:#dbe4f5;font-size:9px;text-transform:uppercase;letter-spacing:.05em}
+    #stmt .grand-value{color:#fff;font-size:15px}
+
+    /* Alt kısım */
+    #stmt .warranty{font-size:9px;color:#4b5563;margin-bottom:14px;line-height:1.5;font-style:italic}
+    #stmt .signature-wrap{display:table;width:100%}
+    #stmt .sig-col{display:table-cell;width:50%;padding:0 16px}
+    #stmt .sig-box{border:1px solid #d1d5db;border-radius:6px;padding:12px;min-height:64px;display:flex;flex-direction:column;justify-content:flex-end}
+    #stmt .sig-label{font-size:8px;font-weight:700;color:#6b7280;text-transform:uppercase;letter-spacing:.07em;margin-bottom:12px}
+    #stmt .sig-line{flex:1;border-bottom:1px dashed #9ca3af;margin-bottom:7px}
+    #stmt .sig-name{font-size:10px;color:#111827;font-weight:600}
+    #stmt .legal{margin-top:16px;padding-top:12px;border-top:1px solid #e5e7eb;text-align:center;font-style:italic;font-size:9px;color:#6b7280;line-height:1.4}
     @media print{#stmt{width:210mm;min-height:297mm}}
   `;
 
   return `
     <style>${css}</style>
     <div id="stmt">
-      <div class="pdf-watermark">${esc('ÇINAR OTOMOTİV')}</div>
-      <header class="hd">
-        <div class="hd-l">
-          <div class="doc-title">${esc(docTitle)}</div>
-          <div class="doc-meta">
-            <div class="meta-row"><span>Belge Tarihi</span><b>${fdate(today)}</b></div>
-            <div class="meta-row"><span>Belge No</span><b>${esc(documentNo)}</b></div>
-            <div class="meta-row"><span>Vade Tarihi</span><b>${fdate(dueDate)}</b></div>
-            ${isQuote ? `<div class="meta-row"><span>Geçerlilik</span><b>${validityDays} gün</b></div>` : ''}
+      <div class="watermark">ÇINAR OTOMOTİV</div>
+
+      <div class="header">
+        <div class="header-top">
+          <div class="header-left">
+            <div class="logo-lockup" style="display:table;width:100%">
+              <div style="display:table-cell;width:56px;height:56px">${LOGO_SVG}</div>
+              <div style="display:table-cell;vertical-align:middle;padding-left:12px">
+                <div class="logo-company">${esc(companyName)}</div>
+                <div class="company-sub">Özel Servis & Bakım Hizmetleri</div>
+                <div class="company-addr">${esc(shopAddress)}</div>
+                <div class="company-addr">Tel: ${esc(shopPhone)}${shopEmail ? ` · ${esc(shopEmail)}` : ''}</div>
+                ${taxLine ? `<div class="company-addr">${esc(taxLine)}</div>` : ''}
+              </div>
+            </div>
+          </div>
+          <div class="header-right">
+            <div class="doc-title">${esc(docTitle)}</div>
+            <div class="doc-meta">
+              <div><strong>Belge No:</strong> ${esc(documentNo)}</div>
+              <div><strong>Belge Tarihi:</strong> ${fdate(today)}</div>
+              <div><strong>Vade Tarihi:</strong> ${fdate(dueDate)}</div>
+            </div>
           </div>
         </div>
-        <div class="hd-r">
-          <div class="brand-lockup">
-            ${LOGO_SVG}
-            <div class="brand-name">${esc(brandName)}</div>
-          </div>
-          ${companyName !== brandName ? `<div class="brand-legal">${esc(companyName)}</div>` : ''}
-          ${shopAddress ? `<div class="brand-line">${esc(shopAddress)}</div>` : ''}
-          ${shopPhone ? `<div class="brand-line">Tel: ${esc(shopPhone)}${shopEmail ? ` · ${esc(shopEmail)}` : ''}</div>` : (shopEmail ? `<div class="brand-line">${esc(shopEmail)}</div>` : '')}
-          ${taxLine ? `<div class="brand-line">${esc(taxLine)}</div>` : ''}
-        </div>
-      </header>
-
-      <div class="bd">
-        <section class="matrix" aria-label="Müşteri ve araç bilgileri">
-          <div class="info-box">
-            <div class="info-head">Müşteri Bilgileri</div>
-            <div class="info-grid">
-              ${field('Ad Soyad', customerName)}
-              ${field('Telefon', customerPhone)}
-              <div class="info-cell span2"><label>E-posta</label><b>${esc(customerEmail)}</b></div>
-              <div class="info-cell span2"><label>Şikayet / Talep</label><b class="muted-val">${esc(complaint)}</b></div>
-            </div>
-          </div>
-          <div class="info-box">
-            <div class="info-head">Araç Bilgileri</div>
-            <div class="info-grid">
-              ${field('Plaka', plaka)}
-              ${field('Marka / Model', vehicleBrandModel)}
-              ${field('Model Yılı', vehicleYear)}
-              ${field('Şasi No', chassis)}
-              ${field('Motor No', engine)}
-              ${field('Kilometre', km)}
-            </div>
-          </div>
-        </section>
-
-        <table class="items">
-          <thead>
-            <tr>
-              <th class="c-tur">Tür</th>
-              <th>Açıklama</th>
-              <th class="r c-qty">Miktar</th>
-              <th class="r c-unit">Birim Fiyat</th>
-              <th class="r c-total">Tutar</th>
-            </tr>
-          </thead>
-          <tbody>${itemRows.join('') || '<tr><td colspan="5" class="empty">Kalem bulunamadı</td></tr>'}</tbody>
-        </table>
-
-        <div class="summary-wrap">
-          <div class="summary">
-            <div class="srow"><span>Ara Toplam (KDV Hariç)</span><b>${money(tnet, false)}</b></div>
-            <div class="srow"><span>KDV (%${numfmt(vatRateLabel)})</span><b>${money(vatTotal, false)}</b></div>
-            <div class="srow grand"><span>KDV Dahil Genel Toplam</span><b>${money(grandTotal, false)}</b></div>
-          </div>
-        </div>
-
-        <footer class="ftr">
-          <div class="sign">
-            <div class="sign-box">
-              <span>Müşteri Onayı / İmza</span>
-              <div class="sign-line"></div>
-              <b>${esc(customerName)}</b>
-            </div>
-            <div class="sign-box">
-              <span>Yetkili Servis Kaşe / İmza</span>
-              <div class="sign-line"></div>
-              <b>${esc(signatureOwner)} - ${esc(brandName)}</b>
-            </div>
-          </div>
-          <div class="legal">${esc(legalNote)}</div>
-        </footer>
       </div>
+
+      <div class="info-grid">
+        <div class="info-col">
+          <div class="info-box">
+            <div class="info-head">MÜŞTERİ BİLGİLERİ</div>
+            <div class="info-body">
+              <div class="info-row"><span class="info-label">Ad Soyad</span><span class="info-value">${esc(customerName)}</span></div>
+              <div class="info-row"><span class="info-label">Telefon</span><span class="info-value">${esc(customerPhone)}</span></div>
+              <div class="info-row"><span class="info-label">E-posta</span><span class="info-value">${esc(customerEmail)}</span></div>
+              <div class="info-row"><span class="info-label">Şikayet / Talep</span><span class="info-value">${esc(complaint)}</span></div>
+            </div>
+          </div>
+        </div>
+        <div class="info-col">
+          <div class="info-box">
+            <div class="info-head">ARAÇ BİLGİLERİ</div>
+            <div class="info-body">
+              <div class="info-row"><span class="info-label">Plaka</span><span class="info-value">${esc(plaka)}</span></div>
+              <div class="info-row"><span class="info-label">Marka / Model</span><span class="info-value">${esc(vehicleBrandModel)}</span></div>
+              <div class="info-row"><span class="info-label">Model Yılı</span><span class="info-value">${esc(vehicleYear)}</span></div>
+              <div class="info-row"><span class="info-label">Şasi No</span><span class="info-value">${esc(chassis)}</span></div>
+              <div class="info-row"><span class="info-label">Motor No</span><span class="info-value">${esc(engine)}</span></div>
+              <div class="info-row"><span class="info-label">Kilometre</span><span class="info-value">${esc(km)}</span></div>
+              <div class="blueprint">
+                <span class="wheel-l"></span><span class="wheel-r"></span><span class="win"></span>
+                <div class="blueprint-label">ARAÇ GÖRÜNÜMÜ</div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <table class="items-table">
+        <thead>
+          <tr>
+            <th style="width:80px">Tür</th>
+            <th>Açıklama</th>
+            <th class="num" style="width:80px">Miktar</th>
+            <th class="num" style="width:110px">Birim Fiyat</th>
+            <th class="num" style="width:110px">Tutar</th>
+          </tr>
+        </thead>
+        <tbody>${itemRows.join('') || '<tr><td colspan="5" class="empty" style="text-align:center;padding:24px">Kalem bulunamadı</td></tr>'}</tbody>
+      </table>
+
+      <div class="totals-wrap">
+        <div class="totals-col">
+          <div class="total-row"><span class="total-label">Ara Toplam (KDV Hariç)</span><span class="total-value">${money(tnet, false)}</span></div>
+          <div class="total-row"><span class="total-label">KDV (%${numfmt(vatRateLabel)})</span><span class="total-value">${money(vatTotal, false)}</span></div>
+        </div>
+        <div class="totals-summary">
+          <div class="grand-row"><span class="grand-label">KDV DAHİL GENEL TOPLAM</span><br/><span class="grand-value">${money(grandTotal, false)}</span></div>
+        </div>
+      </div>
+
+      <div class="warranty">${esc(warrantyNote)}</div>
+
+      <div class="signature-wrap">
+        <div class="sig-col">
+          <div class="sig-box">
+            <span class="sig-label">Müşteri Teslim Onayı / İmza</span>
+            <div class="sig-line"></div>
+            <span class="sig-name">${esc(customerName)}</span>
+          </div>
+        </div>
+        <div class="sig-col">
+          <div class="sig-box">
+            <span class="sig-label">Servis Danışmanı / Kaşe & İmza</span>
+            <div class="sig-line"></div>
+            <span class="sig-name">${esc(signatureOwner)} - ${esc(brandName)}</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="legal">${esc(legalNote)}</div>
     </div>
   `;
 }
@@ -334,7 +342,6 @@ export async function exportStatementPDF(
 
   toast('Döküm hazırlanıyor...');
 
-  // Check if html2canvas and jspdf exist
   if (win.html2canvas && win.jspdf) {
     const host = document.createElement('div');
     host.id = 'stmt-host';
@@ -364,8 +371,6 @@ export async function exportStatementPDF(
       const pw = pdf.internal.pageSize.getWidth();
       const ph = pdf.internal.pageSize.getHeight();
       const k = pw / canvas.width;
-      // Math.ceil + küçük tolerans: 1123px'lik A4 tuvalinin yuvarlama artığı
-      // (1-2 px) yüzünden boş ikinci sayfa oluşmasını engeller.
       const pageH = Math.ceil(ph / k);
 
       let y = 0;
@@ -383,11 +388,11 @@ export async function exportStatementPDF(
         cx.fillRect(0, 0, c.width, c.height);
         cx.drawImage(canvas, 0, y, canvas.width, h, 0, 0, canvas.width, h);
 
-        // Kurumsal filigran her sayfada ortada, saydam
+        // Kurumsal filigran — her sayfada ortada, %6 opaklık
         cx.save();
         cx.globalAlpha = 0.06;
         cx.fillStyle = '#0f2a5c';
-        cx.font = 'bold 64px sans-serif';
+        cx.font = 'bold 72px sans-serif';
         cx.textAlign = 'center';
         cx.textBaseline = 'middle';
         cx.translate(canvas.width / 2, h / 2);
@@ -411,7 +416,7 @@ export async function exportStatementPDF(
     }
   }
 
-  // Fallback: download HTML printable
+  // Fallback: indirilebilir HTML yazdırma
   try {
     const htmlContent = `<!doctype html><html lang="tr"><head><meta charset="utf-8"><title>${options.title || 'Servis İş Emri ve Teklif Formu'} - ${formatPlateDisplay(plate)}</title></head><body style="margin:0;background:#eee">${statementHTML(orders, vehicle, settings, options)}</body></html>`;
     const blob = new Blob([htmlContent], { type: 'text/html' });
@@ -427,10 +432,6 @@ export async function exportStatementPDF(
   }
 }
 
-/**
- * Belgeyi yazdırma penceresinde açar. PDF kütüphanesi beklemeden çalışır.
- * (Yazdırma penceresi kullanıcı tarafından iptal edilebilir.)
- */
 export function printStatement(
   orders: any[],
   vehicle: any,

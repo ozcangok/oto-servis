@@ -191,7 +191,7 @@ test.describe('11) Uçtan uca master zincir', () => {
     const captured = (await page.evaluate(() => (window as any).__pdfCaptured.slice())) as string[];
     expect(captured.length, 'PDF üretim fonksiyonu tetiklenmedi').toBeGreaterThan(0);
     const html = captured[0];
-    expect(html).toContain('SERVİS İŞ EMRİ VE TEKLİF FORMU');
+    expect(html).toContain('İŞ EMRİ / TEKLİF FORMU');
     expect(html).toContain('Çınar Otomotiv');
     expect(html).toContain(custName);
     expect(html).toContain(plaka);

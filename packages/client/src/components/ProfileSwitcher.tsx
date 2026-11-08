@@ -113,7 +113,7 @@ export const ProfileSwitcher: React.FC<ProfileSwitcherProps> = ({ theme, setThem
             ) : (
               <div className="popover-row btn-row warn" onClick={handleSwitchToStaff} style={{ cursor: 'pointer' }}>
                 <User size={16} strokeWidth={1.75} aria-hidden="true" />
-                <span>Operasyonel Görünüm (Staff Terminal)</span>
+                <span>Operasyonel Servis Paneli</span>
               </div>
             )}
             <div className="popover-divider" />

@@ -77,12 +77,16 @@ export const NotificationProvider: React.FC<{ children: React.ReactNode }> = ({ 
             n.id === notificationId ? { ...n, resolved: true, resolved_at: new Date().toISOString() } : n
           )
         );
+        // Sunucudan güncel listeyi çek ve badge'i yeniden hesapla
+        void loadNotifications();
         toast('Hatırlatıcı çözümlendi');
+      } else {
+        toast(res.error || 'Hatırlatıcı çözümlenemedi.');
       }
     } catch {
       toast('Hatırlatıcı çözümlenemedi.');
     }
-  }, []);
+  }, [loadNotifications]);
 
   const markNotifSent = useCallback(async (messageId: number) => {
     try {
