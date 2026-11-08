@@ -58,70 +58,78 @@ const LOGO_SVG = `
 const BLUEPRINT_PLAN_SVG = `
 <svg class="inspect-svg" viewBox="0 0 300 110" width="300" height="110" preserveAspectRatio="xMidYMid meet" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
   <g stroke="#111827" stroke-width="0.9" fill="#ffffff" stroke-linejoin="round" stroke-linecap="round">
-    <path d="M58 55 C58 42 65 33 80 30 L204 30 C234 32 264 42 276 55 C264 68 234 78 204 80 L80 80 C65 77 58 68 58 55 Z"/>
-    <path d="M118 31 C108 43 108 67 118 79" fill="none" stroke="#6b7280"/>
-    <path d="M220 31 C230 43 230 67 220 79" fill="none" stroke="#6b7280"/>
-    <rect x="142" y="38" width="54" height="34" rx="4" fill="none" stroke="#6b7280"/>
-    <rect x="106" y="24" width="12" height="6" rx="2"/>
-    <rect x="106" y="80" width="12" height="6" rx="2"/>
-    <rect x="84" y="23" width="20" height="7" rx="2"/>
-    <rect x="84" y="80" width="20" height="7" rx="2"/>
-    <rect x="194" y="23" width="20" height="7" rx="2"/>
-    <rect x="194" y="80" width="20" height="7" rx="2"/>
-    <path d="M262 48 L274 51 M262 62 L274 59" fill="none" stroke="#9ca3af"/>
-    <path d="M270 55 L280 55" fill="none" stroke="#9ca3af"/>
-    <path d="M64 44 L72 44 M64 66 L72 66" fill="none" stroke="#9ca3af"/>
+    <path d="M46 55 C46 41 52 28 64 24 L178 24 C196 24 214 29 230 35 C244 40 256 46 264 50 C270 52 274 53 274 55 C274 57 270 58 264 60 C256 64 244 70 230 75 C214 81 196 86 178 86 L64 86 C52 82 46 69 46 55 Z"/>
+    <rect x="62" y="18" width="26" height="9" rx="4.5"/>
+    <rect x="62" y="83" width="26" height="9" rx="4.5"/>
+    <rect x="188" y="18" width="26" height="9" rx="4.5"/>
+    <rect x="188" y="83" width="26" height="9" rx="4.5"/>
+    <path d="M196 26 C210 38 210 72 196 84" fill="none" stroke="#6b7280"/>
+    <path d="M116 26 C102 38 102 72 116 84" fill="none" stroke="#6b7280"/>
+    <path d="M124 26 L188 26 L196 36 L196 74 L188 84 L124 84 L116 74 L116 36 Z" fill="none" stroke="#6b7280"/>
+    <path d="M192 18 L202 15 L204 20 L194 22 Z"/>
+    <path d="M192 92 L202 95 L204 90 L194 88 Z"/>
+    <path d="M212 28 L252 38 M212 82 L252 72" fill="none" stroke="#d1d5db"/>
+    <path d="M76 28 L76 82" fill="none" stroke="#d1d5db"/>
+    <path d="M258 40 L270 44 M258 70 L270 66" fill="none" stroke="#9ca3af"/>
+    <path d="M266 55 L278 55" fill="none" stroke="#9ca3af"/>
+    <path d="M50 41 L60 44 M50 69 L60 66" fill="none" stroke="#9ca3af"/>
   </g>
   <g fill="#111827">
-    <circle cx="18" cy="18" r="1.4"/><circle cx="282" cy="18" r="1.4"/>
-    <circle cx="18" cy="92" r="1.4"/><circle cx="282" cy="92" r="1.4"/>
+    <circle cx="18" cy="16" r="1.4"/><circle cx="282" cy="16" r="1.4"/>
+    <circle cx="18" cy="94" r="1.4"/><circle cx="282" cy="94" r="1.4"/>
   </g>
 </svg>`;
 
 const BLUEPRINT_SIDE_SVG = `
 <svg class="inspect-svg" viewBox="0 0 300 110" width="300" height="110" preserveAspectRatio="xMidYMid meet" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
   <g stroke="#111827" stroke-width="0.9" fill="#ffffff" stroke-linejoin="round" stroke-linecap="round">
-    <circle cx="92" cy="84" r="16"/>
-    <circle cx="92" cy="84" r="7" fill="none"/>
-    <circle cx="226" cy="84" r="16"/>
-    <circle cx="226" cy="84" r="7" fill="none"/>
-    <path d="M22 84 L22 72 Q22 64 34 62 L70 57 L104 36 Q110 31 120 31 L190 31 Q200 31 206 38 L238 60 L278 64 Q292 66 292 76 L292 84 L242 84 C242 74 234 68 226 68 C218 68 210 74 210 84 L108 84 C108 74 100 68 92 68 C84 68 76 74 76 84 Z"/>
-    <path d="M110 37 L146 37 L146 56 L110 56 Z" fill="none" stroke="#6b7280"/>
-    <path d="M152 37 L188 37 L208 56 L152 56 Z" fill="none" stroke="#6b7280"/>
-    <path d="M146 56 L146 82" fill="none" stroke="#9ca3af"/>
-    <path d="M208 56 L208 82" fill="none" stroke="#9ca3af"/>
-    <path d="M124 62 L136 62 M164 62 L176 62" fill="none" stroke="#9ca3af"/>
-    <path d="M28 72 L44 72 M282 72 L292 72" fill="none" stroke="#9ca3af"/>
-    <path d="M236 64 L246 64" fill="none" stroke="#9ca3af"/>
+    <circle cx="90" cy="88" r="17"/>
+    <circle cx="90" cy="88" r="8" fill="none"/>
+    <circle cx="230" cy="88" r="17"/>
+    <circle cx="230" cy="88" r="8" fill="none"/>
+    <path d="M18 88 L18 76 C18 68 24 64 34 62 L68 56 L100 36 C106 32 114 30 122 30 L184 30 C194 30 202 34 208 40 L238 62 L276 65 C290 67 294 74 294 82 L294 88 L246 88 C246 77 238 71 230 71 C222 71 214 77 214 88 L106 88 C106 77 98 71 90 71 C82 71 74 77 74 88 Z"/>
+    <path d="M104 38 L142 38 L142 58 L104 58 Z" fill="none" stroke="#6b7280"/>
+    <path d="M148 38 L184 38 L206 58 L148 58 Z" fill="none" stroke="#6b7280"/>
+    <path d="M142 58 L142 86 M206 58 L206 86" fill="none" stroke="#9ca3af"/>
+    <path d="M120 64 L132 64 M160 64 L172 64" fill="none" stroke="#9ca3af"/>
+    <path d="M104 42 L98 40 L96 45 L102 47 Z"/>
+    <path d="M282 70 L292 72" fill="none" stroke="#9ca3af"/>
+    <path d="M20 70 L32 72" fill="none" stroke="#9ca3af"/>
+    <path d="M38 62 L70 56" fill="none" stroke="#d1d5db"/>
+    <path d="M240 62 L276 65" fill="none" stroke="#d1d5db"/>
   </g>
   <g fill="#111827">
-    <circle cx="18" cy="18" r="1.4"/><circle cx="282" cy="18" r="1.4"/>
-    <circle cx="18" cy="98" r="1.4"/><circle cx="282" cy="98" r="1.4"/>
+    <circle cx="18" cy="16" r="1.4"/><circle cx="282" cy="16" r="1.4"/>
+    <circle cx="18" cy="100" r="1.4"/><circle cx="282" cy="100" r="1.4"/>
   </g>
 </svg>`;
 
 const BLUEPRINT_PLAN_LARGE_SVG = `
 <svg class="inspect-svg" viewBox="0 0 300 110" width="300" height="110" preserveAspectRatio="xMidYMid meet" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
   <g stroke="#111827" stroke-width="0.9" fill="#ffffff" stroke-linejoin="round" stroke-linecap="round">
-    <path d="M52 55 C52 40 60 30 76 27 L208 27 C240 30 270 40 282 55 C270 70 240 80 208 83 L76 83 C60 80 52 70 52 55 Z"/>
-    <path d="M220 30 C230 42 230 68 220 80" fill="none" stroke="#6b7280"/>
-    <path d="M232 32 L258 36 M232 78 L258 74" fill="none" stroke="#9ca3af"/>
-    <path d="M116 28 C106 41 106 69 116 82" fill="none" stroke="#6b7280"/>
-    <rect x="140" y="36" width="62" height="38" rx="5" fill="none" stroke="#6b7280"/>
-    <path d="M208 28 C218 41 218 69 208 82" fill="none" stroke="#6b7280"/>
-    <rect x="102" y="20" width="14" height="7" rx="2"/>
-    <rect x="102" y="83" width="14" height="7" rx="2"/>
-    <rect x="78" y="19" width="22" height="8" rx="2"/>
-    <rect x="78" y="83" width="22" height="8" rx="2"/>
-    <rect x="194" y="19" width="22" height="8" rx="2"/>
-    <rect x="194" y="83" width="22" height="8" rx="2"/>
-    <path d="M266 46 L280 49 M266 64 L280 61" fill="none" stroke="#9ca3af"/>
-    <path d="M274 55 L286 55" fill="none" stroke="#9ca3af"/>
-    <path d="M42 18 L42 92 M38 18 L46 18 M38 92 L46 92" fill="none" stroke="#d1d5db" stroke-dasharray="2 3"/>
+    <ellipse cx="52" cy="94" rx="12" ry="8"/>
+    <ellipse cx="248" cy="94" rx="12" ry="8"/>
+    <path d="M100 16 C126 12 174 12 200 16 L232 34 L250 52 L262 78 C265 88 259 94 249 94 L51 94 C41 94 35 88 38 78 L50 52 L68 34 Z"/>
+    <path d="M84 42 L216 42 L202 26 L98 26 Z" fill="none" stroke="#6b7280"/>
+    <path d="M98 26 C120 22 180 22 202 26" fill="none" stroke="#6b7280"/>
+    <path d="M68 34 L84 42 M232 34 L216 42" fill="none" stroke="#6b7280"/>
+    <path d="M66 50 L234 50" fill="none" stroke="#d1d5db"/>
+    <rect x="112" y="60" width="76" height="20" rx="4"/>
+    <path d="M116 65 L184 65 M116 70 L184 70 M116 75 L184 75" fill="none" stroke="#9ca3af"/>
+    <path d="M60 56 L104 60 L102 74 L58 70 Z"/>
+    <path d="M240 56 L196 60 L198 74 L242 70 Z"/>
+    <path d="M44 82 L256 82 L252 92 L48 92 Z"/>
+    <rect x="132" y="84" width="36" height="7" rx="1" fill="none" stroke="#9ca3af"/>
+    <circle cx="60" cy="87" r="3"/>
+    <circle cx="240" cy="87" r="3"/>
+    <path d="M66 46 L48 42 L46 49 L60 53 Z"/>
+    <path d="M234 46 L252 42 L254 49 L240 53 Z"/>
+    <path d="M150 50 L150 58" fill="none" stroke="#d1d5db"/>
+    <path d="M118 44 L140 40 M182 40 L204 44" fill="none" stroke="#9ca3af"/>
   </g>
   <g fill="#111827">
-    <circle cx="14" cy="14" r="1.4"/><circle cx="286" cy="14" r="1.4"/>
-    <circle cx="14" cy="96" r="1.4"/><circle cx="286" cy="96" r="1.4"/>
+    <circle cx="14" cy="12" r="1.4"/><circle cx="286" cy="12" r="1.4"/>
+    <circle cx="14" cy="100" r="1.4"/><circle cx="286" cy="100" r="1.4"/>
   </g>
 </svg>`;
 
@@ -278,7 +286,7 @@ export function statementHTML(orders: any[], v: any, settings: any = {}, options
     #stmt .info-col.customer{width:31%}
     #stmt .info-col.vehicle{width:35%}
     #stmt .info-col.blueprint-col{width:34%}
-    #stmt .info-box{min-height:200px;border:1px solid #c9d0d8;border-radius:5px;overflow:hidden;background:#F4F6F8}
+    #stmt .info-box{min-height:215px;border:1px solid #c9d0d8;border-radius:5px;overflow:hidden;background:#F4F6F8}
     #stmt .info-head{background:#E9EDF2;color:#111827;font-family:"IBM Plex Sans Condensed","Arial Narrow",sans-serif;font-size:9px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;padding:8px 12px;border-bottom:1px solid #c9d0d8}
     #stmt .info-body{padding:11px 12px;font-size:10px;background:#F4F6F8}
     #stmt .info-row{display:table;width:100%;margin-bottom:6px;border-bottom:1px solid #e2e8f0}
@@ -291,8 +299,8 @@ export function statementHTML(orders: any[], v: any, settings: any = {}, options
     #stmt .bp-cell{display:table-cell;width:50%;text-align:center;vertical-align:top;padding:0 2px}
     #stmt .bp-large{text-align:center;margin-top:2px}
     #stmt .inspect-svg{display:block;margin:0 auto}
-    #stmt .bp-cell .inspect-svg{width:112px;height:52px}
-    #stmt .bp-large .inspect-svg{width:220px;height:70px}
+    #stmt .bp-cell .inspect-svg{width:125px;height:58px}
+    #stmt .bp-large .inspect-svg{width:245px;height:82px}
     #stmt .inspect-cap{font-family:"IBM Plex Sans Condensed","Arial Narrow",sans-serif;font-size:7px;font-weight:700;color:#6b7280;text-transform:uppercase;letter-spacing:.08em;margin-top:1px}
 
     /* Ürün/işlem matrisi — yalnızca yatay çizgiler */
