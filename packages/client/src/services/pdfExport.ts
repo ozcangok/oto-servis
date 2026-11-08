@@ -17,64 +17,62 @@ import { dateISO, fdate, money, numfmt, formatPlateDisplay, toast, todayISO } fr
  */
 
 /**
- * Dairesel, metalik kırmızı kurumsal amblem.
- * Halka metalik gradyan, iç disk radyal kırmızı gradyan ve cam parlaması
- * ile 3D/parlak bir görünüm verir. Metin içermez.
+ * 3D metalik "Ç" monogramı.
+ * Fırçalanmış metal halka + lacivert disk + ışık parlaması; lüks yetkili
+ * servis belgelerindeki kurumsal künye hissini verir.
  */
 const LOGO_SVG = `
 <svg class="stmt-logo" viewBox="0 0 100 100" width="66" height="66" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
   <defs>
-    <radialGradient id="cinarRed" cx="34%" cy="28%" r="80%">
-      <stop offset="0%" stop-color="#ff6b6f"/>
-      <stop offset="40%" stop-color="#d42127"/>
-      <stop offset="100%" stop-color="#7f0f14"/>
-    </radialGradient>
     <linearGradient id="cinarRing" x1="0" y1="0" x2="1" y2="1">
       <stop offset="0%" stop-color="#f8fafc"/>
-      <stop offset="28%" stop-color="#cbd5e1"/>
-      <stop offset="52%" stop-color="#8b98a8"/>
-      <stop offset="74%" stop-color="#e2e8f0"/>
-      <stop offset="100%" stop-color="#aeb9c6"/>
+      <stop offset="22%" stop-color="#cbd5e1"/>
+      <stop offset="48%" stop-color="#64748b"/>
+      <stop offset="72%" stop-color="#e2e8f0"/>
+      <stop offset="100%" stop-color="#94a3b8"/>
     </linearGradient>
+    <radialGradient id="cinarDisc" cx="34%" cy="28%" r="78%">
+      <stop offset="0%" stop-color="#334155"/>
+      <stop offset="52%" stop-color="#0f172a"/>
+      <stop offset="100%" stop-color="#020617"/>
+    </radialGradient>
     <linearGradient id="cinarShine" x1="0" y1="0" x2="0" y2="1">
-      <stop offset="0%" stop-color="#ffffff" stop-opacity="0.55"/>
-      <stop offset="52%" stop-color="#ffffff" stop-opacity="0"/>
+      <stop offset="0%" stop-color="#ffffff" stop-opacity="0.5"/>
+      <stop offset="55%" stop-color="#ffffff" stop-opacity="0"/>
     </linearGradient>
   </defs>
   <circle cx="50" cy="50" r="48" fill="url(#cinarRing)"/>
-  <circle cx="50" cy="50" r="42" fill="url(#cinarRed)"/>
-  <path d="M50 18 C41 29 37 42 40 54 C43 64 47 71 52 76 C57 71 61 64 64 54 C67 42 63 29 54 18 C52 24 52 24 50 18 Z" fill="#ffffff" fill-opacity="0.94"/>
-  <path d="M52 25 L52 70" stroke="#8f1116" stroke-width="2" stroke-linecap="round"/>
-  <path d="M52 40 L44 34 M52 50 L44 44 M52 60 L44 54" stroke="#8f1116" stroke-width="1.4" stroke-linecap="round"/>
-  <path d="M52 40 L60 34 M52 50 L60 44 M52 60 L60 54" stroke="#8f1116" stroke-width="1.4" stroke-linecap="round"/>
-  <ellipse cx="50" cy="31" rx="33" ry="19" fill="url(#cinarShine)"/>
-  <circle cx="50" cy="50" r="42" fill="none" stroke="#ffffff" stroke-opacity="0.30" stroke-width="1.5"/>
+  <circle cx="50" cy="50" r="42" fill="url(#cinarDisc)"/>
+  <circle cx="50" cy="50" r="42" fill="none" stroke="#ffffff" stroke-opacity="0.22" stroke-width="1.5"/>
+  <text x="51" y="69" text-anchor="middle" font-family="'IBM Plex Sans Condensed','Arial Narrow',Arial,sans-serif" font-size="52" font-weight="700" fill="#020617" opacity="0.55">Ç</text>
+  <text x="50" y="68" text-anchor="middle" font-family="'IBM Plex Sans Condensed','Arial Narrow',Arial,sans-serif" font-size="52" font-weight="700" fill="#f8fafc">Ç</text>
+  <ellipse cx="50" cy="30" rx="34" ry="20" fill="url(#cinarShine)"/>
 </svg>`;
 
 /**
- * Referans şablondaki teknik kroki dili: ince siyah çizgiler, beyaz gövde,
- * gri detay çizgileri ve köşe ölçü noktaları. Üç ayrı görünüm kullanılır.
+ * Teknik kroki dili: #475569 ince çizgi, şeffaf gövde, köşe ölçü noktaları.
+ * Üstten ve yandan olmak üzere iki gerçek vektör görünüm kullanılır.
  */
 const BLUEPRINT_PLAN_SVG = `
 <svg class="inspect-svg" viewBox="0 0 300 110" width="300" height="110" preserveAspectRatio="xMidYMid meet" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
-  <g stroke="#111827" stroke-width="0.9" fill="#ffffff" stroke-linejoin="round" stroke-linecap="round">
+  <g stroke="#475569" stroke-width="1" fill="none" stroke-linejoin="round" stroke-linecap="round">
     <path d="M46 55 C46 41 52 28 64 24 L178 24 C196 24 214 29 230 35 C244 40 256 46 264 50 C270 52 274 53 274 55 C274 57 270 58 264 60 C256 64 244 70 230 75 C214 81 196 86 178 86 L64 86 C52 82 46 69 46 55 Z"/>
     <rect x="62" y="18" width="26" height="9" rx="4.5"/>
     <rect x="62" y="83" width="26" height="9" rx="4.5"/>
     <rect x="188" y="18" width="26" height="9" rx="4.5"/>
     <rect x="188" y="83" width="26" height="9" rx="4.5"/>
-    <path d="M196 26 C210 38 210 72 196 84" fill="none" stroke="#6b7280"/>
-    <path d="M116 26 C102 38 102 72 116 84" fill="none" stroke="#6b7280"/>
-    <path d="M124 26 L188 26 L196 36 L196 74 L188 84 L124 84 L116 74 L116 36 Z" fill="none" stroke="#6b7280"/>
+    <path d="M196 26 C210 38 210 72 196 84"/>
+    <path d="M116 26 C102 38 102 72 116 84"/>
+    <path d="M124 26 L188 26 L196 36 L196 74 L188 84 L124 84 L116 74 L116 36 Z"/>
     <path d="M192 18 L202 15 L204 20 L194 22 Z"/>
     <path d="M192 92 L202 95 L204 90 L194 88 Z"/>
-    <path d="M212 28 L252 38 M212 82 L252 72" fill="none" stroke="#d1d5db"/>
-    <path d="M76 28 L76 82" fill="none" stroke="#d1d5db"/>
-    <path d="M258 40 L270 44 M258 70 L270 66" fill="none" stroke="#9ca3af"/>
-    <path d="M266 55 L278 55" fill="none" stroke="#9ca3af"/>
-    <path d="M50 41 L60 44 M50 69 L60 66" fill="none" stroke="#9ca3af"/>
+    <path d="M212 28 L252 38 M212 82 L252 72"/>
+    <path d="M76 28 L76 82"/>
+    <path d="M258 40 L270 44 M258 70 L270 66"/>
+    <path d="M266 55 L278 55"/>
+    <path d="M50 41 L60 44 M50 69 L60 66"/>
   </g>
-  <g fill="#111827">
+  <g fill="#475569">
     <circle cx="18" cy="16" r="1.4"/><circle cx="282" cy="16" r="1.4"/>
     <circle cx="18" cy="94" r="1.4"/><circle cx="282" cy="94" r="1.4"/>
   </g>
@@ -82,54 +80,25 @@ const BLUEPRINT_PLAN_SVG = `
 
 const BLUEPRINT_SIDE_SVG = `
 <svg class="inspect-svg" viewBox="0 0 300 110" width="300" height="110" preserveAspectRatio="xMidYMid meet" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
-  <g stroke="#111827" stroke-width="0.9" fill="#ffffff" stroke-linejoin="round" stroke-linecap="round">
+  <g stroke="#475569" stroke-width="1" fill="none" stroke-linejoin="round" stroke-linecap="round">
     <circle cx="90" cy="88" r="17"/>
-    <circle cx="90" cy="88" r="8" fill="none"/>
+    <circle cx="90" cy="88" r="8"/>
     <circle cx="230" cy="88" r="17"/>
-    <circle cx="230" cy="88" r="8" fill="none"/>
+    <circle cx="230" cy="88" r="8"/>
     <path d="M18 88 L18 76 C18 68 24 64 34 62 L68 56 L100 36 C106 32 114 30 122 30 L184 30 C194 30 202 34 208 40 L238 62 L276 65 C290 67 294 74 294 82 L294 88 L246 88 C246 77 238 71 230 71 C222 71 214 77 214 88 L106 88 C106 77 98 71 90 71 C82 71 74 77 74 88 Z"/>
-    <path d="M104 38 L142 38 L142 58 L104 58 Z" fill="none" stroke="#6b7280"/>
-    <path d="M148 38 L184 38 L206 58 L148 58 Z" fill="none" stroke="#6b7280"/>
-    <path d="M142 58 L142 86 M206 58 L206 86" fill="none" stroke="#9ca3af"/>
-    <path d="M120 64 L132 64 M160 64 L172 64" fill="none" stroke="#9ca3af"/>
+    <path d="M104 38 L142 38 L142 58 L104 58 Z"/>
+    <path d="M148 38 L184 38 L206 58 L148 58 Z"/>
+    <path d="M142 58 L142 86 M206 58 L206 86"/>
+    <path d="M120 64 L132 64 M160 64 L172 64"/>
     <path d="M104 42 L98 40 L96 45 L102 47 Z"/>
-    <path d="M282 70 L292 72" fill="none" stroke="#9ca3af"/>
-    <path d="M20 70 L32 72" fill="none" stroke="#9ca3af"/>
-    <path d="M38 62 L70 56" fill="none" stroke="#d1d5db"/>
-    <path d="M240 62 L276 65" fill="none" stroke="#d1d5db"/>
+    <path d="M282 70 L292 72"/>
+    <path d="M20 70 L32 72"/>
+    <path d="M38 62 L70 56"/>
+    <path d="M240 62 L276 65"/>
   </g>
-  <g fill="#111827">
+  <g fill="#475569">
     <circle cx="18" cy="16" r="1.4"/><circle cx="282" cy="16" r="1.4"/>
     <circle cx="18" cy="100" r="1.4"/><circle cx="282" cy="100" r="1.4"/>
-  </g>
-</svg>`;
-
-const BLUEPRINT_PLAN_LARGE_SVG = `
-<svg class="inspect-svg" viewBox="0 0 300 110" width="300" height="110" preserveAspectRatio="xMidYMid meet" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
-  <g stroke="#111827" stroke-width="0.9" fill="#ffffff" stroke-linejoin="round" stroke-linecap="round">
-    <ellipse cx="52" cy="94" rx="12" ry="8"/>
-    <ellipse cx="248" cy="94" rx="12" ry="8"/>
-    <path d="M100 16 C126 12 174 12 200 16 L232 34 L250 52 L262 78 C265 88 259 94 249 94 L51 94 C41 94 35 88 38 78 L50 52 L68 34 Z"/>
-    <path d="M84 42 L216 42 L202 26 L98 26 Z" fill="none" stroke="#6b7280"/>
-    <path d="M98 26 C120 22 180 22 202 26" fill="none" stroke="#6b7280"/>
-    <path d="M68 34 L84 42 M232 34 L216 42" fill="none" stroke="#6b7280"/>
-    <path d="M66 50 L234 50" fill="none" stroke="#d1d5db"/>
-    <rect x="112" y="60" width="76" height="20" rx="4"/>
-    <path d="M116 65 L184 65 M116 70 L184 70 M116 75 L184 75" fill="none" stroke="#9ca3af"/>
-    <path d="M60 56 L104 60 L102 74 L58 70 Z"/>
-    <path d="M240 56 L196 60 L198 74 L242 70 Z"/>
-    <path d="M44 82 L256 82 L252 92 L48 92 Z"/>
-    <rect x="132" y="84" width="36" height="7" rx="1" fill="none" stroke="#9ca3af"/>
-    <circle cx="60" cy="87" r="3"/>
-    <circle cx="240" cy="87" r="3"/>
-    <path d="M66 46 L48 42 L46 49 L60 53 Z"/>
-    <path d="M234 46 L252 42 L254 49 L240 53 Z"/>
-    <path d="M150 50 L150 58" fill="none" stroke="#d1d5db"/>
-    <path d="M118 44 L140 40 M182 40 L204 44" fill="none" stroke="#9ca3af"/>
-  </g>
-  <g fill="#111827">
-    <circle cx="14" cy="12" r="1.4"/><circle cx="286" cy="12" r="1.4"/>
-    <circle cx="14" cy="100" r="1.4"/><circle cx="286" cy="100" r="1.4"/>
   </g>
 </svg>`;
 
@@ -252,7 +221,7 @@ export function statementHTML(orders: any[], v: any, settings: any = {}, options
   const km = lastKm ? `${numfmt(lastKm)} km` : '—';
   const signatureOwner = settings.shop_owner || CORPORATE.owner;
   const legalNote = 'Bu belge bilgi amaçlı servis dökümüdür, resmi fatura yerine geçmesi için faturaya dönüştürülmelidir.';
-  const warrantyNote = 'Değişen yedek parçalar 1 Yıl / 10.000 KM firmamız ve üretici garantisi altındadır. Servis işlemleriyle ilgili tüm garanti koşulları için servis departmanımızla iletişime geçebilirsiniz.';
+  const warrantyNote = 'Değişen yedek parçalar 1 Yıl / 10.000 KM firmamız ve üretici garantisi altındadır. İşbu evrak hizmet kabul tutanağıdır; servis işlemleriyle ilgili tüm garanti koşulları için servis departmanımızla iletişime geçebilirsiniz.';
   const brandUpper = brandName.toLocaleUpperCase('tr');
 
   const css = `
@@ -261,7 +230,7 @@ export function statementHTML(orders: any[], v: any, settings: any = {}, options
     #stmt *{box-sizing:border-box}
 
     /* Filigran — %6, ortada, içeriğin arkasında (baskı/HTML için) */
-    #stmt .watermark{position:absolute;top:50%;left:50%;transform:translate(-50%,-50%) rotate(-15deg);font-size:62px;letter-spacing:6px;font-weight:900;color:#111827;opacity:0.06;pointer-events:none;z-index:0;white-space:nowrap;mix-blend-mode:multiply}
+    #stmt .watermark{position:absolute;top:50%;left:50%;transform:translate(-50%,-50%) rotate(-15deg);font-size:62px;letter-spacing:6px;font-weight:900;color:#111827;opacity:0.06;pointer-events:none;z-index:-1;white-space:nowrap;mix-blend-mode:multiply}
 
     /* Başlık — referans: sade, siyah, kondanse tipografi */
     #stmt .header{position:relative;z-index:1;padding:20px 30px 16px;border-bottom:2px solid #111827;margin-bottom:14px}
@@ -283,10 +252,10 @@ export function statementHTML(orders: any[], v: any, settings: any = {}, options
     /* Üç sütunlu bilgi ızgarası: Müşteri | Araç | İnceleme şeması */
     #stmt .info-grid{display:table;width:100%;margin-bottom:14px;border-collapse:separate;border-spacing:8px 0}
     #stmt .info-col{display:table-cell;vertical-align:top}
-    #stmt .info-col.customer{width:31%}
-    #stmt .info-col.vehicle{width:35%}
+    #stmt .info-col.customer{width:33%}
+    #stmt .info-col.vehicle{width:33%}
     #stmt .info-col.blueprint-col{width:34%}
-    #stmt .info-box{min-height:215px;border:1px solid #c9d0d8;border-radius:5px;overflow:hidden;background:#F4F6F8}
+    #stmt .info-box{min-height:215px;border:1px solid #c9d0d8;border-radius:12px;overflow:hidden;background:#F4F6F8}
     #stmt .info-head{background:#E9EDF2;color:#111827;font-family:"IBM Plex Sans Condensed","Arial Narrow",sans-serif;font-size:9px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;padding:8px 12px;border-bottom:1px solid #c9d0d8}
     #stmt .info-body{padding:11px 12px;font-size:10px;background:#F4F6F8}
     #stmt .info-row{display:table;width:100%;margin-bottom:6px;border-bottom:1px solid #e2e8f0}
@@ -294,20 +263,19 @@ export function statementHTML(orders: any[], v: any, settings: any = {}, options
     #stmt .info-label{display:table-cell;width:42%;font-size:8px;font-weight:700;color:#6b7280;text-transform:uppercase;letter-spacing:.05em;padding-top:1px}
     #stmt .info-value{display:table-cell;width:58%;font-size:9.5px;color:#111827;font-weight:600}
     #stmt .blueprint-box{background:#ffffff}
-    #stmt .blueprint-body{padding:10px 8px 8px;background:#ffffff}
-    #stmt .bp-row{display:table;width:100%;table-layout:fixed;margin-bottom:2px}
-    #stmt .bp-cell{display:table-cell;width:50%;text-align:center;vertical-align:top;padding:0 2px}
-    #stmt .bp-large{text-align:center;margin-top:2px}
+    #stmt .blueprint-body{padding:8px 8px 6px;background:#ffffff}
+    #stmt .bp-item{text-align:center;margin-bottom:4px}
+    #stmt .bp-item:last-child{margin-bottom:0}
     #stmt .inspect-svg{display:block;margin:0 auto}
-    #stmt .bp-cell .inspect-svg{width:125px;height:58px}
-    #stmt .bp-large .inspect-svg{width:245px;height:82px}
-    #stmt .inspect-cap{font-family:"IBM Plex Sans Condensed","Arial Narrow",sans-serif;font-size:7px;font-weight:700;color:#6b7280;text-transform:uppercase;letter-spacing:.08em;margin-top:1px}
+    #stmt .bp-item .inspect-svg{width:238px;height:70px}
+    #stmt .inspect-cap{font-family:"IBM Plex Sans Condensed","Arial Narrow",sans-serif;font-size:7px;font-weight:700;color:#64748b;text-transform:uppercase;letter-spacing:.08em;margin-top:1px}
 
     /* Ürün/işlem matrisi — yalnızca yatay çizgiler */
     #stmt .items-table{width:100%;border-collapse:collapse;margin-bottom:14px}
     #stmt .items-table th{background:#F4F6F8;color:#111827;font-family:"IBM Plex Sans Condensed","Arial Narrow",sans-serif;font-size:8.5px;font-weight:700;text-transform:uppercase;letter-spacing:.07em;padding:8px 10px;border-top:1px solid #111827;border-bottom:1px solid #111827;text-align:left}
     #stmt .items-table th.num{text-align:right}
     #stmt .items-table td{padding:8px 10px;border-bottom:1px solid #d1d5db;vertical-align:top;font-size:9.5px}
+    #stmt .items-table tbody tr:nth-child(even){background:#F8FAFC}
     #stmt .items-table td.num{text-align:right;font-variant-numeric:tabular-nums}
     #stmt .items-table td.code{font-size:8.5px;color:#4b5563;font-weight:700;font-variant-numeric:tabular-nums}
     #stmt .rtag{display:inline-block;font-size:7.5px;font-weight:700;padding:1.5px 6px;border-radius:3px;text-transform:uppercase;letter-spacing:.03em;background:#f3f4f6;color:#111827;border:1px solid #e5e7eb}
@@ -328,21 +296,19 @@ export function statementHTML(orders: any[], v: any, settings: any = {}, options
     #stmt .total-row{display:table;width:100%;border-bottom:1px solid #e5e7eb}
     #stmt .total-label{display:table-cell;padding:6px 12px;font-size:9.5px;color:#374151}
     #stmt .total-value{display:table-cell;padding:6px 12px;text-align:right;font-size:10.5px;font-weight:700;color:#111827;font-variant-numeric:tabular-nums}
-    #stmt .grand-row{background:#111827;color:#fff;border-radius:4px;margin-top:6px}
+    #stmt .grand-row{background:#0F172A;color:#fff;border-radius:10px;margin-top:6px;overflow:hidden;box-shadow:0 3px 8px rgba(15,23,42,.18)}
     #stmt .grand-inner{display:table;width:100%}
-    #stmt .grand-label{display:table-cell;padding:11px 12px;vertical-align:middle;color:#e5e7eb;font-family:"IBM Plex Sans Condensed","Arial Narrow",sans-serif;font-size:9.5px;text-transform:uppercase;letter-spacing:.06em;font-weight:700}
-    #stmt .grand-value{display:table-cell;padding:11px 12px;vertical-align:middle;text-align:right;color:#fff;font-size:16px;font-weight:700;font-variant-numeric:tabular-nums}
+    #stmt .grand-label{display:table-cell;padding:11px 12px;vertical-align:middle;color:#ffffff;font-family:"IBM Plex Sans Condensed","Arial Narrow",sans-serif;font-size:9.5px;text-transform:uppercase;letter-spacing:.06em;font-weight:700}
+    #stmt .grand-value{display:table-cell;padding:11px 12px;vertical-align:middle;text-align:right;color:#ffffff;font-size:16px;font-weight:700;font-variant-numeric:tabular-nums}
 
     /* Alt kısım — garanti metni solda, imza blokları sağda */
     #stmt .footer-grid{display:table;width:100%;margin-top:16px}
     #stmt .warranty-col{display:table-cell;width:42%;vertical-align:top;padding-right:14px}
     #stmt .warranty{font-size:8.5px;color:#4b5563;line-height:1.5;font-style:italic}
     #stmt .sig-col{display:table-cell;width:29%;vertical-align:top;padding-left:6px}
-    #stmt .sig-col.right{padding-left:12px}
-    #stmt .sig-box{border:1px solid #c9d0d8;border-radius:4px;padding:10px;min-height:72px;display:flex;flex-direction:column;justify-content:flex-end}
-    #stmt .sig-label{font-family:"IBM Plex Sans Condensed","Arial Narrow",sans-serif;font-size:8px;font-weight:700;color:#4b5563;text-transform:uppercase;letter-spacing:.05em;margin-bottom:14px;line-height:1.35}
-    #stmt .sig-line{flex:1;border-bottom:1px dashed #9ca3af;margin-bottom:6px}
-    #stmt .sig-name{font-size:9.5px;color:#111827;font-weight:600}
+    #stmt .sig-col.right{padding-left:6px}
+    #stmt .sig-box{border:1px solid #c9d0d8;border-radius:12px;padding:12px;min-height:86px;display:flex;flex-direction:column;justify-content:flex-start}
+    #stmt .sig-label{font-family:"IBM Plex Sans Condensed","Arial Narrow",sans-serif;font-size:8px;font-weight:700;color:#4b5563;text-transform:uppercase;letter-spacing:.05em;margin-bottom:0;line-height:1.35}
     #stmt .legal{margin-top:14px;padding-top:10px;border-top:1px solid #e5e7eb;text-align:center;font-style:italic;font-size:8.5px;color:#6b7280;line-height:1.4}
     #stmt .page-footer{position:absolute;left:0;right:0;bottom:0;border-top:1px solid #e5e7eb;padding:9px 30px 14px}
     #stmt .pf-inner{display:table;width:100%;font-size:7.5px;color:#6b7280}
@@ -365,7 +331,7 @@ export function statementHTML(orders: any[], v: any, settings: any = {}, options
                 <div class="logo-company">${esc(brandUpper)}</div>
                 <div class="company-sub">${esc(companyTagline)}</div>
                 <div class="company-addr">${esc(shopAddress)}</div>
-                <div class="company-addr">Tel: ${esc(shopPhone)}${shopEmail ? ` · ${esc(shopEmail)}` : ''}</div>
+                <div class="company-addr">T: ${esc(shopPhone)}${shopEmail ? ` · ${esc(shopEmail)}` : ''}</div>
                 ${taxLine ? `<div class="company-addr">${esc(taxLine)}</div>` : ''}
               </div>
             </div>
@@ -375,8 +341,8 @@ export function statementHTML(orders: any[], v: any, settings: any = {}, options
               <div class="doc-title">${esc(docTitle)}</div>
               <div class="doc-meta">
                 <div><strong>Belge No:</strong> ${esc(documentNo)}</div>
-                <div><strong>Belge Tarihi:</strong> ${fdate(today)}</div>
-                <div><strong>Vade Tarihi:</strong> ${fdate(dueDate)}</div>
+                <div><strong>Tarih:</strong> ${fdate(today)}</div>
+                ${isQuote ? `<div><strong>Geçerlilik:</strong> ${fdate(dueDate)}</div>` : ''}
               </div>
             </div>
           </div>
@@ -412,11 +378,8 @@ export function statementHTML(orders: any[], v: any, settings: any = {}, options
           <div class="info-box blueprint-box">
             <div class="info-head">ARAÇ İNCELEME ŞEMASI</div>
             <div class="blueprint-body">
-              <div class="bp-row">
-                <div class="bp-cell">${BLUEPRINT_PLAN_SVG}<div class="inspect-cap">Üstten Görünüm</div></div>
-                <div class="bp-cell">${BLUEPRINT_SIDE_SVG}<div class="inspect-cap">Yandan Görünüm</div></div>
-              </div>
-              <div class="bp-large">${BLUEPRINT_PLAN_LARGE_SVG}<div class="inspect-cap">Detaylı Görünüm</div></div>
+              <div class="bp-item">${BLUEPRINT_PLAN_SVG}<div class="inspect-cap">Üstten Görünüm</div></div>
+              <div class="bp-item">${BLUEPRINT_SIDE_SVG}<div class="inspect-cap">Yandan Görünüm</div></div>
             </div>
           </div>
         </div>
@@ -458,15 +421,11 @@ export function statementHTML(orders: any[], v: any, settings: any = {}, options
         <div class="sig-col left">
           <div class="sig-box">
             <span class="sig-label">Müşteri Teslim Onayı / İmza</span>
-            <div class="sig-line"></div>
-            <span class="sig-name">${esc(customerName)}</span>
           </div>
         </div>
         <div class="sig-col right">
           <div class="sig-box">
             <span class="sig-label">Servis Danışmanı / Kaşe & İmza (${esc(signatureOwner)})</span>
-            <div class="sig-line"></div>
-            <span class="sig-name">${esc(signatureOwner)} - ${esc(brandName)}</span>
           </div>
         </div>
       </div>

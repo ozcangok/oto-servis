@@ -90,9 +90,9 @@ test.describe('7) Kurumsal Servis Dökümü (PDF) — şablon & tasarım', () =>
     expect(html).toContain('İŞ EMRİ / TEKLİF FORMU');
     expect(html).toContain('Çınar Otomotiv');
     expect(html).toContain('Esenşehir, Muradiye Sk. No:42 D:B, 34776 Ümraniye/İstanbul');
-    expect(html).toContain('Tel: 0530 766 52 60');
+    expect(html).toContain('T: 0530 766 52 60');
     expect(html).toContain('Vergi Dairesi: Marmara V.D.');
-    expect(html).toContain('Belge Tarihi');
+    expect(html).toContain('Tarih:');
     expect(html).toContain('34 ABC 123');
 
     // Yan yana müşteri/araç matrisi
@@ -107,6 +107,17 @@ test.describe('7) Kurumsal Servis Dökümü (PDF) — şablon & tasarım', () =>
     expect(html).not.toContain('ARAÇ GÖRÜNÜMÜ');
     expect(html).not.toContain('class="blueprint"');
 
+    // STRICT PDF şartnamesi: gerçek vektör kroki, lacivert toplam kutusu,
+    // 12px bilgi kartları, zebra satırlar ve %6 filigran.
+    expect(html).toContain('stroke="#475569"');
+    expect(html).toContain('stroke-width="1"');
+    expect(html).toContain('fill="none"');
+    expect(html).toContain('#0F172A');
+    expect(html).toContain('#F8FAFC');
+    expect(html).toContain('border-radius:12px');
+    expect(html).toContain('opacity:0.06');
+    expect(html).toContain('z-index:-1');
+
     // Müşteri / araç matrisi alanları
     expect(html).toContain('Ad Soyad');
     expect(html).toContain('Telefon');
@@ -118,7 +129,7 @@ test.describe('7) Kurumsal Servis Dökümü (PDF) — şablon & tasarım', () =>
     expect(html).toContain('Motor No');
     expect(html).toContain('Kilometre');
     expect(html).toContain('Belge No');
-    expect(html).toContain('Vade Tarihi');
+    expect(html).not.toContain('Vade Tarihi');
     expect(html).toContain('IS-');
 
     // Profesyonel tablo başlıkları (VIP matris)
@@ -142,7 +153,8 @@ test.describe('7) Kurumsal Servis Dökümü (PDF) — şablon & tasarım', () =>
     expect(html).toContain('Bu belge bilgi amaçlı servis dökümüdür, resmi fatura yerine geçmesi için faturaya dönüştürülmelidir.');
     expect(html).toContain('Müşteri Teslim Onayı / İmza');
     expect(html).toContain('Servis Danışmanı / Kaşe & İmza');
-    expect(html).toContain('Sezer Çınar - Çınar Otomotiv');
+    expect(html).toContain('Kaşe & İmza (Sezer Çınar)');
+    expect(html).not.toContain('sig-line');
     expect(html).toMatch(/\.legal\{[^}]*font-style:italic/);
     expect(html).toMatch(/\.legal\{[^}]*text-align:center/);
 
