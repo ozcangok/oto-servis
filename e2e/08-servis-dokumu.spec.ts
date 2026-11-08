@@ -99,6 +99,14 @@ test.describe('7) Kurumsal Servis Dökümü (PDF) — şablon & tasarım', () =>
     expect(html).toContain('MÜŞTERİ BİLGİLERİ');
     expect(html).toContain('ARAÇ BİLGİLERİ');
 
+    // Profesyonel SVG inceleme şeması; eski amatör kutu tamamen kaldırıldı
+    expect(html).toContain('inspect-panel');
+    expect(html).toContain('ARAÇ İNCELEME ŞEMASI');
+    expect(html).toContain('Üstten Görünüm');
+    expect(html).toContain('Yandan Görünüm');
+    expect(html).not.toContain('ARAÇ GÖRÜNÜMÜ');
+    expect(html).not.toContain('class="blueprint"');
+
     // Müşteri / araç matrisi alanları
     expect(html).toContain('Ad Soyad');
     expect(html).toContain('Telefon');

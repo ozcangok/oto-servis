@@ -26,6 +26,56 @@ const LOGO_SVG = `
   </g>
 </svg>`;
 
+/**
+ * Kurumsal araç inceleme şeması — üstten görünüm.
+ * İnce, koyu-slate vektör çizgiler (stroke #334155, 1px) ile resmi servis
+ * kontrol ızgarası görünümü. Metin içermez; html2canvas güvenle render eder.
+ */
+const BLUEPRINT_PLAN_SVG = `
+<svg class="inspect-svg" viewBox="0 0 300 110" width="300" height="110" preserveAspectRatio="xMidYMid meet" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+  <g stroke="#e2e8f0" stroke-width="0.75" fill="none">
+    <line x1="0" y1="55" x2="300" y2="55" stroke-dasharray="3 4"/>
+    <line x1="150" y1="0" x2="150" y2="110" stroke-dasharray="3 4"/>
+  </g>
+  <g stroke="#334155" stroke-width="1" fill="none" stroke-linejoin="round" stroke-linecap="round">
+    <path d="M 60 55 C 60 42 66 34 80 31 L 206 31 C 236 33 266 42 276 55 C 266 68 236 77 206 79 L 80 79 C 66 76 60 68 60 55 Z" fill="#ffffff"/>
+    <path d="M 222 33 C 232 44 232 66 222 77" stroke="#94a3b8"/>
+    <path d="M 118 33 C 108 44 108 66 118 77" stroke="#94a3b8"/>
+    <path d="M 118 33 L 222 33" stroke="#cbd5e1"/>
+    <path d="M 118 77 L 222 77" stroke="#cbd5e1"/>
+    <rect x="150" y="43" width="40" height="24" rx="3" stroke="#cbd5e1"/>
+    <rect x="222" y="25" width="14" height="6" rx="2"/>
+    <rect x="222" y="79" width="14" height="6" rx="2"/>
+  </g>
+</svg>`;
+
+/**
+ * Kurumsal araç inceleme şeması — yandan görünüm.
+ * Modern sedan silueti; tekerlek boşlukları gövde dolgusundan oyulmuştur.
+ */
+const BLUEPRINT_SIDE_SVG = `
+<svg class="inspect-svg" viewBox="0 0 300 110" width="300" height="110" preserveAspectRatio="xMidYMid meet" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+  <g stroke="#e2e8f0" stroke-width="0.75" fill="none">
+    <line x1="0" y1="86" x2="300" y2="86" stroke-dasharray="3 4"/>
+    <line x1="150" y1="0" x2="150" y2="110" stroke-dasharray="3 4"/>
+  </g>
+  <g stroke="#334155" stroke-width="1" fill="#ffffff">
+    <circle cx="92" cy="86" r="15"/>
+    <circle cx="92" cy="86" r="6"/>
+    <circle cx="226" cy="86" r="15"/>
+    <circle cx="226" cy="86" r="6"/>
+  </g>
+  <g stroke="#334155" stroke-width="1" fill="none" stroke-linejoin="round" stroke-linecap="round">
+    <path d="M 22 86 L 22 74 Q 22 66 34 64 L 70 59 L 104 38 Q 110 33 120 33 L 190 33 Q 200 33 206 40 L 238 62 L 278 66 Q 292 68 292 78 L 292 86 L 242 86 C 242 76 234 70 226 70 C 218 70 210 76 210 86 L 108 86 C 108 76 100 70 92 70 C 84 70 76 76 76 86 Z" fill="#ffffff"/>
+    <path d="M 110 39 L 146 39 L 146 58 L 110 58 Z" stroke="#94a3b8"/>
+    <path d="M 152 39 L 188 39 L 208 58 L 152 58 Z" stroke="#94a3b8"/>
+    <path d="M 146 58 L 146 84" stroke="#94a3b8"/>
+    <path d="M 208 58 L 208 84" stroke="#94a3b8"/>
+    <path d="M 124 64 L 136 64" stroke="#94a3b8"/>
+    <path d="M 164 64 L 176 64" stroke="#94a3b8"/>
+  </g>
+</svg>`;
+
 /** Kullanıcı verisini HTML'e güvenli biçimde basar. */
 function esc(s?: any): string {
   return String(s ?? '')
@@ -134,13 +184,14 @@ export function statementHTML(orders: any[], v: any, settings: any = {}, options
   const chassis = v?.sasi_no || v?.vin || '—';
   const engine = v?.motor_kodu || v?.motor_no || '—';
   const km = lastKm ? `${numfmt(lastKm)} km` : '—';
+  const intakeDate = orders[0]?.giris_tarihi || orders[0]?.created_at || null;
   const signatureOwner = settings.shop_owner || CORPORATE.owner;
   const legalNote = 'Bu belge bilgi amaçlı servis dökümüdür, resmi fatura yerine geçmesi için faturaya dönüştürülmelidir.';
   const warrantyNote = 'Değişen yedek parçalar 1 Yıl / 10.000 KM firmamız ve üretici garantisi altındadır. Servis işlemleriyle ilgili tüm garanti koşulları için servis departmanımızla iletişime geçebilirsiniz.';
 
   const css = `
     @page{size:A4;margin:0}
-    #stmt{width:794px;min-height:1123px;box-sizing:border-box;background:#fff;color:#111827;font-family:"IBM Plex Sans",Arial,sans-serif;font-size:11px;line-height:1.4;position:relative;overflow:hidden;padding:0}
+    #stmt{width:794px;min-height:1123px;box-sizing:border-box;background:#fff;color:#111827;font-family:"IBM Plex Sans",Arial,sans-serif;font-size:11px;line-height:1.4;position:relative;overflow:hidden;padding:0 0 54px 0}
     #stmt *{box-sizing:border-box}
     /* Arka filigran — tüm sayfalar için ortada, saydam, içeriğin arkasında */
     #stmt .watermark{position:absolute;top:50%;left:50%;transform:translate(-50%,-50%) rotate(-15deg);font-size:62px;letter-spacing:6px;font-weight:900;color:#0f2a5c;opacity:0.06;pointer-events:none;z-index:0;white-space:nowrap;mix-blend-mode:multiply}
@@ -160,27 +211,28 @@ export function statementHTML(orders: any[], v: any, settings: any = {}, options
     /* Bilgi Izgarası */
     #stmt .info-grid{display:table;width:100%;margin-bottom:14px;border-collapse:separate;border-spacing:8px 0}
     #stmt .info-col{display:table-cell;width:50%;vertical-align:top}
-    #stmt .info-box{border:1px solid #d1d5db;border-radius:6px;overflow:hidden;background:#fff}
+    #stmt .info-box{height:100%;border:1px solid #d1d5db;border-radius:6px;overflow:hidden;background:#fff}
     #stmt .info-head{background:#F4F6F8;color:#374151;font-size:9px;font-weight:800;letter-spacing:.08em;text-transform:uppercase;padding:8px 12px;border-bottom:1px solid #d1d5db}
     #stmt .info-body{padding:12px;font-size:10px}
-    #stmt .info-row{display:table;width:100%;margin-bottom:5px;border-bottom:1px solid #f1f5f9}
+    #stmt .info-row{display:table;width:100%;margin-bottom:6px;border-bottom:1px solid #f1f5f9}
     #stmt .info-row:last-child{border-bottom:none}
     #stmt .info-label{display:table-cell;width:42%;font-size:8.5px;font-weight:700;color:#6b7280;text-transform:uppercase;letter-spacing:.05em;padding-top:1px}
     #stmt .info-value{display:table-cell;width:58%;font-size:10px;color:#111827;font-weight:600}
 
-    /* CSS ile çizilmiş araç görünümü (blueprint) */
-    #stmt .blueprint{width:100%;height:70px;border:1px solid #d1d5db;border-radius:6px;margin-top:8px;position:relative;background:#f9fafb}
-    #stmt .blueprint::before{content:'';position:absolute;top:8px;left:9px;right:9px;bottom:20px;border:2px solid #0f2a5c;border-radius:11px}
-    #stmt .blueprint .wheel-l{position:absolute;top:17px;left:16px;width:10px;height:10px;background:#0f2a5c;border-radius:50%}
-    #stmt .blueprint .wheel-r{position:absolute;top:17px;right:16px;width:10px;height:10px;background:#0f2a5c;border-radius:50%}
-    #stmt .blueprint .win{position:absolute;top:12px;left:28px;right:28px;bottom:28px;border:1px solid #cbd5e1;border-radius:5px}
-    #stmt .blueprint-label{position:absolute;bottom:3px;left:50%;transform:translateX(-50%);font-size:7.5px;color:#6b7280;font-weight:700;text-transform:uppercase}
+    /* Profesyonel araç inceleme şeması (SVG) */
+    #stmt .inspect-panel{border:1px solid #d1d5db;border-radius:6px;overflow:hidden;background:#fff;margin-bottom:14px}
+    #stmt .inspect-head{background:#F4F6F8;color:#374151;font-size:9px;font-weight:800;letter-spacing:.08em;text-transform:uppercase;padding:8px 12px;border-bottom:1px solid #d1d5db}
+    #stmt .inspect-table{width:100%;border-collapse:collapse}
+    #stmt .inspect-cell{width:50%;vertical-align:middle;text-align:center;padding:8px 10px 5px}
+    #stmt .inspect-cell + .inspect-cell{border-left:1px solid #e5e7eb}
+    #stmt .inspect-svg{display:block;width:300px;height:110px;margin:0 auto}
+    #stmt .inspect-cap{font-size:7.5px;font-weight:700;color:#6b7280;text-transform:uppercase;letter-spacing:.08em;margin-top:3px}
 
     /* Finansal tablo — sadece yatay çerçeveler */
     #stmt .items-table{width:100%;border-collapse:collapse;margin-bottom:14px}
     #stmt .items-table th{background:#F4F6F8;color:#374151;font-size:8.5px;font-weight:800;text-transform:uppercase;letter-spacing:.07em;padding:7px 10px;border:1px solid #d1d5db;border-top:none;border-bottom:none;text-align:left}
     #stmt .items-table th.num{text-align:right}
-    #stmt .items-table td{padding:7px 10px;border:1px solid #e5e7eb;vertical-align:top;font-size:10px;border-top:none}
+    #stmt .items-table td{padding:8px 10px;border:1px solid #e5e7eb;vertical-align:top;font-size:10px;border-top:none}
     #stmt .items-table td.num{text-align:right;font-variant-numeric:tabular-nums}
     #stmt .items-table tr{border-bottom:none}
     #stmt .items-table tr:nth-child(even) td{background:#f9fafb}
@@ -190,26 +242,33 @@ export function statementHTML(orders: any[], v: any, settings: any = {}, options
     #stmt .item{font-weight:600;color:#111827}
     #stmt .item-meta{font-size:8px;color:#6b7280;margin-top:2px;line-height:1.3}
 
-    /* Toplamlar */
-    #stmt .totals-wrap{display:table;width:100%;margin-bottom:14px}
-    #stmt .totals-col{display:table-cell;width:70%;vertical-align:top}
-    #stmt .totals-summary{display:table-cell;width:30%;vertical-align:top;padding-left:16px}
-    #stmt .total-row{display:table;width:100%;margin-bottom:3px}
-    #stmt .total-label{display:table-cell;font-size:9.5px;color:#4b5563}
-    #stmt .total-value{display:table-cell;text-align:right;font-size:10px;font-weight:700;color:#111827;font-variant-numeric:tabular-nums}
-    #stmt .grand-row{background:#0f2a5c;color:#fff;padding:10px 12px;border-radius:6px;font-size:11.5px;font-weight:900;margin-top:3px}
-    #stmt .grand-label{color:#dbe4f5;font-size:9px;text-transform:uppercase;letter-spacing:.05em}
-    #stmt .grand-value{color:#fff;font-size:15px}
+    /* Toplamlar — tam genişlik, simetrik satırlar */
+    #stmt .totals-wrap{width:100%;margin-bottom:14px}
+    #stmt .totals-summary{display:block;width:100%}
+    #stmt .total-row{border-bottom:1px solid #e5e7eb}
+    #stmt .total-inner{display:table;width:100%}
+    #stmt .total-label{display:table-cell;padding:6px 12px;font-size:9.5px;color:#4b5563}
+    #stmt .total-value{display:table-cell;padding:6px 12px;text-align:right;font-size:10.5px;font-weight:700;color:#111827;font-variant-numeric:tabular-nums}
+    #stmt .grand-row{background:#0f2a5c;color:#fff;border-radius:6px;margin-top:6px}
+    #stmt .grand-inner{display:table;width:100%}
+    #stmt .grand-label{display:table-cell;padding:10px 12px;vertical-align:middle;color:#dbe4f5;font-size:9.5px;text-transform:uppercase;letter-spacing:.05em;font-weight:800}
+    #stmt .grand-value{display:table-cell;padding:10px 12px;vertical-align:middle;text-align:right;color:#fff;font-size:16px;font-weight:900;font-variant-numeric:tabular-nums}
 
     /* Alt kısım */
     #stmt .warranty{font-size:9px;color:#4b5563;margin-bottom:14px;line-height:1.5;font-style:italic}
     #stmt .signature-wrap{display:table;width:100%}
-    #stmt .sig-col{display:table-cell;width:50%;padding:0 16px}
-    #stmt .sig-box{border:1px solid #d1d5db;border-radius:6px;padding:12px;min-height:64px;display:flex;flex-direction:column;justify-content:flex-end}
+    #stmt .sig-col{display:table-cell;width:50%;vertical-align:top}
+    #stmt .sig-col.left{padding-right:6px}
+    #stmt .sig-col.right{padding-left:6px}
+    #stmt .sig-box{border:1px solid #d1d5db;border-radius:6px;padding:12px;min-height:72px;display:flex;flex-direction:column;justify-content:flex-end}
     #stmt .sig-label{font-size:8px;font-weight:700;color:#6b7280;text-transform:uppercase;letter-spacing:.07em;margin-bottom:12px}
     #stmt .sig-line{flex:1;border-bottom:1px dashed #9ca3af;margin-bottom:7px}
     #stmt .sig-name{font-size:10px;color:#111827;font-weight:600}
-    #stmt .legal{margin-top:16px;padding-top:12px;border-top:1px solid #e5e7eb;text-align:center;font-style:italic;font-size:9px;color:#6b7280;line-height:1.4}
+    #stmt .legal{margin-top:20px;padding-top:12px;border-top:1px solid #e5e7eb;text-align:center;font-style:italic;font-size:9px;color:#6b7280;line-height:1.4}
+    #stmt .page-footer{position:absolute;left:0;right:0;bottom:0;border-top:1px solid #e5e7eb;padding:9px 30px 14px}
+    #stmt .pf-inner{display:table;width:100%;font-size:7.5px;color:#6b7280}
+    #stmt .pf-left{display:table-cell;font-weight:700;color:#374151}
+    #stmt .pf-right{display:table-cell;text-align:right}
     @media print{#stmt{width:210mm;min-height:297mm}}
   `;
 
@@ -252,6 +311,8 @@ export function statementHTML(orders: any[], v: any, settings: any = {}, options
               <div class="info-row"><span class="info-label">Telefon</span><span class="info-value">${esc(customerPhone)}</span></div>
               <div class="info-row"><span class="info-label">E-posta</span><span class="info-value">${esc(customerEmail)}</span></div>
               <div class="info-row"><span class="info-label">Şikayet / Talep</span><span class="info-value">${esc(complaint)}</span></div>
+              <div class="info-row"><span class="info-label">Servis Danışmanı</span><span class="info-value">${esc(signatureOwner)}</span></div>
+              <div class="info-row"><span class="info-label">Kabul Tarihi</span><span class="info-value">${intakeDate ? fdate(intakeDate) : '—'}</span></div>
             </div>
           </div>
         </div>
@@ -265,13 +326,17 @@ export function statementHTML(orders: any[], v: any, settings: any = {}, options
               <div class="info-row"><span class="info-label">Şasi No</span><span class="info-value">${esc(chassis)}</span></div>
               <div class="info-row"><span class="info-label">Motor No</span><span class="info-value">${esc(engine)}</span></div>
               <div class="info-row"><span class="info-label">Kilometre</span><span class="info-value">${esc(km)}</span></div>
-              <div class="blueprint">
-                <span class="wheel-l"></span><span class="wheel-r"></span><span class="win"></span>
-                <div class="blueprint-label">ARAÇ GÖRÜNÜMÜ</div>
-              </div>
             </div>
           </div>
         </div>
+      </div>
+
+      <div class="inspect-panel">
+        <div class="inspect-head">ARAÇ İNCELEME ŞEMASI</div>
+        <table class="inspect-table"><tr>
+          <td class="inspect-cell">${BLUEPRINT_PLAN_SVG}<div class="inspect-cap">Üstten Görünüm</div></td>
+          <td class="inspect-cell">${BLUEPRINT_SIDE_SVG}<div class="inspect-cap">Yandan Görünüm</div></td>
+        </tr></table>
       </div>
 
       <table class="items-table">
@@ -288,26 +353,24 @@ export function statementHTML(orders: any[], v: any, settings: any = {}, options
       </table>
 
       <div class="totals-wrap">
-        <div class="totals-col">
-          <div class="total-row"><span class="total-label">Ara Toplam (KDV Hariç)</span><span class="total-value">${money(tnet, false)}</span></div>
-          <div class="total-row"><span class="total-label">KDV (%${numfmt(vatRateLabel)})</span><span class="total-value">${money(vatTotal, false)}</span></div>
-        </div>
         <div class="totals-summary">
-          <div class="grand-row"><span class="grand-label">KDV DAHİL GENEL TOPLAM</span><br/><span class="grand-value">${money(grandTotal, false)}</span></div>
+          <div class="total-row"><div class="total-inner"><span class="total-label">Ara Toplam (KDV Hariç)</span><span class="total-value">${money(tnet, false)}</span></div></div>
+          <div class="total-row"><div class="total-inner"><span class="total-label">KDV (%${numfmt(vatRateLabel)})</span><span class="total-value">${money(vatTotal, false)}</span></div></div>
+          <div class="grand-row"><div class="grand-inner"><span class="grand-label">KDV DAHİL GENEL TOPLAM</span><span class="grand-value">${money(grandTotal, false)}</span></div></div>
         </div>
       </div>
 
       <div class="warranty">${esc(warrantyNote)}</div>
 
       <div class="signature-wrap">
-        <div class="sig-col">
+        <div class="sig-col left">
           <div class="sig-box">
             <span class="sig-label">Müşteri Teslim Onayı / İmza</span>
             <div class="sig-line"></div>
             <span class="sig-name">${esc(customerName)}</span>
           </div>
         </div>
-        <div class="sig-col">
+        <div class="sig-col right">
           <div class="sig-box">
             <span class="sig-label">Servis Danışmanı / Kaşe & İmza</span>
             <div class="sig-line"></div>
@@ -317,6 +380,13 @@ export function statementHTML(orders: any[], v: any, settings: any = {}, options
       </div>
 
       <div class="legal">${esc(legalNote)}</div>
+
+      <div class="page-footer">
+        <div class="pf-inner">
+          <span class="pf-left">${esc(companyName)}</span>
+          <span class="pf-right">${esc(shopAddress)} · Tel: ${esc(shopPhone)}</span>
+        </div>
+      </div>
     </div>
   `;
 }
@@ -360,6 +430,7 @@ export async function exportStatementPDF(
         backgroundColor: '#ffffff',
         useCORS: true,
         logging: false,
+        ignoreElements: (el: Element) => el.classList?.contains('watermark'),
         onclone: (doc: Document) => {
           const h = doc.getElementById('stmt-host');
           if (h) {
@@ -390,11 +461,15 @@ export async function exportStatementPDF(
         cx.fillRect(0, 0, c.width, c.height);
         cx.drawImage(canvas, 0, y, canvas.width, h, 0, 0, canvas.width, h);
 
-        // Kurumsal filigran — her sayfada ortada, %6 opaklık
+        // Kurumsal filigran — her sayfada ortada, tek katman, %6 opaklık.
+        // multiply: beyaz zemini hafifçe koyulaştırır, koyu metni bozmaz;
+        // böylece metnin "arkasında" duruyormuş gibi görünür.
         cx.save();
+        cx.globalCompositeOperation = 'multiply';
         cx.globalAlpha = 0.06;
         cx.fillStyle = '#0f2a5c';
-        cx.font = 'bold 72px sans-serif';
+        cx.font = 'bold 64px sans-serif';
+        (cx as any).letterSpacing = '6px';
         cx.textAlign = 'center';
         cx.textBaseline = 'middle';
         cx.translate(canvas.width / 2, h / 2);
