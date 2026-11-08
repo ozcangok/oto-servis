@@ -295,6 +295,24 @@ export const invoices = sqliteTable('invoices', {
 }));
 
 /**
+ * Hatırlatıcı çözümleme kaydı (reminder resolution).
+ *
+ * Müşteri hatırlatıcıları (muayene, bakım) sanal olarak hesaplanır;
+ * bu tablo "Gönderildi say" / WhatsApp ile gönder işlemlerinde
+ * hangi hatırlatıcının çözüldüğünü kalıcı olarak takip eder.
+ */
+export const reminderResolutions = sqliteTable('reminder_resolutions', {
+  id: integer('id').primaryKey({ autoIncrement: true }),
+  reminder_id: text('reminder_id').notNull(), // virtual id, örn. "muayene-123"
+  resolved_at: text('resolved_at').notNull(),
+  user_id: integer('user_id').notNull().references(() => users.id),
+  created_at: text('created_at').notNull()
+}, (table) => ({
+  reminderIdIdx: index('idx_reminder_resolutions_reminder_id').on(table.reminder_id),
+  userIdIdx: index('idx_reminder_resolutions_user_id').on(table.user_id)
+}));
+
+/**
  * Part requests (Personelin yedek parça talepleri)
  */
 export const partRequests = sqliteTable('part_requests', {

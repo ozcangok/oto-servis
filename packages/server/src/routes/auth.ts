@@ -10,7 +10,8 @@ import {
   resetUserPassword,
   listUsers,
   updateOwnCredentials,
-  verifyOwnPassword
+  verifyOwnPassword,
+  switchRole
 } from '../services/authService.js';
 import type { UserRole } from '@oto-servis/shared';
 
@@ -44,6 +45,10 @@ const credentialsSchema = z.object({
 
 const verifyPasswordSchema = z.object({
   password: z.string().min(1, 'Parola gereklidir.')
+});
+
+const switchRoleSchema = z.object({
+  targetRole: z.enum(['owner', 'staff'])
 });
 
 export const authRoutes: FastifyPluginAsync = async (fastify) => {
@@ -208,6 +213,49 @@ export const authRoutes: FastifyPluginAsync = async (fastify) => {
     try {
       const user = await updateOwnCredentials(request.user, token, parse.data);
       return { success: true, message: 'Hesap bilgileri güncellendi.', user };
+    } catch (err: any) {
+      return reply.status(400).send({ success: false, error: err.message });
+    }
+  });
+
+  // Rol değiştirme (impersonation) — yalnızca dükkan sahibi.
+  // Staff → Admin: client ayrıca /auth/login ile admin şifresini doğrular.
+  // Admin → Staff: bu endpoint yeni bir staff session açar (şifre gerektirmez).
+  fastify.post('/switch-role', {
+    schema: {
+      tags: ['Kimlik Doğrulama'],
+      summary: 'Rol değiştirme (impersonation) — yalnızca dükkan sahibi'
+    }
+  }, async (request, reply) => {
+    if (!request.user || request.user.role !== 'owner') {
+      return reply.status(403).send({ success: false, error: 'Bu işlem için dükkan sahibi yetkisi gereklidir.' });
+    }
+
+    const parse = switchRoleSchema.safeParse(request.body);
+    if (!parse.success) {
+      return reply.status(400).send({
+        success: false,
+        error: parse.error.issues[0]?.message || 'Geçersiz hedef rol.'
+      });
+    }
+
+    const token =
+      (request.cookies as any)?.session_token ||
+      request.headers.authorization?.replace('Bearer ', '') ||
+      '';
+
+    try {
+      const { token: newToken, user } = await switchRole(request.user, parse.data.targetRole, request.ip);
+      // Meşru session'ı güncelle: eski cookie'yi temizle, yeni cookie'yi ayarla
+      reply.clearCookie('session_token', { path: '/' });
+      reply.setCookie('session_token', newToken, {
+        path: '/',
+        httpOnly: true,
+        sameSite: 'lax',
+        maxAge: 30 * 24 * 60 * 60
+      });
+      // Eski bearer token'ı da geçersiz kılmak için (client tarafında setAuthToken ile güncellenir)
+      return { success: true, message: `Rol değiştirildi: ${user.role}`, user, token: newToken };
     } catch (err: any) {
       return reply.status(400).send({ success: false, error: err.message });
     }

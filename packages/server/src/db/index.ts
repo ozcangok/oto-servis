@@ -334,6 +334,16 @@ export function bootstrapSchema(sqlite: Database.Database) {
     );
     CREATE INDEX IF NOT EXISTS idx_part_requests_durum ON part_requests(durum);
     CREATE INDEX IF NOT EXISTS idx_part_requests_talep_eden ON part_requests(talep_eden_id);
+
+    CREATE TABLE IF NOT EXISTS reminder_resolutions (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      reminder_id TEXT NOT NULL,
+      resolved_at TEXT NOT NULL,
+      user_id INTEGER NOT NULL REFERENCES users(id),
+      created_at TEXT NOT NULL
+    );
+    CREATE INDEX IF NOT EXISTS idx_reminder_resolutions_reminder_id ON reminder_resolutions(reminder_id);
+    CREATE INDEX IF NOT EXISTS idx_reminder_resolutions_user_id ON reminder_resolutions(user_id);
   `);
 
   // Normalize legacy status spellings to canonical ASCII values

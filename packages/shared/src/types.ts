@@ -74,7 +74,23 @@ export type AuditAction =
   | 'invoice_cancel'
   | 'part_request_create'
   | 'part_request_approve'
-  | 'part_request_reject';
+  | 'part_request_reject'
+  | 'role_switch';
+
+export interface Notification {
+  id: string;
+  tur: 'muayene' | 'bakim' | 'teslim_hazir' | 'status';
+  baslik: string;
+  mesaj: string;
+  hedef_tarih?: string | null;
+  arac_id: number;
+  plaka: string;
+  musteri_id: number;
+  musteri_ad: string;
+  telefon: string;
+  resolved: boolean;
+  resolved_at?: string | null;
+}
 
 export interface User {
   id: number;

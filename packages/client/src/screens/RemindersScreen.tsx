@@ -9,31 +9,30 @@ import {
   waPhone,
   todayISO
 } from '../services/ui.js';
+import { useNotifications } from '../contexts/NotificationContext.js';
 
 export const RemindersScreen: React.FC = () => {
-  const [reminders, setReminders] = useState<any[]>([]);
+  const {
+    notifications,
+    loadNotifications,
+    markResolved,
+    markNotifSent
+  } = useNotifications();
+
   const [notifs, setNotifs] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
   const [messages, setMessages] = useState<Record<string, string>>({});
-  const [sentMap, setSentMap] = useState<Record<string, string>>(() => {
-    try {
-      return JSON.parse(localStorage.getItem('oto_sent_reminders') || '{}');
-    } catch {
-      return {};
-    }
-  });
 
   useEffect(() => {
     loadReminders();
     loadNotifs();
-  }, []);
+  }, [loadNotifications]);
 
   const loadReminders = async () => {
     setLoading(true);
     try {
       const res = await apiRequest('/reminders/due');
       if (res.success && res.items) {
-        setReminders(res.items);
         const map: Record<string, string> = {};
         res.items.forEach((it: any) => {
           map[it.id] = it.mesaj;
@@ -72,24 +71,9 @@ export const RemindersScreen: React.FC = () => {
     }
   };
 
-  const handleMarkSent = (id: string) => {
-    const today = todayISO();
-    const updated = { ...sentMap, [id]: today };
-    setSentMap(updated);
-    localStorage.setItem('oto_sent_reminders', JSON.stringify(updated));
-    toast('Gönderildi olarak işaretlendi');
-  };
-
   // WhatsApp butonuna basıldığında ilgili gönderim kaydını "gönderildi" işaretle
   const handleNotifSent = async (id: number) => {
-    try {
-      await apiRequest(`/reminders/messages/${id}/sent`, { method: 'POST' });
-      setNotifs((prev) =>
-        prev.map((n) => (n.id === id ? { ...n, gonderildi_tarihi: new Date().toISOString() } : n))
-      );
-    } catch {
-      /* Kayıt işaretlenemese bile wa.me bağlantısı açılmış olur. */
-    }
+    await markNotifSent(id);
   };
 
   return (
@@ -189,10 +173,8 @@ export const RemindersScreen: React.FC = () => {
           </div>
 
           <div className="list">
-            {reminders.length > 0 ? (
-              reminders.map((it) => {
-                const isSent = Boolean(sentMap[it.id]);
-                const sentDate = sentMap[it.id];
+            {notifications.length > 0 ? (
+              notifications.map((it) => {
                 const msgText = messages[it.id] ?? it.mesaj;
                 const phone = waPhone(it.telefon);
 
@@ -204,9 +186,9 @@ export const RemindersScreen: React.FC = () => {
                   whenText = it.hedef_tarih ? `Muayene: ${fdate(it.hedef_tarih)}` : 'Muayene zamanı';
                 }
 
-                if (isSent) {
+                if (it.resolved) {
                   badgeCls = 'due-ok';
-                  whenText = `Gönderildi ${fdate(sentDate)}`;
+                  whenText = `Çözümlendi ${fdate(it.resolved_at)}`;
                 }
 
                 return (
@@ -252,13 +234,21 @@ export const RemindersScreen: React.FC = () => {
                         SMS için kopyala
                       </button>
 
-                      <button
-                        className="btn btn-sm"
-                        type="button"
-                        onClick={() => handleMarkSent(it.id)}
-                      >
-                        {isSent ? 'Yeniden gönderildi say' : 'Gönderildi say'}
-                      </button>
+                      {!it.resolved && (
+                        <button
+                          className="btn btn-sm"
+                          type="button"
+                          onClick={() => void markResolved(it.id)}
+                        >
+                          Gönderildi say
+                        </button>
+                      )}
+
+                      {it.resolved && (
+                        <span className="muted" style={{ fontSize: '0.85rem', color: 'var(--good)' }}>
+                          ✓ Çözümlendi
+                        </span>
+                      )}
                     </div>
                   </div>
                 );

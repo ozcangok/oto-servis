@@ -2,7 +2,9 @@ import type { FastifyPluginAsync } from 'fastify';
 import { getDueReminders } from '../services/reminderService.js';
 import {
   listStatusNotifications,
-  markStatusNotificationSent
+  markStatusNotificationSent,
+  markReminderResolved,
+  getResolvedReminderIds
 } from '../services/whatsappService.js';
 
 export const reminderRoutes: FastifyPluginAsync = async (fastify) => {
@@ -12,14 +14,17 @@ export const reminderRoutes: FastifyPluginAsync = async (fastify) => {
     }
   });
 
-  // Get active due reminders & counter
+  // Get active due reminders & counter (çözümlenmişler hariç)
   fastify.get('/due', {
     schema: {
       tags: ['Hatırlatıcılar'],
       summary: 'Yaklaşan muayene, bakım ve teslime hazır araç hatırlatıcıları'
     }
-  }, async () => {
-    const reminders = await getDueReminders();
+  }, async (request) => {
+    let reminders = await getDueReminders();
+    // Çözümlenmiş hatırlatıcıları filtrele
+    const resolvedIds = new Set(getResolvedReminderIds());
+    reminders = reminders.filter((r) => !resolvedIds.has(r.id));
     return {
       success: true,
       count: reminders.length,
@@ -52,5 +57,23 @@ export const reminderRoutes: FastifyPluginAsync = async (fastify) => {
       return reply.status(404).send({ success: false, error: 'Gönderim kaydı bulunamadı.' });
     }
     return { success: true, message: 'Gönderildi olarak işaretlendi.', item: updated };
+  });
+
+  // Bir müşteri hatırlatıcısını çözümlendi (resolved) olarak işaretle
+  fastify.post('/:id/resolve', {
+    schema: {
+      tags: ['Hatırlatıcılar'],
+      summary: 'Müşteri hatırlatıcısını çözümlendi olarak işaretle'
+    }
+  }, async (request, reply) => {
+    const reminderId = (request.params as any).id as string;
+    if (!reminderId) {
+      return reply.status(400).send({ success: false, error: 'Hatırlatıcı kimliği gereklidir.' });
+    }
+    const updated = markReminderResolved(reminderId, request.user!.id);
+    if (!updated) {
+      return reply.status(500).send({ success: false, error: 'Hatırlatıcı çözümlenemedi.' });
+    }
+    return { success: true, message: 'Hatırlatıcı çözümlendi.', item: updated };
   });
 };

@@ -1200,3 +1200,182 @@ button.li:hover{background:var(--surface-subtle)}
   .search-card{padding:20px}
   .search-card-head{flex-direction:column}
 }
+
+/* =========================================================================
+   Profil Değiştirici (Profile Switcher) & Bildirim Stilleri
+   ========================================================================= */
+
+/* --- Profil switcher (sol alt profil bölümü) --- */
+.profile-switcher{
+  position:relative;
+  display:flex;
+  flex-direction:column;
+  gap:2px;
+}
+.profile-switcher .sidebar-profile{
+  display:flex;
+  align-items:center;
+  gap:9px;
+  padding:9px 10px;
+  margin-bottom:6px;
+  border-radius:10px;
+  background:var(--surface-subtle);
+  border:1px solid var(--border-card);
+  transition:background .15s,border-color .15s;
+}
+.profile-switcher .sidebar-profile:hover{
+  background:var(--surface-hover);
+  border-color:var(--border-input);
+}
+.profile-switcher .sidebar-profile .sidebar-avatar{
+  width:30px;height:30px;flex:none;border-radius:9px;
+  background:var(--primary);color:#fff;
+  display:flex;align-items:center;justify-content:center;font-weight:700;font-size:13px;
+}
+.profile-switcher .sidebar-profile-text{display:flex;flex-direction:column;min-width:0;flex:1 1 auto}
+.profile-switcher .sidebar-profile-text b{font-size:12.5px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.profile-switcher .sidebar-profile-text small{font-size:10.5px;color:var(--text-muted)}
+.profile-switcher .sidebar-profile > svg{color:var(--good);flex:none}
+
+/* Popover (açılan menü) */
+.profile-popover{
+  position:absolute;
+  bottom:calc(100% + 10px);
+  left:0;
+  width:260px;
+  background:var(--surface);
+  border:1px solid var(--border-card);
+  border-radius:12px;
+  box-shadow:0 20px 60px -12px rgba(0,0,0,.45);
+  z-index:200;
+  animation:popIn .18s ease;
+  display:flex;
+  flex-direction:column;
+}
+@keyframes popIn{
+  from{opacity:0;transform:translateY(8px) scale(.98)}
+  to{opacity:1;transform:translateY(0) scale(1)}
+}
+.profile-popover.backdrop{
+  position:fixed;
+  inset:0;
+  background:rgba(0,0,0,.3);
+  z-index:199;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+}
+.profile-popover.backdrop .modal-card{
+  position:relative;
+  width:min(340px,85vw);
+  background:var(--surface);
+  border:1px solid var(--border-card);
+  border-radius:14px;
+  padding:20px;
+  box-shadow:0 24px 80px -16px rgba(0,0,0,.5);
+  animation:popIn .22s ease;
+}
+
+.popover-section{display:flex;flex-direction:column;gap:2px}
+.popover-row{
+  display:flex;align-items:center;gap:10px;
+  padding:10px 14px;
+  border-radius:8px;
+  color:var(--text);
+  font-size:13px;
+  font-weight:500;
+  cursor:pointer;
+  transition:background .12s;
+}
+.popover-row:hover{background:var(--surface-hover)}
+.popover-row.btn-row.warn{color:var(--bad)}
+.popover-row.btn-row.warn:hover{background:var(--bad-soft)}
+.popover-row.danger{color:var(--bad)}
+.popover-row.danger:hover{background:var(--bad-soft)}
+.popover-row > svg{flex:none;font-size:16px}
+.popover-divider{
+  height:1px;
+  background:var(--divider);
+  margin:4px 0;
+}
+
+/* Modal (şifre girişi) */
+.modal-header{
+  display:flex;align-items:center;gap:8px;
+  margin-bottom:6px;
+}
+.modal-header > span{font-size:15px;font-weight:600;color:var(--text)}
+.modal-hint{font-size:12px;color:var(--text-muted);margin-bottom:14px;line-height:1.4}
+.modal-field{display:flex;flex-direction:column;gap:6px;margin-bottom:14px}
+.modal-field label{font-size:11px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:var(--text-muted)}
+.modal-field input{
+  flex:1;padding:10px 12px;border-radius:10px;
+  border:1px solid var(--border-input);background:var(--surface-subtle);
+  color:var(--text);font-size:14px;outline:none;
+}
+.modal-field input:focus{border-color:var(--primary);box-shadow:0 0 0 3px rgba(185,28,28,.15)}
+.modal-field input.input-error{border-color:var(--bad)}
+.modal-actions{display:flex;gap:10px;justify-content:flex-end;margin-top:6px}
+.modal-actions .btn{flex:none}
+.modal-actions .btn-primary{flex:1}
+.modal-error{font-size:11.5px;color:var(--bad);margin-bottom:10px;font-weight:600}
+
+/* Toast / snackbar */
+#toast{
+  position:fixed;
+  bottom:24px;left:50%;
+  transform:translateX(-50%);
+  z-index:500;
+  display:flex;align-items:center;gap:10px;
+  padding:10px 16px;
+  border-radius:10px;
+  background:rgba(15,23,42,.88);
+  color:#fff;
+  font-size:13.5px;font-weight:500;
+  box-shadow:0 10px 40px -8px rgba(0,0,0,.4);
+  backdrop-filter:blur(8px);
+  border:1px solid rgba(255,255,255,.08);
+  animation:toastIn .24s ease;
+  pointer-events:none;
+}
+@keyframes toastIn{
+  from{opacity:0;transform:translateX(-50%) translateY(12px)}
+  to{opacity:1;transform:translateX(-50%) translateY(0)}
+}
+
+/* Şifre hatası titreşim animasyonu */
+@keyframes shake{
+  0%,100%{transform:translateX(0)}
+  10%,30%,50%,70%,90%{transform:translateX(-4px)}
+  20%,40%,60%,80%{transform:translateX(4px)}
+}
+.shake-anim{animation:shake .4s ease}
+
+/* Bildirim rozeti (badge) - 0 olduğunda tamamen gizlenir (.cnt) */
+.cnt{
+  display:inline-block;
+  min-width:18px;height:18px;
+  border-radius:9px;
+  background:var(--bad);
+  color:#fff;
+  font-size:11px;font-weight:700;
+  display:flex;align-items:center;justify-content:center;
+  margin-left:6px;
+  animation:badgePulse .6s ease-in-out infinite;
+}
+@keyframes badgePulse{
+  0%,100%{transform:scale(1)}
+  50%{transform:scale(1.15)}
+}
+
+/* RemindersScreen: resolved state */
+.rem.resolved{opacity:0.6}
+.resolved-badge{
+  font-size:10.5px;color:var(--good);font-weight:600;
+  background:var(--good-soft);padding:2px 8px;border-radius:6px;
+}
+
+/* Koyu tema ayarlamaları */
+:root[data-theme="dark"] .profile-popover{background:var(--surface-subtle);border-color:var(--border-card)}
+:root[data-theme="dark"] .modal-card{background:var(--surface-subtle);border-color:var(--border-card)}
+:root[data-theme="dark"] .modal-field input{background:var(--surface);border-color:var(--border-input)}

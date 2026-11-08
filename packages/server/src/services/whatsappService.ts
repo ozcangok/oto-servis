@@ -1,5 +1,5 @@
 import { desc, eq } from 'drizzle-orm';
-import { getDb, whatsappMessages, workOrders, vehicles, customers } from '../db/index.js';
+import { getDb, reminderResolutions, whatsappMessages, workOrders, vehicles, customers, users } from '../db/index.js';
 import {
   buildStatusWhatsAppMessage,
   buildInvoiceWhatsAppMessage,
@@ -163,4 +163,48 @@ export function markStatusNotificationSent(id: number) {
     .returning()
     .get();
   return updated ?? null;
+}
+
+/**
+ * Bir müşteri hatırlatıcısını "çözümlendi" olarak işaretler.
+ * reminder_id sanal kimliğidir (örn. "muayene-123", "bakim-456").
+ */
+export function markReminderResolved(reminderId: string, userId: number) {
+  const db = getDb();
+  const now = new Date().toISOString();
+
+  // Zaten çözümlenmişse tekrar işleme
+  const existing = db
+    .select()
+    .from(reminderResolutions)
+    .where(eq(reminderResolutions.reminder_id, reminderId))
+    .get();
+
+  if (existing) return existing;
+
+  const inserted = db
+    .insert(reminderResolutions)
+    .values({
+      reminder_id: reminderId,
+      resolved_at: now,
+      user_id: userId,
+      created_at: now
+    })
+    .returning()
+    .get();
+
+  return inserted ?? null;
+}
+
+/**
+ * Tüm çözümlenmiş hatırlatıcı kimliklerini döndürür.
+ * GET /reminders/due yanıtından bunları filtrelemek için kullanılır.
+ */
+export function getResolvedReminderIds(): string[] {
+  const db = getDb();
+  const rows = db
+    .select({ reminder_id: reminderResolutions.reminder_id })
+    .from(reminderResolutions)
+    .all();
+  return rows.map((r) => r.reminder_id);
 }

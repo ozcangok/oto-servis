@@ -443,3 +443,55 @@ export async function listUsers(): Promise<User[]> {
   const all = db.select().from(users).all();
   return all.map(({ password_hash, ...u }) => u as User);
 }
+
+/**
+ * Rol değiştirme (impersonation) — yalnızca dükkan sahibi (owner) çağırabilir.
+ *
+ * Hedef rolündeki aktif bir kullanıcıyı bulur, yeni bir session açar ve
+ * httpOnly cookie olarak ayarlar. Şifre gerektirmez; adminin kitle alma
+ * yetkisine dayanır.
+ *
+ * Güvenlik notu: Bu işlem audit log olarak 'role_switch' ile kaydedilir.
+ */
+export async function switchRole(adminUser: User, targetRole: UserRole, ipAddress?: string): Promise<{ token: string; user: User }> {
+  if (adminUser.role !== 'owner') {
+    throw new Error('Bu işlem için dükkan sahibi yetkisi gereklidir.');
+  }
+
+  const db = getDb();
+  const target = db
+    .select()
+    .from(users)
+    .where(and(eq(users.role, targetRole), eq(users.is_active, true)))
+    .get();
+
+  if (!target) {
+    throw new Error(`Aktif ${targetRole === 'owner' ? 'yönetici' : 'personel'} hesabı bulunamadı.`);
+  }
+
+  // Eski session'ı sonlandır, yeni oluştur
+  const token = crypto.randomBytes(32).toString('hex');
+  const now = new Date();
+  const expiresAt = new Date(now.getTime() + SESSION_TTL_DAYS * 24 * 60 * 60 * 1000).toISOString();
+
+  db.delete(sessions).where(eq(sessions.user_id, target.id)).run();
+  db.insert(sessions).values({
+    id: token,
+    user_id: target.id,
+    expires_at: expiresAt,
+    created_at: now.toISOString()
+  }).run();
+
+  await logAudit({
+    kullanici_id: adminUser.id,
+    kullanici_adi: adminUser.username,
+    islem: 'role_switch',
+    hedef_tablo: 'users',
+    hedef_id: target.id,
+    ip_adresi: ipAddress,
+    detay: `Rol değiştirildi: ${adminUser.username} → ${target.username} (${targetRole})`
+  });
+
+  const { password_hash, ...safeUser } = target;
+  return { token, user: safeUser as User };
+}

@@ -2,6 +2,8 @@ import React from 'react';
 import ReactDOM from 'react-dom/client';
 import { App } from './App.js';
 import { SettingsProvider } from './contexts/SettingsContext.js';
+import { AuthProvider } from './contexts/AuthContext.js';
+import { NotificationProvider } from './contexts/NotificationContext.js';
 // Tipografi: IBM Plex Sans (gövde) + IBM Plex Sans Condensed (yalnızca plaka).
 // Kendi barındırılan (self-host) fontlar; Türkçe karakterler için latin-ext dahil.
 import '@fontsource/ibm-plex-sans/400.css';
@@ -73,7 +75,11 @@ if ('serviceWorker' in navigator) {
 ReactDOM.createRoot(document.getElementById('root')!).render(
   <React.StrictMode>
     <SettingsProvider>
-      <App />
+      <AuthProvider>
+        <NotificationProvider>
+          <App />
+        </NotificationProvider>
+      </AuthProvider>
     </SettingsProvider>
   </React.StrictMode>
 );

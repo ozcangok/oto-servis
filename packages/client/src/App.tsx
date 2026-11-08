@@ -9,8 +9,11 @@ import { SplashScreen } from './components/SplashScreen.js';
 import { IdleLock } from './components/IdleLock.js';
 import { ShutdownScreen } from './components/ShutdownScreen.js';
 import { DocumentCenterModal } from './components/DocumentCenterModal.js';
+import { ProfileSwitcher } from './components/ProfileSwitcher.js';
 import { isPrivileged, roleLabel } from './services/roles.js';
 import { useSettings } from './contexts/SettingsContext.js';
+import { useAuth } from './contexts/AuthContext.js';
+import { useNotifications } from './contexts/NotificationContext.js';
 import { clearOfflineQueue } from './services/offlineQueue.js';
 import { VehicleSearchScreen } from './screens/VehicleSearchScreen.js';
 import { CustomersScreen } from './screens/CustomersScreen.js';
@@ -63,9 +66,18 @@ function normalizePathRoute() {
 
 export function App() {
   const { companyProfile, refresh: refreshSettings } = useSettings();
-  const [currentUser, setCurrentUser] = useState<any | null>(null);
-  const [authChecked, setAuthChecked] = useState(false);
-  const [activeTab, setActiveTab] = useState<TabKey>('sorgu');
+  const {
+    currentUser,
+    authChecked,
+    isOwner,
+    login,
+    setUser,
+    logout,
+    switchToAdmin,
+    switchToStaff,
+    purgeFinancialData
+  } = useAuth();
+  const { unresolvedCount: remindersCount, loadNotifications } = useNotifications();
 
   // Work order sheet modal state
   const [workOrderModalOpen, setWorkOrderModalOpen] = useState(false);
@@ -76,14 +88,14 @@ export function App() {
   // Search screen active plate
   const [selectedPlate, setSelectedPlate] = useState<string>('');
 
+  // Active tab
+  const [activeTab, setActiveTab] = useState<TabKey>('sorgu');
+
   // Settings modal state
   const [showSettings, setShowSettings] = useState(false);
 
   // Kurumsal belge merkezi (Teklif & PDF Döküm)
   const [showDocumentCenter, setShowDocumentCenter] = useState(false);
-
-  // Reminders badge counter
-  const [remindersCount, setRemindersCount] = useState(0);
 
   // Appearance — kurumsal koyu lacivert varsayılan.
   const [theme, setTheme] = useState<'light' | 'dark'>(() => {
@@ -120,9 +132,8 @@ export function App() {
   }, [theme]);
 
   useEffect(() => {
-    checkCurrentUser();
-    loadRemindersBadge();
-  }, []);
+    loadNotifications();
+  }, [loadNotifications]);
 
   // Global keyboard shortcuts
   useEffect(() => {
@@ -148,34 +159,10 @@ export function App() {
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [workOrderModalOpen, showSettings, showDocumentCenter]);
 
-  const checkCurrentUser = async () => {
-    try {
-      const res = await apiRequest('/auth/me');
-      if (res.success && res.user) {
-        setCurrentUser(res.user);
-        // Oturum hazır olduğunda şirket profilini tek kaynaktan tazele.
-        void refreshSettings();
-      }
-    } catch {
-      setCurrentUser(null);
-    } finally {
-      setAuthChecked(true);
-    }
-  };
-
-  const loadRemindersBadge = async () => {
-    try {
-      const res = await apiRequest('/reminders/due');
-      if (res.success) {
-        setRemindersCount(res.count || 0);
-      }
-    } catch {}
-  };
-
   const handleAuthSuccess = (user: any) => {
-    setCurrentUser(user);
-    loadRemindersBadge();
+    setUser(user);
     void refreshSettings();
+    void loadNotifications();
   };
 
   /**
@@ -193,30 +180,31 @@ export function App() {
     setSelectedPlate('');
     setShowSettings(false);
     setShowDocumentCenter(false);
-    setRemindersCount(0);
     setLocked(false); // kilit ekranı (varsa) kalıcı kalmasın
     setSessionNonce((n) => n + 1); // uygulama kabuğunu sıfırdan mount et
   };
 
-  // Finansal görünürlük: owner/admin/patron rolleri. Personel (staff/employee/
-  // calisan) yalnızca operasyonel ekranları görür; finans sekmeleri DOM'a hiç
-  // basılmaz. Sunucu tarafındaki kalıcı rol adı `owner` olsa da eski istemci
-  // adları da güvenli biçimde normalize edilir.
-  const isOwner = isPrivileged(currentUser);
+  // Admin → Personel geçişinde finansal verileri temizle
+  const handleSwitchToStaff = async () => {
+    purgeFinancialData();
+    const ok = await switchToStaff();
+    if (ok) {
+      resetSensitiveState();
+      void refreshSettings();
+      void loadNotifications();
+    }
+  };
 
   /**
-   * Oturumu YEREL olarak kapatır. Hassas tüm veri/state silinir.
+   * Oturumu KAPATIR. Hassas tüm veri/state silinir.
    * Hem kullanıcı "çıkış" butonunda hem de sunucu 401 döndüğünde (oturum süresi
    * dolduğunda) çağrılır.
    */
   const clearSession = () => {
-    setAuthToken(null); // 1) Kimlik bilgileri
+    logout();
     clearOfflineQueue(); // 2) Yerel hassas veriler (offline kuyruk)
-    try {
-      localStorage.removeItem('oto_sent_reminders');
-    } catch {}
     resetSensitiveState(); // 3) Tüm ekran state'i (Kasa/Gider/Müşteri...)
-    setCurrentUser(null); // 4) Oturumu kapat → yalnızca izole giriş ekranı
+    setSessionNonce((n) => n + 1);
   };
 
   const clearSessionRef = useRef(clearSession);
@@ -341,7 +329,7 @@ export function App() {
         window.history.replaceState(null, '', '#/' + TAB_TO_HASH[activeTab]);
         return;
       }
-      const tab = HASH_TO_TAB[name];
+      const tab = HASH_TO_TAB[name as keyof typeof HASH_TO_TAB];
       if (tab) {
         setActiveTab(tab);
         return;
@@ -373,7 +361,8 @@ export function App() {
   // ki tarayıcı belleğinden eski (hassas) içerik geri gelmesin.
   useEffect(() => {
     const onPageShow = () => {
-      checkCurrentUser();
+      // AuthProvider zaten /auth/me çağrıyor; burada yalnızca badge'i yeniler.
+      void loadNotifications();
     };
     window.addEventListener('pageshow', onPageShow);
     return () => window.removeEventListener('pageshow', onPageShow);
@@ -566,20 +555,10 @@ export function App() {
               </button>
             )}
 
-            <div className="sidebar-profile">
-              <span className="sidebar-avatar" aria-hidden="true">
-                {(currentUser?.full_name || currentUser?.username || 'K')
-                  .toString()
-                  .trim()
-                  .charAt(0)
-                  .toLocaleUpperCase('tr')}
-              </span>
-              <span className="sidebar-profile-text">
-                <b>{currentUser?.full_name || currentUser?.username || 'Kullanıcı'}</b>
-                <small>{roleLabel(currentUser)}</small>
-              </span>
-              <ShieldCheck size={16} strokeWidth={1.8} aria-hidden="true" />
-            </div>
+            <ProfileSwitcher
+              theme={theme}
+              setTheme={setTheme}
+            />
 
             <button
               className="menu-item"
@@ -659,7 +638,7 @@ export function App() {
           onSaved={(savedPlate) => {
             setSelectedPlate(savedPlate);
             setActiveTab('sorgu');
-            loadRemindersBadge();
+            loadNotifications();
           }}
         />
       )}
@@ -668,7 +647,7 @@ export function App() {
       {showSettings && isOwner && (
         <SettingsScreen
           currentUser={currentUser}
-          onUserUpdated={(user) => setCurrentUser(user)}
+          onUserUpdated={(user) => setUser(user)}
           onClose={() => setShowSettings(false)}
         />
       )}
