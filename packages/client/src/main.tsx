@@ -4,14 +4,19 @@ import { App } from './App.js';
 import { SettingsProvider } from './contexts/SettingsContext.js';
 import { AuthProvider } from './contexts/AuthContext.js';
 import { NotificationProvider } from './contexts/NotificationContext.js';
-// Tipografi: IBM Plex Sans (gövde) + IBM Plex Sans Condensed (yalnızca plaka).
-// Kendi barındırılan (self-host) fontlar; Türkçe karakterler için latin-ext dahil.
+// Tipografi: IBM Plex Sans (panel gövdesi) + IBM Plex Sans Condensed (plaka)
+// + Inter (PDF belgeleri). Hepsi kendi barındırılan (self-host) fontlar;
+// Türkçe karakterler için latin-ext dahil, internet bağlantısı gerekmez.
 import '@fontsource/ibm-plex-sans/400.css';
 import '@fontsource/ibm-plex-sans/500.css';
 import '@fontsource/ibm-plex-sans/600.css';
 import '@fontsource/ibm-plex-sans/700.css';
 import '@fontsource/ibm-plex-sans-condensed/600.css';
 import '@fontsource/ibm-plex-sans-condensed/700.css';
+import '@fontsource/inter/400.css';
+import '@fontsource/inter/500.css';
+import '@fontsource/inter/600.css';
+import '@fontsource/inter/700.css';
 import './styles/index.css';
 
 // Service Worker yalnızca üretim derlemesinde (PROD) kaydedilir.

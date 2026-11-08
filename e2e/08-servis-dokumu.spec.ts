@@ -107,14 +107,22 @@ test.describe('7) Kurumsal Servis Dökümü (PDF) — şablon & tasarım', () =>
     expect(html).not.toContain('ARAÇ GÖRÜNÜMÜ');
     expect(html).not.toContain('class="blueprint"');
 
-    // STRICT PDF şartnamesi: gerçek vektör kroki, lacivert toplam kutusu,
-    // 12px bilgi kartları, zebra satırlar ve %6 filigran.
-    expect(html).toContain('stroke="#475569"');
-    expect(html).toContain('stroke-width="1"');
+    // STRICT PDF şartnamesi: 3 görünümlü beyaz kroki, royal blue zemin,
+    // Inter tipografi, lacivert toplam kutusu, zebra satırlar ve %6 filigran.
+    expect(html).toContain('Önden Görünüm');
+    expect(html).toContain('stroke="#FFFFFF"');
+    expect(html).toContain('stroke-width="1.5"');
     expect(html).toContain('fill="none"');
+    expect(html).toContain('#1E40AF');
+    expect(html).toContain('#1E3A8A');
+    expect(html).toContain('#E2E8F0');
+    expect(html).toContain('#334155');
+    expect(html).toContain('#1E293B');
+    expect(html).toContain('Inter');
     expect(html).toContain('#0F172A');
     expect(html).toContain('#F8FAFC');
     expect(html).toContain('border-radius:12px');
+    expect(html).toContain('border-radius:8px');
     expect(html).toContain('opacity:0.06');
     expect(html).toContain('z-index:-1');
 
@@ -158,27 +166,29 @@ test.describe('7) Kurumsal Servis Dökümü (PDF) — şablon & tasarım', () =>
     expect(html).toMatch(/\.legal\{[^}]*font-style:italic/);
     expect(html).toMatch(/\.legal\{[^}]*text-align:center/);
 
-    // Logo alanı boş/kırık değil: vektör amblem gerçekten render ediliyor
+    // Logo alanı: gerçek <img> + dosya yoksa devreye giren yedek vektör amblem
     const logo = await page.evaluate((h) => {
       const host = document.createElement('div');
       host.style.cssText = 'position:fixed;left:0;top:0;width:794px;background:#fff;';
       host.innerHTML = h;
       document.body.appendChild(host);
-      const svg = host.querySelector('.stmt-logo') as SVGSVGElement | null;
-      const r = svg ? svg.getBoundingClientRect() : null;
+      const img = host.querySelector('.stmt-logo-img') as HTMLImageElement | null;
+      const svg = host.querySelector('.stmt-logo-fallback .stmt-logo') as SVGSVGElement | null;
       const res = {
-        found: !!svg,
-        w: r ? r.width : 0,
-        h: r ? r.height : 0,
+        hasImg: !!img,
+        src: img?.getAttribute('src') || '',
+        alt: img?.getAttribute('alt') || '',
+        hasFallback: !!svg,
         shapes: svg ? svg.querySelectorAll('path, rect, polygon, circle, line').length : 0
       };
       host.remove();
       return res;
     }, html);
-    expect(logo.found, 'logo konteyneri bulunamadı').toBe(true);
-    expect(logo.w, 'logo genişliği > 0 olmalı (boş/kırık değil)').toBeGreaterThan(10);
-    expect(logo.h, 'logo yüksekliği > 0 olmalı (boş/kırık değil)').toBeGreaterThan(10);
-    expect(logo.shapes, 'logo vektör şekilleri içermeli').toBeGreaterThan(0);
+    expect(logo.hasImg, 'gerçek logo <img> öğesi bulunamadı').toBe(true);
+    expect(logo.src, 'logo kaynağı logo.jpeg olmalı').toContain('logo.jpeg');
+    expect(logo.alt, 'logo alt metni kurumsal olmalı').toContain('Çınar Otomotiv');
+    expect(logo.hasFallback, 'logo yedek amblemi bulunamadı').toBe(true);
+    expect(logo.shapes, 'yedek amblem vektör şekilleri içermeli').toBeGreaterThan(0);
     expect(html).not.toMatch(/<img[^>]+src=""/); // kırık/boş görsel referansı yok
   });
 });

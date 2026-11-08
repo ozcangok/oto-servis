@@ -44,18 +44,18 @@ const LOGO_SVG = `
   <circle cx="50" cy="50" r="48" fill="url(#cinarRing)"/>
   <circle cx="50" cy="50" r="42" fill="url(#cinarDisc)"/>
   <circle cx="50" cy="50" r="42" fill="none" stroke="#ffffff" stroke-opacity="0.22" stroke-width="1.5"/>
-  <text x="51" y="69" text-anchor="middle" font-family="'IBM Plex Sans Condensed','Arial Narrow',Arial,sans-serif" font-size="52" font-weight="700" fill="#020617" opacity="0.55">Ç</text>
-  <text x="50" y="68" text-anchor="middle" font-family="'IBM Plex Sans Condensed','Arial Narrow',Arial,sans-serif" font-size="52" font-weight="700" fill="#f8fafc">Ç</text>
+  <text x="51" y="69" text-anchor="middle" font-family="'Inter','Segoe UI',system-ui,-apple-system,sans-serif" font-size="52" font-weight="700" fill="#020617" opacity="0.55">Ç</text>
+  <text x="50" y="68" text-anchor="middle" font-family="'Inter','Segoe UI',system-ui,-apple-system,sans-serif" font-size="52" font-weight="700" fill="#f8fafc">Ç</text>
   <ellipse cx="50" cy="30" rx="34" ry="20" fill="url(#cinarShine)"/>
 </svg>`;
 
 /**
- * Teknik kroki dili: #475569 ince çizgi, şeffaf gövde, köşe ölçü noktaları.
- * Üstten ve yandan olmak üzere iki gerçek vektör görünüm kullanılır.
+ * 3 görünümlü mühendislik krokisi — royal blue zemin üzerinde saf beyaz çizgi.
+ * Üstten, yandan ve önden olmak üzere üç ayrı sedan vektörü kullanılır.
  */
 const BLUEPRINT_PLAN_SVG = `
 <svg class="inspect-svg" viewBox="0 0 300 110" width="300" height="110" preserveAspectRatio="xMidYMid meet" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
-  <g stroke="#475569" stroke-width="1" fill="none" stroke-linejoin="round" stroke-linecap="round">
+  <g stroke="#FFFFFF" stroke-width="1.5" fill="none" stroke-linejoin="round" stroke-linecap="round">
     <path d="M46 55 C46 41 52 28 64 24 L178 24 C196 24 214 29 230 35 C244 40 256 46 264 50 C270 52 274 53 274 55 C274 57 270 58 264 60 C256 64 244 70 230 75 C214 81 196 86 178 86 L64 86 C52 82 46 69 46 55 Z"/>
     <rect x="62" y="18" width="26" height="9" rx="4.5"/>
     <rect x="62" y="83" width="26" height="9" rx="4.5"/>
@@ -72,7 +72,7 @@ const BLUEPRINT_PLAN_SVG = `
     <path d="M266 55 L278 55"/>
     <path d="M50 41 L60 44 M50 69 L60 66"/>
   </g>
-  <g fill="#475569">
+  <g fill="#FFFFFF">
     <circle cx="18" cy="16" r="1.4"/><circle cx="282" cy="16" r="1.4"/>
     <circle cx="18" cy="94" r="1.4"/><circle cx="282" cy="94" r="1.4"/>
   </g>
@@ -80,7 +80,7 @@ const BLUEPRINT_PLAN_SVG = `
 
 const BLUEPRINT_SIDE_SVG = `
 <svg class="inspect-svg" viewBox="0 0 300 110" width="300" height="110" preserveAspectRatio="xMidYMid meet" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
-  <g stroke="#475569" stroke-width="1" fill="none" stroke-linejoin="round" stroke-linecap="round">
+  <g stroke="#FFFFFF" stroke-width="1.5" fill="none" stroke-linejoin="round" stroke-linecap="round">
     <circle cx="90" cy="88" r="17"/>
     <circle cx="90" cy="88" r="8"/>
     <circle cx="230" cy="88" r="17"/>
@@ -96,9 +96,38 @@ const BLUEPRINT_SIDE_SVG = `
     <path d="M38 62 L70 56"/>
     <path d="M240 62 L276 65"/>
   </g>
-  <g fill="#475569">
+  <g fill="#FFFFFF">
     <circle cx="18" cy="16" r="1.4"/><circle cx="282" cy="16" r="1.4"/>
     <circle cx="18" cy="100" r="1.4"/><circle cx="282" cy="100" r="1.4"/>
+  </g>
+</svg>`;
+
+const BLUEPRINT_FRONT_SVG = `
+<svg class="inspect-svg" viewBox="0 0 300 110" width="300" height="110" preserveAspectRatio="xMidYMid meet" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+  <g stroke="#FFFFFF" stroke-width="1.5" fill="none" stroke-linejoin="round" stroke-linecap="round">
+    <ellipse cx="52" cy="94" rx="12" ry="8"/>
+    <ellipse cx="248" cy="94" rx="12" ry="8"/>
+    <path d="M100 16 C126 12 174 12 200 16 L232 34 L250 52 L262 78 C265 88 259 94 249 94 L51 94 C41 94 35 88 38 78 L50 52 L68 34 Z"/>
+    <path d="M84 42 L216 42 L202 26 L98 26 Z"/>
+    <path d="M98 26 C120 22 180 22 202 26"/>
+    <path d="M68 34 L84 42 M232 34 L216 42"/>
+    <path d="M66 50 L234 50"/>
+    <rect x="112" y="60" width="76" height="20" rx="4"/>
+    <path d="M116 65 L184 65 M116 70 L184 70 M116 75 L184 75"/>
+    <path d="M60 56 L104 60 L102 74 L58 70 Z"/>
+    <path d="M240 56 L196 60 L198 74 L242 70 Z"/>
+    <path d="M44 82 L256 82 L252 92 L48 92 Z"/>
+    <rect x="132" y="84" width="36" height="7" rx="1"/>
+    <circle cx="60" cy="87" r="3"/>
+    <circle cx="240" cy="87" r="3"/>
+    <path d="M66 46 L48 42 L46 49 L60 53 Z"/>
+    <path d="M234 46 L252 42 L254 49 L240 53 Z"/>
+    <path d="M150 50 L150 58"/>
+    <path d="M118 44 L140 40 M182 40 L204 44"/>
+  </g>
+  <g fill="#FFFFFF">
+    <circle cx="14" cy="12" r="1.4"/><circle cx="286" cy="12" r="1.4"/>
+    <circle cx="14" cy="100" r="1.4"/><circle cx="286" cy="100" r="1.4"/>
   </g>
 </svg>`;
 
@@ -223,96 +252,106 @@ export function statementHTML(orders: any[], v: any, settings: any = {}, options
   const legalNote = 'Bu belge bilgi amaçlı servis dökümüdür, resmi fatura yerine geçmesi için faturaya dönüştürülmelidir.';
   const warrantyNote = 'Değişen yedek parçalar 1 Yıl / 10.000 KM firmamız ve üretici garantisi altındadır. İşbu evrak hizmet kabul tutanağıdır; servis işlemleriyle ilgili tüm garanti koşulları için servis departmanımızla iletişime geçebilirsiniz.';
   const brandUpper = brandName.toLocaleUpperCase('tr');
+  // Gerçek kurumsal logo. Dosya `public/logo.jpeg` içine konur; Electron
+  // derlemesinde göreli yol kullanıldığı için BASE_URL ile birleştirilir.
+  const logoUrl = `${import.meta.env.BASE_URL}logo.jpeg`;
 
   const css = `
     @page{size:A4;margin:0}
-    #stmt{width:794px;min-height:1123px;box-sizing:border-box;background:#fff;color:#111827;font-family:"IBM Plex Sans",Arial,sans-serif;font-size:11px;line-height:1.4;position:relative;overflow:hidden;padding:0 0 54px 0}
+    #stmt{width:794px;min-height:1123px;box-sizing:border-box;background:#fff;color:#1E293B;font-family:"Inter","Segoe UI",system-ui,-apple-system,sans-serif;font-size:11px;line-height:1.45;position:relative;overflow:hidden;padding:0 0 54px 0}
     #stmt *{box-sizing:border-box}
 
     /* Filigran — %6, ortada, içeriğin arkasında (baskı/HTML için) */
-    #stmt .watermark{position:absolute;top:50%;left:50%;transform:translate(-50%,-50%) rotate(-15deg);font-size:62px;letter-spacing:6px;font-weight:900;color:#111827;opacity:0.06;pointer-events:none;z-index:-1;white-space:nowrap;mix-blend-mode:multiply}
+    #stmt .watermark{position:absolute;top:50%;left:50%;transform:translate(-50%,-50%) rotate(-15deg);font-size:62px;letter-spacing:6px;font-weight:700;color:#1E293B;opacity:0.06;pointer-events:none;z-index:-1;white-space:nowrap;mix-blend-mode:multiply}
 
-    /* Başlık — referans: sade, siyah, kondanse tipografi */
-    #stmt .header{position:relative;z-index:1;padding:20px 30px 16px;border-bottom:2px solid #111827;margin-bottom:14px}
+    /* Başlık — premium kurumsal künye */
+    #stmt .header{position:relative;z-index:1;padding:22px 30px 18px;border-bottom:2px solid #1E293B;margin-bottom:16px}
     #stmt .header-top{display:table;width:100%}
     #stmt .header-left{display:table-cell;vertical-align:middle;width:58%}
     #stmt .header-right{display:table-cell;vertical-align:middle;width:42%;text-align:right}
-    #stmt .logo-lockup{display:table;width:100%}
-    #stmt .logo-cell{display:table-cell;width:70px;vertical-align:middle}
-    #stmt .brand-cell{display:table-cell;vertical-align:middle;padding-left:12px}
-    #stmt .logo-company{font-family:"IBM Plex Sans Condensed","Arial Narrow",sans-serif;font-size:23px;font-weight:700;color:#111827;letter-spacing:.01em;text-transform:uppercase;line-height:1.05}
-    #stmt .company-sub{font-size:10px;color:#4b5563;margin-top:2px;letter-spacing:.02em}
-    #stmt .company-addr{font-size:9.5px;color:#4b5563;margin-top:3px}
+    #stmt .logo-lockup{display:flex;align-items:center;gap:16px;width:100%}
+    #stmt .logo-cell{flex:0 0 auto;width:auto}
+    #stmt .brand-cell{flex:1 1 auto;padding-left:0}
+    #stmt .stmt-logo-img{display:block;height:60px;width:auto;max-width:96px;object-fit:contain}
+    #stmt .stmt-logo-fallback{display:none}
+    #stmt .logo-company{font-family:"Inter","Segoe UI",system-ui,-apple-system,sans-serif;font-size:22px;font-weight:700;color:#1E293B;letter-spacing:.01em;text-transform:uppercase;line-height:1.08}
+    #stmt .company-sub{font-size:10px;color:#475569;margin-top:3px;letter-spacing:.02em;font-weight:400}
+    #stmt .company-addr{font-size:9.5px;color:#475569;margin-top:3px;font-weight:400}
     #stmt .doc-banner{display:block;width:100%;text-align:right;padding:0}
-    #stmt .doc-title{font-family:"IBM Plex Sans Condensed","Arial Narrow",sans-serif;font-size:21px;font-weight:700;color:#111827;text-transform:uppercase;letter-spacing:.03em;line-height:1.1}
-    #stmt .doc-meta{font-size:9px;color:#374151;margin-top:6px}
+    #stmt .doc-title{font-family:"Inter","Segoe UI",system-ui,-apple-system,sans-serif;font-size:21px;font-weight:700;color:#1E293B;text-transform:uppercase;letter-spacing:.03em;line-height:1.12}
+    #stmt .doc-meta{font-size:9px;color:#475569;margin-top:7px;font-weight:400}
     #stmt .doc-meta div{margin-bottom:2px}
-    #stmt .doc-meta strong{color:#111827;font-weight:700}
+    #stmt .doc-meta strong{color:#1E293B;font-weight:700}
 
-    /* Üç sütunlu bilgi ızgarası: Müşteri | Araç | İnceleme şeması */
-    #stmt .info-grid{display:table;width:100%;margin-bottom:14px;border-collapse:separate;border-spacing:8px 0}
+    /* Üç sütunlu bilgi ızgarası: Müşteri | Araç | 3 görünümlü kroki */
+    #stmt .info-grid{display:table;width:100%;margin-bottom:16px;border-collapse:separate;border-spacing:8px 0}
     #stmt .info-col{display:table-cell;vertical-align:top}
     #stmt .info-col.customer{width:33%}
     #stmt .info-col.vehicle{width:33%}
     #stmt .info-col.blueprint-col{width:34%}
-    #stmt .info-box{min-height:215px;border:1px solid #c9d0d8;border-radius:12px;overflow:hidden;background:#F4F6F8}
-    #stmt .info-head{background:#E9EDF2;color:#111827;font-family:"IBM Plex Sans Condensed","Arial Narrow",sans-serif;font-size:9px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;padding:8px 12px;border-bottom:1px solid #c9d0d8}
-    #stmt .info-body{padding:11px 12px;font-size:10px;background:#F4F6F8}
-    #stmt .info-row{display:table;width:100%;margin-bottom:6px;border-bottom:1px solid #e2e8f0}
+    #stmt .info-box{min-height:215px;border:1px solid #CBD5E1;border-radius:12px;overflow:hidden;background:#F4F6F8}
+    #stmt .info-head{background:#E2E8F0;color:#334155;font-family:"Inter","Segoe UI",system-ui,-apple-system,sans-serif;font-size:9px;font-weight:500;letter-spacing:.05em;text-transform:uppercase;padding:10px 16px;border-bottom:1px solid #CBD5E1}
+    #stmt .info-body{padding:16px;font-size:10px;background:#F4F6F8}
+    #stmt .info-row{display:table;width:100%;margin-bottom:6px;border-bottom:1px solid #E2E8F0}
     #stmt .info-row:last-child{border-bottom:none}
-    #stmt .info-label{display:table-cell;width:42%;font-size:8px;font-weight:700;color:#6b7280;text-transform:uppercase;letter-spacing:.05em;padding-top:1px}
-    #stmt .info-value{display:table-cell;width:58%;font-size:9.5px;color:#111827;font-weight:600}
-    #stmt .blueprint-box{background:#ffffff}
-    #stmt .blueprint-body{padding:8px 8px 6px;background:#ffffff}
-    #stmt .bp-item{text-align:center;margin-bottom:4px}
-    #stmt .bp-item:last-child{margin-bottom:0}
+    #stmt .info-label{display:table-cell;width:42%;font-size:8px;font-weight:500;color:#64748B;text-transform:uppercase;letter-spacing:.05em;padding-top:1px}
+    #stmt .info-value{display:table-cell;width:58%;font-size:9.5px;color:#1E293B;font-weight:400}
+
+    /* 3 görünümlü mühendislik krokisi — royal blue zemin + grid */
+    #stmt .blueprint-box{background:#1E40AF;border-color:#1E3A8A}
+    #stmt .blueprint-box .info-head{background:#1E40AF;color:#FFFFFF;border-bottom-color:rgba(255,255,255,.18)}
+    #stmt .blueprint-body{padding:10px 8px 8px;background-color:#1E40AF;background-image:linear-gradient(rgba(255,255,255,.1) 1px,transparent 1px),linear-gradient(90deg,rgba(255,255,255,.1) 1px,transparent 1px);background-size:16px 16px}
+    #stmt .bp-row{display:table;width:100%;table-layout:fixed;margin-bottom:4px}
+    #stmt .bp-cell{display:table-cell;width:50%;text-align:center;vertical-align:top;padding:0 2px}
+    #stmt .bp-large{text-align:center}
     #stmt .inspect-svg{display:block;margin:0 auto}
-    #stmt .bp-item .inspect-svg{width:238px;height:70px}
-    #stmt .inspect-cap{font-family:"IBM Plex Sans Condensed","Arial Narrow",sans-serif;font-size:7px;font-weight:700;color:#64748b;text-transform:uppercase;letter-spacing:.08em;margin-top:1px}
+    #stmt .bp-cell .inspect-svg{width:118px;height:54px}
+    #stmt .bp-large .inspect-svg{width:238px;height:72px}
+    #stmt .inspect-cap{font-family:"Inter","Segoe UI",system-ui,-apple-system,sans-serif;font-size:7px;font-weight:500;color:#DBEAFE;text-transform:uppercase;letter-spacing:.08em;margin-top:1px}
 
     /* Ürün/işlem matrisi — yalnızca yatay çizgiler */
-    #stmt .items-table{width:100%;border-collapse:collapse;margin-bottom:14px}
-    #stmt .items-table th{background:#F4F6F8;color:#111827;font-family:"IBM Plex Sans Condensed","Arial Narrow",sans-serif;font-size:8.5px;font-weight:700;text-transform:uppercase;letter-spacing:.07em;padding:8px 10px;border-top:1px solid #111827;border-bottom:1px solid #111827;text-align:left}
+    #stmt .items-table{width:100%;border-collapse:collapse;margin-bottom:16px}
+    #stmt .items-table th{background:#E2E8F0;color:#334155;font-family:"Inter","Segoe UI",system-ui,-apple-system,sans-serif;font-size:8.5px;font-weight:500;text-transform:uppercase;letter-spacing:.05em;padding:9px 10px;border-top:1px solid #CBD5E1;border-bottom:1px solid #CBD5E1;text-align:left}
     #stmt .items-table th.num{text-align:right}
-    #stmt .items-table td{padding:8px 10px;border-bottom:1px solid #d1d5db;vertical-align:top;font-size:9.5px}
+    #stmt .items-table td{padding:9px 10px;border-bottom:1px solid #E2E8F0;vertical-align:top;font-size:9.5px;color:#1E293B;font-weight:400}
     #stmt .items-table tbody tr:nth-child(even){background:#F8FAFC}
     #stmt .items-table td.num{text-align:right;font-variant-numeric:tabular-nums}
-    #stmt .items-table td.code{font-size:8.5px;color:#4b5563;font-weight:700;font-variant-numeric:tabular-nums}
-    #stmt .rtag{display:inline-block;font-size:7.5px;font-weight:700;padding:1.5px 6px;border-radius:3px;text-transform:uppercase;letter-spacing:.03em;background:#f3f4f6;color:#111827;border:1px solid #e5e7eb}
-    #stmt .tag-part{background:#f3f4f6;color:#111827}
-    #stmt .tag-labor{background:#f3f4f6;color:#111827}
-    #stmt .item{font-weight:600;color:#111827}
-    #stmt .item-meta{font-size:8px;color:#6b7280;margin-top:2px;line-height:1.3}
+    #stmt .items-table td.code{font-size:8.5px;color:#475569;font-weight:500;font-variant-numeric:tabular-nums}
+    #stmt .rtag{display:inline-block;font-size:7.5px;font-weight:500;padding:1.5px 6px;border-radius:3px;text-transform:uppercase;letter-spacing:.03em;background:#F1F5F9;color:#334155;border:1px solid #E2E8F0}
+    #stmt .tag-part{background:#F1F5F9;color:#334155}
+    #stmt .tag-labor{background:#F1F5F9;color:#334155}
+    #stmt .item{font-weight:400;color:#1E293B}
+    #stmt .item-meta{font-size:8px;color:#64748B;margin-top:2px;line-height:1.35}
 
     /* Finansal toplamlar — sağa hizalı blok */
-    #stmt .totals-wrap{display:table;width:100%;margin-bottom:14px}
+    #stmt .totals-wrap{display:table;width:100%;margin-bottom:16px}
     #stmt .totals-left{display:table-cell;width:60%;vertical-align:bottom}
     #stmt .totals-summary{display:table-cell;width:40%;vertical-align:bottom}
-    #stmt .pay-box{display:block;width:220px;border:1px solid #e5e7eb;border-radius:5px;padding:8px 12px;background:#f9fafb;text-align:left}
-    #stmt .pay-title{font-family:"IBM Plex Sans Condensed","Arial Narrow",sans-serif;font-size:7.5px;font-weight:700;color:#6b7280;text-transform:uppercase;letter-spacing:.08em;margin-bottom:4px}
-    #stmt .pay-row{display:table;width:100%;font-size:9px;color:#4b5563;margin-top:2px}
+    #stmt .pay-box{display:block;width:220px;border:1px solid #E2E8F0;border-radius:8px;padding:9px 12px;background:#F8FAFC;text-align:left}
+    #stmt .pay-title{font-family:"Inter","Segoe UI",system-ui,-apple-system,sans-serif;font-size:7.5px;font-weight:500;color:#64748B;text-transform:uppercase;letter-spacing:.05em;margin-bottom:4px}
+    #stmt .pay-row{display:table;width:100%;font-size:9px;color:#475569;margin-top:2px}
     #stmt .pay-row span{display:table-cell}
-    #stmt .pay-row b{display:table-cell;text-align:right;color:#111827}
-    #stmt .total-row{display:table;width:100%;border-bottom:1px solid #e5e7eb}
-    #stmt .total-label{display:table-cell;padding:6px 12px;font-size:9.5px;color:#374151}
-    #stmt .total-value{display:table-cell;padding:6px 12px;text-align:right;font-size:10.5px;font-weight:700;color:#111827;font-variant-numeric:tabular-nums}
-    #stmt .grand-row{background:#0F172A;color:#fff;border-radius:10px;margin-top:6px;overflow:hidden;box-shadow:0 3px 8px rgba(15,23,42,.18)}
+    #stmt .pay-row b{display:table-cell;text-align:right;color:#1E293B;font-weight:700}
+    #stmt .total-row{display:table;width:100%;border-bottom:1px solid #E2E8F0}
+    #stmt .total-label{display:table-cell;padding:7px 12px;font-size:9.5px;color:#475569;font-weight:400}
+    #stmt .total-value{display:table-cell;padding:7px 12px;text-align:right;font-size:10.5px;font-weight:700;color:#1E293B;font-variant-numeric:tabular-nums}
+    #stmt .grand-row{background:#0F172A;color:#FFFFFF;border-radius:8px;margin-top:8px;overflow:hidden;box-shadow:0 3px 8px rgba(15,23,42,.18)}
     #stmt .grand-inner{display:table;width:100%}
-    #stmt .grand-label{display:table-cell;padding:11px 12px;vertical-align:middle;color:#ffffff;font-family:"IBM Plex Sans Condensed","Arial Narrow",sans-serif;font-size:9.5px;text-transform:uppercase;letter-spacing:.06em;font-weight:700}
-    #stmt .grand-value{display:table-cell;padding:11px 12px;vertical-align:middle;text-align:right;color:#ffffff;font-size:16px;font-weight:700;font-variant-numeric:tabular-nums}
+    #stmt .grand-label{display:table-cell;padding:12px;vertical-align:middle;color:#FFFFFF;font-family:"Inter","Segoe UI",system-ui,-apple-system,sans-serif;font-size:9.5px;text-transform:uppercase;letter-spacing:.05em;font-weight:700}
+    #stmt .grand-value{display:table-cell;padding:12px;vertical-align:middle;text-align:right;color:#FFFFFF;font-size:16px;font-weight:700;font-variant-numeric:tabular-nums}
 
     /* Alt kısım — garanti metni solda, imza blokları sağda */
-    #stmt .footer-grid{display:table;width:100%;margin-top:16px}
+    #stmt .footer-grid{display:table;width:100%;margin-top:18px}
     #stmt .warranty-col{display:table-cell;width:42%;vertical-align:top;padding-right:14px}
-    #stmt .warranty{font-size:8.5px;color:#4b5563;line-height:1.5;font-style:italic}
+    #stmt .warranty{font-size:8.5px;color:#475569;line-height:1.55;font-style:italic;font-weight:400}
     #stmt .sig-col{display:table-cell;width:29%;vertical-align:top;padding-left:6px}
     #stmt .sig-col.right{padding-left:6px}
-    #stmt .sig-box{border:1px solid #c9d0d8;border-radius:12px;padding:12px;min-height:86px;display:flex;flex-direction:column;justify-content:flex-start}
-    #stmt .sig-label{font-family:"IBM Plex Sans Condensed","Arial Narrow",sans-serif;font-size:8px;font-weight:700;color:#4b5563;text-transform:uppercase;letter-spacing:.05em;margin-bottom:0;line-height:1.35}
-    #stmt .legal{margin-top:14px;padding-top:10px;border-top:1px solid #e5e7eb;text-align:center;font-style:italic;font-size:8.5px;color:#6b7280;line-height:1.4}
-    #stmt .page-footer{position:absolute;left:0;right:0;bottom:0;border-top:1px solid #e5e7eb;padding:9px 30px 14px}
-    #stmt .pf-inner{display:table;width:100%;font-size:7.5px;color:#6b7280}
-    #stmt .pf-left{display:table-cell;font-weight:700;color:#374151}
+    #stmt .sig-box{border:1px solid #CBD5E1;border-radius:12px;padding:14px;min-height:88px;display:flex;flex-direction:column;justify-content:flex-start;background:#FFFFFF}
+    #stmt .sig-label{font-family:"Inter","Segoe UI",system-ui,-apple-system,sans-serif;font-size:8px;font-weight:500;color:#475569;text-transform:uppercase;letter-spacing:.05em;margin-bottom:0;line-height:1.4}
+    #stmt .legal{margin-top:16px;padding-top:10px;border-top:1px solid #E2E8F0;text-align:center;font-style:italic;font-size:8.5px;color:#64748B;line-height:1.45;font-weight:400}
+    #stmt .page-footer{position:absolute;left:0;right:0;bottom:0;border-top:1px solid #E2E8F0;padding:9px 30px 14px}
+    #stmt .pf-inner{display:table;width:100%;font-size:7.5px;color:#64748B;font-weight:400}
+    #stmt .pf-left{display:table-cell;font-weight:700;color:#1E293B}
     #stmt .pf-right{display:table-cell;text-align:right}
     @media print{#stmt{width:210mm;min-height:297mm}}
   `;
@@ -326,7 +365,10 @@ export function statementHTML(orders: any[], v: any, settings: any = {}, options
         <div class="header-top">
           <div class="header-left">
             <div class="logo-lockup">
-              <div class="logo-cell">${LOGO_SVG}</div>
+              <div class="logo-cell">
+                <img class="stmt-logo-img" src="${logoUrl}" alt="Çınar Otomotiv Logo" onerror="this.style.display='none';this.parentElement.querySelector('.stmt-logo-fallback').style.display='block'" />
+                <div class="stmt-logo-fallback">${LOGO_SVG}</div>
+              </div>
               <div class="brand-cell">
                 <div class="logo-company">${esc(brandUpper)}</div>
                 <div class="company-sub">${esc(companyTagline)}</div>
@@ -378,8 +420,11 @@ export function statementHTML(orders: any[], v: any, settings: any = {}, options
           <div class="info-box blueprint-box">
             <div class="info-head">ARAÇ İNCELEME ŞEMASI</div>
             <div class="blueprint-body">
-              <div class="bp-item">${BLUEPRINT_PLAN_SVG}<div class="inspect-cap">Üstten Görünüm</div></div>
-              <div class="bp-item">${BLUEPRINT_SIDE_SVG}<div class="inspect-cap">Yandan Görünüm</div></div>
+              <div class="bp-row">
+                <div class="bp-cell">${BLUEPRINT_PLAN_SVG}<div class="inspect-cap">Üstten Görünüm</div></div>
+                <div class="bp-cell">${BLUEPRINT_SIDE_SVG}<div class="inspect-cap">Yandan Görünüm</div></div>
+              </div>
+              <div class="bp-large">${BLUEPRINT_FRONT_SVG}<div class="inspect-cap">Önden Görünüm</div></div>
             </div>
           </div>
         </div>
@@ -410,7 +455,7 @@ export function statementHTML(orders: any[], v: any, settings: any = {}, options
         <div class="totals-summary">
           <div class="total-row"><div class="total-inner"><span class="total-label">Ara Toplam:</span><span class="total-value">${money(tnet, false)}</span></div></div>
           <div class="total-row"><div class="total-inner"><span class="total-label">%${numfmt(vatRateLabel)} KDV:</span><span class="total-value">${money(vatTotal, false)}</span></div></div>
-          <div class="grand-row"><div class="grand-inner"><span class="grand-label">GENEL TOPLAM:</span><span class="grand-value">${money(grandTotal, false)}</span></div></div>
+          <div class="grand-row"><div class="grand-inner"><span class="grand-label">KDV DAHİL GENEL TOPLAM:</span><span class="grand-value">${money(grandTotal, false)}</span></div></div>
         </div>
       </div>
 
@@ -440,6 +485,22 @@ export function statementHTML(orders: any[], v: any, settings: any = {}, options
       </div>
     </div>
   `;
+}
+
+/**
+ * html2canvas, DOM'a eklenen görsellerin yüklenmesini beklemez. Logo gibi
+ * gerçek görsellerin PDF'e girmesi için load/error olaylarını bekleriz.
+ * Görsel yoksa `onerror` yedeği devreye girer ve PDF yine eksiksiz üretilir.
+ */
+async function waitForImages(root: HTMLElement) {
+  const imgs = Array.from(root.querySelectorAll('img'));
+  await Promise.all(imgs.map((img) => {
+    if (img.complete) return Promise.resolve();
+    return new Promise<void>((resolve) => {
+      img.addEventListener('load', () => resolve(), { once: true });
+      img.addEventListener('error', () => resolve(), { once: true });
+    });
+  }));
 }
 
 export async function exportStatementPDF(
@@ -473,6 +534,7 @@ export async function exportStatementPDF(
     document.body.appendChild(host);
 
     try {
+      await waitForImages(host);
       try { await (document as any).fonts?.ready; } catch {}
 
       const stmtEl = host.querySelector('#stmt') as HTMLElement;
