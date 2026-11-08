@@ -99,22 +99,20 @@ test.describe('7) Kurumsal Servis Dökümü (PDF) — şablon & tasarım', () =>
     expect(html).toContain('MÜŞTERİ BİLGİLERİ');
     expect(html).toContain('ARAÇ BİLGİLERİ');
 
-    // Profesyonel SVG inceleme şeması; eski amatör kutu tamamen kaldırıldı
-    expect(html).toContain('inspect-svg');
+    // Araç inceleme şeması: harici görsel; eski amatör kutu ve SVG yok.
     expect(html).toContain('ARAÇ İNCELEME ŞEMASI');
-    expect(html).toContain('Üstten Görünüm');
-    expect(html).toContain('Yandan Görünüm');
     expect(html).not.toContain('ARAÇ GÖRÜNÜMÜ');
     expect(html).not.toContain('class="blueprint"');
 
-    // STRICT PDF şartnamesi: 3 görünümlü yazıcı dostu kroki (saf beyaz zemin,
-    // koyu slate çizgiler), Inter tipografi, lacivert toplam kutusu, zebra
-    // satırlar ve %6 filigran.
-    expect(html).toContain('Önden Görünüm');
-    expect(html).toContain('stroke="#1E293B"');
-    expect(html).toContain('stroke="#334155"');
-    expect(html).toContain('stroke-width="1.4"');
-    expect(html).toContain('fill="none"');
+    // STRICT PDF şartnamesi: araç krokisi artık harici `blueprint.png`
+    // görselinden gelir; AI tarafından çizilen SVG geometrisi kaldırıldı.
+    // Zemin beyaz, metinler koyu slate, filigran %6.
+    expect(html).toContain('src="/blueprint.png"');
+    expect(html).toContain('alt="Araç Krokisi"');
+    expect(html).toContain('max-height: 180px');
+    expect(html).toContain('object-fit: contain');
+    expect(html).not.toContain('inspect-svg');
+    expect(html).not.toContain('bp-row');
     expect(html).toContain('background:#FFFFFF');
     expect(html).not.toContain('#1E40AF');
     expect(html).not.toContain('#1E3A8A');
@@ -189,7 +187,7 @@ test.describe('7) Kurumsal Servis Dökümü (PDF) — şablon & tasarım', () =>
       return res;
     }, html);
     expect(logo.hasImg, 'gerçek logo <img> öğesi bulunamadı').toBe(true);
-    expect(logo.src, 'logo kaynağı logo.jpeg olmalı').toContain('logo.jpeg');
+    expect(logo.src, 'logo kaynağı logo.png olmalı').toContain('logo.png');
     expect(logo.alt, 'logo alt metni kurumsal olmalı').toContain('Logo');
     expect(logo.hasFallback, 'logo yedek amblemi bulunamadı').toBe(true);
     expect(logo.shapes, 'yedek amblem vektör şekilleri içermeli').toBeGreaterThan(0);
@@ -347,7 +345,7 @@ test.describe('7) Kurumsal Servis Dökümü (PDF) — uçtan uca üretim', () =>
     // 4) Görsel kontrol: gerçek logo dosyası servis ediliyor ve başlıkta
     // 56px yüksekliğinde render ediliyor; dosya yoksa vektör yedeği hazır.
     expect(html).toContain('stmt-logo-img');
-    expect(html).toContain('logo.jpeg');
+    expect(html).toContain('logo.png');
     const logo = await page.evaluate((h) => {
       const host = document.createElement('div');
       host.style.cssText = 'position:fixed;left:0;top:0;width:794px;background:#fff;';
@@ -366,7 +364,7 @@ test.describe('7) Kurumsal Servis Dökümü (PDF) — uçtan uca üretim', () =>
       return res;
     }, html);
     expect(logo.hasImg, 'gerçek logo <img> öğesi bulunamadı').toBe(true);
-    expect(logo.imgSrc, 'logo kaynağı logo.jpeg olmalı').toContain('logo.jpeg');
+    expect(logo.imgSrc, 'logo kaynağı logo.png olmalı').toContain('logo.png');
     expect(logo.imgHeight, 'logo yüksekliği 56px olmalı').toBeGreaterThanOrEqual(50);
     expect(logo.hasFallback, 'logo yedek amblemi bulunamadı').toBe(true);
     expect(logo.shapes, 'yedek amblem vektör şekilleri içermeli').toBeGreaterThan(0);
@@ -374,15 +372,15 @@ test.describe('7) Kurumsal Servis Dökümü (PDF) — uçtan uca üretim', () =>
     // Logo dosyası gerçekten yüklenebiliyor mu? (kırık görsel olmamalı)
     const logoFile = await page.evaluate(async () => {
       const img = new Image();
-      img.src = '/logo.jpeg';
+      img.src = '/logo.png';
       await new Promise<void>((resolve) => {
         img.addEventListener('load', () => resolve(), { once: true });
         img.addEventListener('error', () => resolve(), { once: true });
       });
       return { complete: img.complete, width: img.naturalWidth, height: img.naturalHeight };
     });
-    expect(logoFile.width, 'logo.jpeg gerçek bir görsel olmalı').toBeGreaterThan(0);
-    expect(logoFile.height, 'logo.jpeg gerçek bir görsel olmalı').toBeGreaterThan(0);
+    expect(logoFile.width, 'logo.png gerçek bir görsel olmalı').toBeGreaterThan(0);
+    expect(logoFile.height, 'logo.png gerçek bir görsel olmalı').toBeGreaterThan(0);
 
     // Hiçbir beklenmedik hata (pageerror / console error) olmamalı
     expect(errors, errors.join('\n')).toEqual([]);

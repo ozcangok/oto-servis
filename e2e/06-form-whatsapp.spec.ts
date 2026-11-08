@@ -74,4 +74,28 @@ test.describe('6) Form doğrulama ve harici entegrasyon', () => {
     const text = decodeURIComponent(href!.split('text=')[1] || '');
     expect(text).toContain('06 B 1234');
   });
+
+  test('"Gönderildi say" hatırlatıcıyı çözümler, rozeti gizler ve hata üretmez', async ({ page }) => {
+    const errors: string[] = [];
+    page.on('pageerror', (e) => errors.push(e.message));
+
+    await login(page, OWNER);
+    await page.getByRole('tab', { name: 'Hatırlatıcılar' }).click();
+
+    const badge = page.locator('.menu-item[href="#/hatirlaticilar"] .cnt');
+    await expect(badge, 'başlangıçta çözülmemiş hatırlatıcı rozeti görünmeli').toHaveText('1');
+
+    const card = page.locator('.rem', { hasText: '06 B 1234' }).first();
+    await expect(card).toBeVisible();
+    await card.getByRole('button', { name: 'Gönderildi say' }).click();
+
+    // Başarı tosti görünmeli; "Hatırlatıcı çözümlenemedi" hatası ASLA çıkmamalı.
+    await expect(page.locator('#toast')).toContainText('Hatırlatıcı çözümlendi');
+    await expect(page.locator('#toast')).not.toContainText('Hatırlatıcı çözümlenemedi');
+
+    // İstemci kaydı resolved:true olarak işaretler; rozet 0 olur ve tamamen gizlenir.
+    await expect(badge, 'çözümleme sonrası rozet gizlenmeli').toHaveCount(0);
+    await expect(card, 'çözümlenen hatırlatıcı listeden kalkmalı').toHaveCount(0);
+    expect(errors, errors.join('\n')).toEqual([]);
+  });
 });

@@ -50,106 +50,11 @@ const LOGO_SVG = `
 </svg>`;
 
 /**
- * 3 görünümlü mühendislik krokisi — yazıcı dostu saf beyaz zemin üzerinde
- * koyu slate çizgiler. Üstten, yandan ve önden modern sedan vektörleri.
- *
- * Not: Bu çizimler mürekkep tasarrufu için dolgusuzdur; yalnızca ince
- * kontur çizgileri kullanır. Oranlar gerçek bir sedan siluetine göre
- * (uzun kaput, eğimli ön cam, akıcı tavan, kısa bagaj) kurgulanmıştır.
+ * Araç inceleme şeması artık AI tarafından çizilen SVG geometrisi yerine
+ * harici `public/blueprint.png` görselinden gelir. Kullanıcı yüksek
+ * çözünürlüklü, kurumsal krokiyi bu dizine bırakır; PDF motoru görseli
+ * `max-height:180px` ve `object-fit:contain` ile ölçekler.
  */
-const BLUEPRINT_PLAN_SVG = `
-<svg class="inspect-svg" viewBox="0 0 320 140" width="320" height="140" preserveAspectRatio="xMidYMid meet" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
-  <g stroke="#1E293B" stroke-width="1.4" fill="none" stroke-linejoin="round" stroke-linecap="round">
-    <path d="M36 42 C44 30 58 24 74 22 L126 18 C146 17 174 17 194 18 L246 22 C262 24 276 30 284 42 L296 60 L296 80 L284 98 C276 110 262 116 246 118 L194 122 C174 123 146 123 126 122 L74 118 C58 116 44 110 36 98 L24 80 L24 60 Z"/>
-    <rect x="64" y="10" width="34" height="11" rx="5.5"/>
-    <rect x="64" y="119" width="34" height="11" rx="5.5"/>
-    <rect x="222" y="10" width="34" height="11" rx="5.5"/>
-    <rect x="222" y="119" width="34" height="11" rx="5.5"/>
-    <path d="M100 22 L90 12 L96 10 L106 20 Z"/>
-    <path d="M100 118 L90 128 L96 130 L106 120 Z"/>
-    <path d="M30 46 L48 44 L48 54 L30 56 Z"/>
-    <path d="M30 94 L48 96 L48 86 L30 84 Z"/>
-    <path d="M286 44 L298 46 L298 54 L286 52 Z"/>
-    <path d="M286 96 L298 94 L298 86 L286 88 Z"/>
-    <rect x="18" y="62" width="10" height="16" rx="2"/>
-  </g>
-  <g stroke="#334155" stroke-width="1.1" fill="none" stroke-linejoin="round" stroke-linecap="round">
-    <path d="M100 22 C112 38 112 102 100 118"/>
-    <path d="M124 19 L124 121"/>
-    <path d="M198 19 L198 121"/>
-    <path d="M222 22 C210 38 210 102 222 118"/>
-    <rect x="138" y="42" width="46" height="56" rx="6"/>
-    <path d="M44 58 C70 54 90 54 98 58"/>
-    <path d="M44 82 C70 86 90 86 98 82"/>
-    <path d="M250 30 L250 110"/>
-    <path d="M138 19 L138 30 M138 110 L138 121"/>
-    <path d="M186 19 L186 30 M186 110 L186 121"/>
-    <path d="M44 70 L96 70"/>
-    <path d="M226 70 L290 70"/>
-  </g>
-  <g fill="#334155">
-    <circle cx="16" cy="16" r="1.4"/><circle cx="304" cy="16" r="1.4"/>
-    <circle cx="16" cy="124" r="1.4"/><circle cx="304" cy="124" r="1.4"/>
-  </g>
-</svg>`;
-
-const BLUEPRINT_SIDE_SVG = `
-<svg class="inspect-svg" viewBox="0 0 320 140" width="320" height="140" preserveAspectRatio="xMidYMid meet" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
-  <g stroke="#1E293B" stroke-width="1.4" fill="none" stroke-linejoin="round" stroke-linecap="round">
-    <circle cx="72" cy="104" r="20"/>
-    <circle cx="72" cy="104" r="10"/>
-    <circle cx="248" cy="104" r="20"/>
-    <circle cx="248" cy="104" r="10"/>
-    <path d="M16 96 L16 84 C16 78 20 74 28 72 L92 64 C100 63 106 59 112 53 L134 34 C140 29 148 27 156 27 L194 27 C204 27 212 30 218 36 L244 60 L288 64 C298 65 304 70 304 78 L304 96 L268 96 C268 85 260 78 248 78 C236 78 228 85 228 96 L92 96 C92 85 84 78 72 78 C60 78 52 85 52 96 Z"/>
-    <path d="M112 54 L102 50 L100 56 L110 60 Z"/>
-    <path d="M20 80 L38 78 L40 86 L22 88 Z"/>
-    <path d="M292 70 L302 72 L302 80 L292 78 Z"/>
-  </g>
-  <g stroke="#334155" stroke-width="1.1" fill="none" stroke-linejoin="round" stroke-linecap="round">
-    <path d="M118 54 L138 36 L158 36 L158 58 L118 58 Z"/>
-    <path d="M164 36 L194 36 L214 58 L164 58 Z"/>
-    <path d="M160 58 L160 94 M214 58 L214 94"/>
-    <path d="M136 68 L152 68 M172 68 L188 68"/>
-    <path d="M34 82 C120 78 220 78 292 82"/>
-    <path d="M72 94 L72 114 M62 104 L82 104 M65 97 L79 111 M79 97 L65 111"/>
-    <path d="M248 94 L248 114 M238 104 L258 104 M241 97 L255 111 M255 97 L241 111"/>
-    <circle cx="280" cy="76" r="3"/>
-  </g>
-  <g fill="#334155">
-    <circle cx="16" cy="16" r="1.4"/><circle cx="304" cy="16" r="1.4"/>
-    <circle cx="16" cy="124" r="1.4"/><circle cx="304" cy="124" r="1.4"/>
-  </g>
-</svg>`;
-
-const BLUEPRINT_FRONT_SVG = `
-<svg class="inspect-svg" viewBox="0 0 320 140" width="320" height="140" preserveAspectRatio="xMidYMid meet" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
-  <g stroke="#1E293B" stroke-width="1.4" fill="none" stroke-linejoin="round" stroke-linecap="round">
-    <ellipse cx="78" cy="114" rx="16" ry="7"/>
-    <ellipse cx="242" cy="114" rx="16" ry="7"/>
-    <path d="M160 22 C142 22 128 26 120 34 L108 46 C100 56 94 68 92 80 L86 102 C84 110 88 114 96 116 L224 116 C232 114 236 110 234 102 L228 80 C226 68 220 56 212 46 L200 34 C192 26 178 22 160 22 Z"/>
-    <path d="M92 52 L74 48 L72 54 L90 58 Z"/>
-    <path d="M228 52 L246 48 L248 54 L230 58 Z"/>
-    <path d="M90 54 L126 50 L128 64 L92 68 Z"/>
-    <path d="M230 54 L194 50 L192 64 L228 68 Z"/>
-    <circle cx="104" cy="94" r="4"/>
-    <circle cx="216" cy="94" r="4"/>
-  </g>
-  <g stroke="#334155" stroke-width="1.1" fill="none" stroke-linejoin="round" stroke-linecap="round">
-    <path d="M124 34 L196 34 L208 46 L112 46 Z"/>
-    <path d="M112 46 C130 42 190 42 208 46"/>
-    <rect x="132" y="62" width="56" height="24" rx="4"/>
-    <path d="M136 68 L184 68 M136 74 L184 74 M136 80 L184 80"/>
-    <path d="M118 92 L202 92 L198 106 L122 106 Z"/>
-    <path d="M122 96 L198 96 M122 101 L198 101"/>
-    <path d="M120 48 L138 44 M200 48 L182 44"/>
-    <path d="M88 86 L232 86"/>
-    <rect x="144" y="107" width="32" height="7" rx="1"/>
-  </g>
-  <g fill="#334155">
-    <circle cx="16" cy="16" r="1.4"/><circle cx="304" cy="16" r="1.4"/>
-    <circle cx="16" cy="124" r="1.4"/><circle cx="304" cy="124" r="1.4"/>
-  </g>
-</svg>`;
 
 /** Kullanıcı verisini HTML'e güvenli biçimde basar. */
 function esc(s?: any): string {
@@ -310,11 +215,12 @@ export function statementHTML(orders: any[], v: any, settings: any = {}, options
   const brandUpper = brandName.toLocaleUpperCase('tr');
   // Filigran her zaman canlı ayarlardaki tam şirket adından (settings.shopName)
   // üretilir; uzun adlarda taşmayı önlemek için punto uzunluğa göre ölçeklenir.
-  const watermarkText = shopName.toLocaleUpperCase('tr').trim();
+  const watermarkText = (shopName || 'ÇINAR OTOMOTİV').toLocaleUpperCase('tr').trim();
   const watermarkFontSize = Math.max(22, Math.min(62, Math.floor(980 / Math.max(6, watermarkText.length))));
-  // Gerçek kurumsal logo. Dosya `public/logo.jpeg` içine konur; Electron
-  // derlemesinde göreli yol kullanıldığı için BASE_URL ile birleştirilir.
-  const logoUrl = `${import.meta.env.BASE_URL}logo.jpeg`;
+  // Gerçek kurumsal logo ve araç krokisi. Dosyalar `public/` içine konur;
+  // Electron derlemesinde göreli yol kullanıldığı için BASE_URL ile birleştirilir.
+  const logoUrl = `${import.meta.env.BASE_URL}logo.png`;
+  const blueprintUrl = `${import.meta.env.BASE_URL}blueprint.png`;
 
   const css = `
     @page{size:A4;margin:0}
@@ -357,18 +263,14 @@ export function statementHTML(orders: any[], v: any, settings: any = {}, options
     #stmt .info-label{display:table-cell;width:42%;font-size:8px;font-weight:500;color:#64748B;text-transform:uppercase;letter-spacing:.05em;padding-top:1px}
     #stmt .info-value{display:table-cell;width:58%;font-size:9.5px;color:#1E293B;font-weight:400}
 
-    /* 3 görünümlü mühendislik krokisi — yazıcı dostu saf beyaz zemin.
-       Mürekkep tasarrufu için dolgu/grid yok; yalnızca ince slate konturlar. */
+    /* Araç inceleme şeması — harici blueprint.png görseli.
+       AI tarafından çizilen SVG geometrisi kaldırıldı; zemin beyaz,
+       metinler koyu slate. Görsel yoksa temiz bir yer tutucu gösterilir. */
     #stmt .blueprint-box{background:#FFFFFF;border-color:#CBD5E1}
     #stmt .blueprint-box .info-head{background:#FFFFFF;color:#1E293B;border-bottom-color:#CBD5E1}
-    #stmt .blueprint-body{padding:10px 8px 8px;background:#FFFFFF}
-    #stmt .bp-row{display:table;width:100%;table-layout:fixed;margin-bottom:4px}
-    #stmt .bp-cell{display:table-cell;width:50%;text-align:center;vertical-align:top;padding:0 2px}
-    #stmt .bp-large{text-align:center}
-    #stmt .inspect-svg{display:block;margin:0 auto}
-    #stmt .bp-cell .inspect-svg{width:118px;height:54px}
-    #stmt .bp-large .inspect-svg{width:238px;height:80px}
-    #stmt .inspect-cap{font-family:"Inter","Segoe UI",system-ui,-apple-system,sans-serif;font-size:7px;font-weight:500;color:#475569;text-transform:uppercase;letter-spacing:.08em;margin-top:1px}
+    #stmt .blueprint-body{padding:10px 8px 8px;background:#FFFFFF;display:flex;align-items:center;justify-content:center;min-height:148px}
+    #stmt .blueprint-image-wrap{width:100%;text-align:center}
+    #stmt .blueprint-missing{display:none;width:100%;min-height:140px;align-items:center;justify-content:center;border:1px dashed #CBD5E1;border-radius:8px;color:#475569;font-size:9px;line-height:1.5;text-align:center;padding:12px}
 
     /* Ürün/işlem matrisi — yalnızca yatay çizgiler */
     #stmt .items-table{width:100%;border-collapse:collapse;margin-bottom:16px}
@@ -481,11 +383,10 @@ export function statementHTML(orders: any[], v: any, settings: any = {}, options
           <div class="info-box blueprint-box">
             <div class="info-head">ARAÇ İNCELEME ŞEMASI</div>
             <div class="blueprint-body">
-              <div class="bp-row">
-                <div class="bp-cell">${BLUEPRINT_PLAN_SVG}<div class="inspect-cap">Üstten Görünüm</div></div>
-                <div class="bp-cell">${BLUEPRINT_FRONT_SVG}<div class="inspect-cap">Önden Görünüm</div></div>
+              <div class="blueprint-image-wrap">
+                <img src="${blueprintUrl}" alt="Araç Krokisi" style="width: 100%; height: auto; max-height: 180px; object-fit: contain;" onerror="this.style.display='none';this.nextElementSibling.style.display='flex'" />
+                <div class="blueprint-missing"><div>Araç krokisi görseli<br /><b>public/blueprint.png</b><br />eklendiğinde burada görünecek.</div></div>
               </div>
-              <div class="bp-large">${BLUEPRINT_SIDE_SVG}<div class="inspect-cap">Yandan Görünüm</div></div>
             </div>
           </div>
         </div>
