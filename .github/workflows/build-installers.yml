@@ -96,6 +96,11 @@ jobs:
           OTO_APP_VERSION: ${{ needs.prep.outputs.version }}
           NODE_OPTIONS: --max-old-space-size=4096
           ELECTRON_BUILD: 1
+          # macOS CI'da electron-builder dosyaları hard link ile kopyalar.
+          # Hoisted bir bağımlılık dosya listesinde iki kez görünürse ikinci
+          # link() çağrısı "EEXIST: file already exists" ile patlar. Bu yüzden
+          # hard link kapatılır; normal kopyalama mevcut dosyanın üzerine yazar.
+          USE_HARD_LINKS: 'false'
 
       - name: Yükle (macOS)
         uses: actions/upload-artifact@v4
