@@ -57,9 +57,10 @@ jobs:
   macos:
     name: macOS (.dmg + .zip)
     needs: prep
-    # Sabit imaj: `macos-latest` beklenmedik şekilde yeni bir imaja geçebilir.
-    # macos-15 = Apple Silicon (arm64) imajı.
-    runs-on: macos-15
+    # arm64 (Apple Silicon) barındırılan runner'larda kalıcı kapasite sıkıntısı
+    # yaşandığı için Intel imajı kullanılır. electron-builder hem arm64 hem
+    # x64 hedefini buradan üretebilir (arm64 native modüller çapraz derlenir).
+    runs-on: macos-15-intel
     steps:
       - name: Depoyu çek
         uses: actions/checkout@v4
