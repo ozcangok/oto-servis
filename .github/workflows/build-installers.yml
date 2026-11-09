@@ -57,7 +57,9 @@ jobs:
   macos:
     name: macOS (.dmg + .zip)
     needs: prep
-    runs-on: macos-latest
+    # Sabit imaj: `macos-latest` beklenmedik şekilde yeni bir imaja geçebilir.
+    # macos-15 = Apple Silicon (arm64) imajı.
+    runs-on: macos-15
     steps:
       - name: Depoyu çek
         uses: actions/checkout@v4
