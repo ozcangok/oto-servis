@@ -111,8 +111,32 @@ freshDir(staging);
 // ---------------------------------------------------------------------------
 const electronOut = path.join(staging, 'packages', 'electron');
 fs.mkdirSync(electronOut, { recursive: true });
-for (const file of ['main.cjs', 'preload.cjs', 'backup.cjs']) {
+// Tüm ana süreç modüllerini (.cjs) kopyala. Liste elle tutulmaz; yeni bir
+// modül eklendiğinde (ör. archive.cjs) paketlemede unutulması önlenir.
+const electronModules = fs
+  .readdirSync(electronDir)
+  .filter((file) => file.endsWith('.cjs'))
+  .sort();
+if (electronModules.length === 0) {
+  fail(`paketlenecek .cjs modülü bulunamadı: ${electronDir}`);
+}
+for (const file of electronModules) {
   copy(path.join(electronDir, file), path.join(electronOut, file));
+}
+log(`electron modülleri kopyalandı: ${electronModules.join(', ')}`);
+
+// Yerel require hedeflerinin staging'de gerçekten bulunduğunu doğrula.
+// (Örn. main.cjs -> ./archive.cjs unutulursa paket açılışta çöker.)
+for (const file of electronModules) {
+  const source = fs.readFileSync(path.join(electronOut, file), 'utf8');
+  const localRequire = /require\(['"](\.\/[^'"]+\.cjs)['"]\)/g;
+  let match;
+  while ((match = localRequire.exec(source)) !== null) {
+    const target = path.join(electronOut, match[1]);
+    if (!fs.existsSync(target)) {
+      fail(`${file} içindeki yerel modül paketlenmemiş: ${match[1]}`);
+    }
+  }
 }
 
 // electron-builder'ın buildResources dizini (ikonlar: icon.icns / icon.ico)

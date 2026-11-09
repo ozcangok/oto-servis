@@ -31,7 +31,14 @@ const SHUTDOWN_MIN_MS = 10_000;
 const SERVER_STOP_TIMEOUT_MS = 5_000;
 
 /** Kurumsal logo (pdfExport.ts ile aynı kaynağa bağlanır: public/logo.png). */
-const LOGO_PATH = path.join(__dirname, '../../client/public/logo.png');
+// Paketlenmiş uygulamada Vite, public/logo.png dosyasını client/dist köküne
+// kopyalar; geliştirmede ise client/public altındadır. İkisini de destekle.
+const LOGO_PATH =
+  [
+    path.join(__dirname, '../client/dist/logo.png'),
+    path.join(__dirname, '../client/public/logo.png'),
+  ].find((candidate) => fs.existsSync(candidate)) ||
+  path.join(__dirname, '../client/public/logo.png');
 
 /**
  * Yerel duman testi (smoke test) — YALNIZCA geliştirme/doğrulama içindir:
