@@ -59,6 +59,11 @@ mac:
 
 dmg:
   title: "Oto Servis Yönetimi"
+  # Arka plan GÖRÜNTÜSÜ kullanılmıyor: dmg-builder'ın gömülü mac_alias
+  # sürümü, APFS'te 32 bit'i aşan dosya kimliklerini serileştiremiyor ve
+  # "struct.error: 'I' format requires 0 <= number <= 4294967295" ile
+  # patlıyor. Düz renk arka plan bu kod yolunu tamamen atlar.
+  backgroundColor: "#ffffff"
   artifactName: "Oto-Servis-${version}-${arch}.${ext}"
 
 win:
