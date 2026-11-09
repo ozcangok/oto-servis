@@ -8,6 +8,10 @@ dist/
 build/
 .tsbuildinfo
 
+# electron-builder buildResources (uygulama ikonları) depoda tutulur
+!packages/electron/build/
+!packages/electron/build/**
+
 # Electron masaüstü paketleme (staging + kurulum çıktıları)
 packages/electron/dist-app/
 packages/electron/dist-electron/

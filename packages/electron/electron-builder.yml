@@ -42,6 +42,8 @@ files:
 
 mac:
   category: public.app-category.business
+  # packages/electron/build/icon.icns (generate-icons.cjs ile üretilir)
+  icon: icon.icns
   target:
     # .dmg = elle kurulum; .zip = electron-updater (Squirrel.Mac) güncellemesi
     - target: dmg
@@ -67,6 +69,8 @@ dmg:
   artifactName: "Oto-Servis-${version}-${arch}.${ext}"
 
 win:
+  # packages/electron/build/icon.ico (generate-icons.cjs ile üretilir)
+  icon: icon.ico
   target:
     - target: nsis
       arch:

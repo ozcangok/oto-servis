@@ -115,6 +115,15 @@ for (const file of ['main.cjs', 'preload.cjs', 'backup.cjs']) {
   copy(path.join(electronDir, file), path.join(electronOut, file));
 }
 
+// electron-builder'ın buildResources dizini (ikonlar: icon.icns / icon.ico)
+const buildResourcesDir = path.join(electronDir, 'build');
+if (fs.existsSync(buildResourcesDir)) {
+  copy(buildResourcesDir, path.join(staging, 'build'));
+  log('build kaynakları kopyalandı (ikonlar)');
+} else {
+  fail(`build kaynakları bulunamadı: ${buildResourcesDir}. Önce "npm run icons" çalıştırın.`);
+}
+
 copy(path.join(serverDir, 'dist'), path.join(staging, 'packages', 'server', 'dist'));
 copy(path.join(serverDir, 'package.json'), path.join(staging, 'packages', 'server', 'package.json'));
 

@@ -5,6 +5,7 @@
   "scripts": {
     "start": "electron .",
     "test": "node --test tests",
+    "icons": "node scripts/generate-icons.cjs",
     "prepare-app": "node scripts/prepare-app.cjs",
     "dist:dir": "npm run prepare-app && electron-builder --project dist-app --dir --publish never",
     "dist:mac": "npm run prepare-app && electron-builder --project dist-app --mac --publish never",
