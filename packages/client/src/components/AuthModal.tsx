@@ -7,6 +7,7 @@ interface AuthModalProps {
 
 export const AuthModal: React.FC<AuthModalProps> = ({ onSuccess }) => {
   const [isSetup, setIsSetup] = useState(false);
+  const [checkingSetup, setCheckingSetup] = useState(true);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -17,22 +18,43 @@ export const AuthModal: React.FC<AuthModalProps> = ({ onSuccess }) => {
   const [unlocked, setUnlocked] = useState(false);
 
   useEffect(() => {
-    checkSetupStatus();
-  }, []);
+    let cancelled = false;
 
-  const checkSetupStatus = async () => {
-    try {
-      const res = await apiRequest('/auth/setup-status');
-      if (res.needed) {
-        setIsSetup(true);
-        setUsername('sezer çınar');
-        setPassword('');
-        setFullName('Sezer Çınar');
+    const checkSetupStatus = async () => {
+      // Gömülü sunucu (özellikle Windows'ta ilk açılışta) pencere hazır
+      // olduğunda henüz hazır olmamış olabilir. Bu durumda kurulum durumu
+      // sorgusu başarısız olur ve yanlışlıkla giriş ekranı gösterilir.
+      // Kısa aralıklarla birkaç kez yeniden dene.
+      for (let attempt = 0; attempt < 20; attempt += 1) {
+        if (cancelled) return;
+        try {
+          const res = await apiRequest('/auth/setup-status');
+          if (cancelled) return;
+          if (res.needed) {
+            setIsSetup(true);
+            setUsername('sezer çınar');
+            setPassword('');
+            setFullName('Sezer Çınar');
+          }
+          return;
+        } catch (err) {
+          if (attempt === 19) {
+            console.error(err);
+            return;
+          }
+          await new Promise((resolve) => window.setTimeout(resolve, 500));
+        }
       }
-    } catch (err) {
-      console.error(err);
-    }
-  };
+    };
+
+    checkSetupStatus().finally(() => {
+      if (!cancelled) setCheckingSetup(false);
+    });
+
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -136,8 +158,8 @@ export const AuthModal: React.FC<AuthModalProps> = ({ onSuccess }) => {
           </div>
 
           <div className="sheet-foot">
-            <button className="btn btn-primary" type="submit" disabled={loading} style={{ width: '100%' }}>
-              {loading ? 'İşleniyor...' : isSetup ? 'Kurulumu Tamamla' : 'Giriş Yap'}
+            <button className="btn btn-primary" type="submit" disabled={loading || checkingSetup} style={{ width: '100%' }}>
+              {checkingSetup ? 'Sunucuya bağlanılıyor…' : loading ? 'İşleniyor...' : isSetup ? 'Kurulumu Tamamla' : 'Giriş Yap'}
             </button>
           </div>
         </form>

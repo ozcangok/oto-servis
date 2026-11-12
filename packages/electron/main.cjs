@@ -514,6 +514,61 @@ function startEmbeddedServer() {
   });
 }
 
+/**
+ * Gömülü sunucunun `/api/health` yanıtını vermesini bekler.
+ *
+ * Pencere sunucu hazır olmadan açılırsa arayüzdeki ilk
+ * `/auth/setup-status` isteği başarısız olur. İlk kurulumda bu, kurulum
+ * ekranı yerine giriş ekranının gösterilmesine ve "parola hatalı" hatasına
+ * yol açar. Bu yüzden pencereyi açmadan önce sunucuyu bekleriz.
+ */
+function waitForServerHealth(timeoutMs = 30_000) {
+  const startedAt = Date.now();
+  return new Promise((resolve) => {
+    let settled = false;
+
+    const finish = (ok) => {
+      if (settled) return;
+      settled = true;
+      resolve(ok);
+    };
+
+    const attempt = () => {
+      if (settled) return;
+      if (Date.now() - startedAt >= timeoutMs) {
+        finish(false);
+        return;
+      }
+
+      let attemptSettled = false;
+      const retry = () => {
+        if (attemptSettled || settled) return;
+        attemptSettled = true;
+        setTimeout(attempt, 300);
+      };
+
+      const req = http.get(
+        { host: '127.0.0.1', port: SERVER_PORT, path: '/api/health', timeout: 2_000 },
+        (res) => {
+          res.resume();
+          if (res.statusCode === 200) {
+            finish(true);
+            return;
+          }
+          retry();
+        }
+      );
+      req.on('timeout', () => {
+        req.destroy();
+        retry();
+      });
+      req.on('error', retry);
+    };
+
+    attempt();
+  });
+}
+
 /** Gömülü sunucuyu nazikçe kapatır (SQLite WAL düzgün checkpoint edilir). */
 function stopEmbeddedServer() {
   return new Promise((resolve) => {
@@ -745,11 +800,22 @@ ipcMain.handle('update:open-release', async () => {
 /** Dijital arşiv: PDF / iş emri dosyasını masaüstündeki Çınar_Otomotiv_Arsiv'e yazar. */
 ipcMain.handle('archive:save', async (_event, payload) => saveToArchive(payload));
 
-app.whenReady().then(() => {
+app.whenReady().then(async () => {
   buildApplicationMenu();
   startEmbeddedServer();
-  // Small delay to allow fastify server to bind
-  setTimeout(createWindow, 1500);
+
+  // Sunucu hazır olmadan pencereyi açma: ilk kurulum ekranının doğru
+  // görünmesi için `/api/health` yanıtını bekle. Windows'ta ilk açılışta
+  // native modül yüklemesi 1,5 saniyeden uzun sürebildiği için sabit
+  // gecikme yeterli değildir.
+  const serverReady = await waitForServerHealth(30_000);
+  if (!serverReady) {
+    console.error('[ELECTRON] Gömülü sunucu zamanında hazır olmadı; arayüz yine de açılıyor.');
+  }
+
+  if (!isShuttingDown) {
+    createWindow();
+  }
   setupAutoUpdater();
 
   app.on('activate', () => {
