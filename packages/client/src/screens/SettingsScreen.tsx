@@ -38,6 +38,19 @@ export const SettingsScreen: React.FC<SettingsScreenProps> = ({
   const [newPassword2, setNewPassword2] = useState('');
   const [savingCredentials, setSavingCredentials] = useState(false);
 
+  // Personel hesapları (yalnızca yönetici)
+  const [users, setUsers] = useState<any[]>([]);
+  const [usersLoading, setUsersLoading] = useState(false);
+  const [newStaffName, setNewStaffName] = useState('');
+  const [newStaffUsername, setNewStaffUsername] = useState('');
+  const [newStaffPassword, setNewStaffPassword] = useState('');
+  const [newStaffPassword2, setNewStaffPassword2] = useState('');
+  const [creatingStaff, setCreatingStaff] = useState(false);
+  const [resetUserId, setResetUserId] = useState<number | null>(null);
+  const [resetPassword, setResetPassword] = useState('');
+  const [resettingUserId, setResettingUserId] = useState<number | null>(null);
+  const [deletingUserId, setDeletingUserId] = useState<number | null>(null);
+
   // LAN / Mobile QR
   const [lanInfo, setLanInfo] = useState<any | null>(null);
 
@@ -70,6 +83,14 @@ export const SettingsScreen: React.FC<SettingsScreenProps> = ({
   useEffect(() => {
     setNewUsername(currentUser?.username || '');
   }, [currentUser?.username]);
+
+  // Personel listesini yalnızca yönetici için yükle.
+  useEffect(() => {
+    if (isPrivileged(currentUser)) {
+      void loadUsers();
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [currentUser?.id]);
 
   const loadLanInfo = async () => {
     try {
@@ -162,6 +183,111 @@ export const SettingsScreen: React.FC<SettingsScreenProps> = ({
       toast(err.message || 'Hesap bilgileri güncellenemedi.');
     } finally {
       setSavingCredentials(false);
+    }
+  };
+
+  const loadUsers = async () => {
+    setUsersLoading(true);
+    try {
+      const res = await apiRequest('/auth/users');
+      if (res.success) setUsers(res.users || []);
+    } catch (err: any) {
+      toast(err.message || 'Kullanıcılar yüklenemedi.');
+    } finally {
+      setUsersLoading(false);
+    }
+  };
+
+  const handleCreateStaff = async () => {
+    const fullName = newStaffName.trim();
+    const username = newStaffUsername.trim();
+
+    if (fullName.length < 2) {
+      toast('Ad soyad en az 2 karakter olmalıdır.');
+      return;
+    }
+    if (username.length < 3) {
+      toast('Kullanıcı adı en az 3 karakter olmalıdır.');
+      return;
+    }
+    if (newStaffPassword.length < 6) {
+      toast('Parola en az 6 karakter olmalıdır.');
+      return;
+    }
+    if (newStaffPassword !== newStaffPassword2) {
+      toast('Parolalar birbiriyle eşleşmiyor.');
+      return;
+    }
+
+    setCreatingStaff(true);
+    try {
+      await apiRequest('/auth/users', {
+        method: 'POST',
+        body: JSON.stringify({
+          username,
+          password: newStaffPassword,
+          full_name: fullName,
+          role: 'staff'
+        })
+      });
+      toast('Personel hesabı oluşturuldu.');
+      setNewStaffName('');
+      setNewStaffUsername('');
+      setNewStaffPassword('');
+      setNewStaffPassword2('');
+      await loadUsers();
+    } catch (err: any) {
+      toast(err.message || 'Personel hesabı oluşturulamadı.');
+    } finally {
+      setCreatingStaff(false);
+    }
+  };
+
+  const handleResetStaffPassword = async (userId: number) => {
+    if (resetPassword.length < 6) {
+      toast('Yeni parola en az 6 karakter olmalıdır.');
+      return;
+    }
+
+    setResettingUserId(userId);
+    try {
+      await apiRequest(`/auth/users/${userId}/reset-password`, {
+        method: 'POST',
+        body: JSON.stringify({ new_password: resetPassword })
+      });
+      toast('Personel parolası güncellendi.');
+      setResetUserId(null);
+      setResetPassword('');
+    } catch (err: any) {
+      toast(err.message || 'Parola güncellenemedi.');
+    } finally {
+      setResettingUserId(null);
+    }
+  };
+
+  const handleDeleteStaff = async (user: any) => {
+    if (user.role === 'owner') return;
+    if (
+      !window.confirm(
+        `${user.full_name} (${user.username}) hesabını silmek istediğinize emin misiniz?`
+      )
+    ) {
+      return;
+    }
+
+    setDeletingUserId(user.id);
+    try {
+      await apiRequest(`/auth/users/${user.id}`, { method: 'DELETE' });
+      toast('Personel hesabı silindi.');
+      if (resetUserId === user.id) {
+        setResetUserId(null);
+        setResetPassword('');
+      }
+      await loadUsers();
+    } catch (err: any) {
+      toast(err.message || 'Hesap silinemedi.');
+    } finally {
+      setDeletingUserId(null);
     }
   };
 
@@ -429,6 +555,189 @@ export const SettingsScreen: React.FC<SettingsScreenProps> = ({
                 >
                   {savingCredentials ? 'Güncelleniyor...' : 'Hesap Bilgilerini Güncelle'}
                 </button>
+              </div>
+            </>
+          )}
+
+          {isPrivileged(currentUser) && (
+            <>
+              <h3>Personel Hesapları</h3>
+              <p className="muted">
+                Servis çalışanlarınız için ayrı giriş hesabı oluşturun. Personel hesapları
+                yalnızca operasyonel ekranları görür; kasa, gider ve kâr bilgilerine erişemez.
+              </p>
+
+              <div
+                className="list"
+                style={{
+                  border: '1px solid var(--divider)',
+                  borderRadius: '8px',
+                  overflow: 'hidden'
+                }}
+              >
+                {usersLoading ? (
+                  <div className="li" style={{ display: 'block' }}>
+                    Kullanıcılar yükleniyor…
+                  </div>
+                ) : users.length === 0 ? (
+                  <div className="li" style={{ display: 'block' }}>
+                    Henüz kullanıcı yok.
+                  </div>
+                ) : (
+                  users.map((u) => (
+                    <div
+                      className="li"
+                      key={u.id}
+                      style={{
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'space-between',
+                        gap: '12px',
+                        flexWrap: 'wrap'
+                      }}
+                    >
+                      <div style={{ minWidth: 0 }}>
+                        <div style={{ fontWeight: 600 }}>{u.full_name}</div>
+                        <div className="muted" style={{ fontSize: '0.85rem' }}>
+                          {u.username} · {u.role === 'owner' ? 'Patron' : 'Servis Personeli'}
+                        </div>
+                      </div>
+                      {u.role !== 'owner' && (
+                        <div className="row" style={{ gap: '6px' }}>
+                          <button
+                            className="btn btn-ghost btn-sm"
+                            type="button"
+                            onClick={() => {
+                              setResetUserId(resetUserId === u.id ? null : u.id);
+                              setResetPassword('');
+                            }}
+                          >
+                            Parola Sıfırla
+                          </button>
+                          <button
+                            className="btn btn-danger btn-sm"
+                            type="button"
+                            disabled={deletingUserId === u.id}
+                            onClick={() => void handleDeleteStaff(u)}
+                          >
+                            {deletingUserId === u.id ? 'Siliniyor…' : 'Sil'}
+                          </button>
+                        </div>
+                      )}
+                    </div>
+                  ))
+                )}
+              </div>
+
+              {resetUserId !== null && (
+                <div className="grid g2" style={{ alignItems: 'end' }}>
+                  <div className="field">
+                    <label htmlFor="st-reset-password">
+                      Yeni parola —{' '}
+                      {users.find((u) => u.id === resetUserId)?.full_name || 'Personel'}
+                    </label>
+                    <input
+                      id="st-reset-password"
+                      type="password"
+                      autoComplete="new-password"
+                      value={resetPassword}
+                      onChange={(e) => setResetPassword(e.target.value)}
+                      placeholder="En az 6 karakter"
+                    />
+                  </div>
+                  <div className="row">
+                    <button
+                      className="btn btn-primary"
+                      type="button"
+                      disabled={resettingUserId !== null}
+                      onClick={() => void handleResetStaffPassword(resetUserId)}
+                    >
+                      {resettingUserId !== null ? 'Kaydediliyor…' : 'Parolayı Kaydet'}
+                    </button>
+                    <button
+                      className="btn btn-ghost"
+                      type="button"
+                      onClick={() => {
+                        setResetUserId(null);
+                        setResetPassword('');
+                      }}
+                    >
+                      İptal
+                    </button>
+                  </div>
+                </div>
+              )}
+
+              <div
+                style={{
+                  borderTop: '1px solid var(--divider)',
+                  paddingTop: '14px',
+                  display: 'flex',
+                  flexDirection: 'column',
+                  gap: '14px'
+                }}
+              >
+                <div style={{ fontSize: '0.95rem', fontWeight: 600 }}>Yeni personel hesabı</div>
+
+                <div className="grid g2">
+                  <div className="field">
+                    <label htmlFor="st-staff-name">Ad Soyad</label>
+                    <input
+                      id="st-staff-name"
+                      type="text"
+                      value={newStaffName}
+                      onChange={(e) => setNewStaffName(e.target.value)}
+                      placeholder="Örn. Ahmet Yılmaz"
+                    />
+                  </div>
+                  <div className="field">
+                    <label htmlFor="st-staff-username">Kullanıcı Adı</label>
+                    <input
+                      id="st-staff-username"
+                      type="text"
+                      autoComplete="off"
+                      value={newStaffUsername}
+                      onChange={(e) => setNewStaffUsername(e.target.value)}
+                      placeholder="Örn. ahmet"
+                    />
+                  </div>
+                </div>
+
+                <div className="grid g2">
+                  <div className="field">
+                    <label htmlFor="st-staff-password">Parola</label>
+                    <input
+                      id="st-staff-password"
+                      type="password"
+                      autoComplete="new-password"
+                      value={newStaffPassword}
+                      onChange={(e) => setNewStaffPassword(e.target.value)}
+                      placeholder="En az 6 karakter"
+                    />
+                  </div>
+                  <div className="field">
+                    <label htmlFor="st-staff-password2">Parola (tekrar)</label>
+                    <input
+                      id="st-staff-password2"
+                      type="password"
+                      autoComplete="new-password"
+                      value={newStaffPassword2}
+                      onChange={(e) => setNewStaffPassword2(e.target.value)}
+                      placeholder="Parolayı tekrar girin"
+                    />
+                  </div>
+                </div>
+
+                <div className="row">
+                  <button
+                    className="btn btn-primary"
+                    type="button"
+                    disabled={creatingStaff}
+                    onClick={() => void handleCreateStaff()}
+                  >
+                    {creatingStaff ? 'Oluşturuluyor…' : 'Personel Ekle'}
+                  </button>
+                </div>
               </div>
             </>
           )}
